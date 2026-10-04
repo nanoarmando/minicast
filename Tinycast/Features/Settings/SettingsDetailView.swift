@@ -4,12 +4,14 @@ import Perception
 /// The pane column: whichever pane the history currently points at.
 struct SettingsDetailView: View {
     @Environment(SettingsNavigationState.self) private var navigation
+    /// Nil until the first switch, so the opening pane is whatever Settings was opened at.
+    @State private var displayedTab: SettingsTab?
 
     var body: some View {
         WithPerceptionTracking {
             // Not a `TabView`: `NSTabView` re-hosts on selection and breaks the recorder.
             Group {
-                switch navigation.tab {
+                switch displayedTab ?? navigation.tab {
                 case .general: GeneralSettingsView()
                 case .applications: ApplicationsSettingsView()
                 case .systemSettings: SystemSettingsSettingsView()
@@ -33,6 +35,12 @@ struct SettingsDetailView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // One host for every pane, above their scroll views so a callout is never clipped.
             .shortcutRecorderPopoverHost()
+            // One frame late, so the sidebar highlight paints before the heavy pane builds.
+            .task(id: navigation.tab) {
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                displayedTab = navigation.tab
+            }
         }
     }
 }

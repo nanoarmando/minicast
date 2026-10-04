@@ -7,8 +7,10 @@ struct OverflowFadeMask: ViewModifier {
     var band: CGFloat = 24
     var includesTop = false
 
-    /// Content hidden beyond each visible edge, 0 while the list rests against it.
-    @State private var overflow = Overflow()
+    /// Content hidden beyond each visible edge; nil until measured, which fades both edges.
+    @State private var measured: Overflow?
+
+    private var overflow: Overflow { measured ?? Overflow(top: band, bottom: band) }
 
     private struct Overflow: Equatable {
         var top: CGFloat = 0
@@ -24,7 +26,7 @@ struct OverflowFadeMask: ViewModifier {
                         bottom: geo.contentSize.height + geo.contentInsets.bottom
                             - geo.containerSize.height - geo.contentOffset.y)
                 } action: { _, new in
-                    overflow = Overflow(top: max(0, new.top), bottom: max(0, new.bottom))
+                    measured = Overflow(top: max(0, new.top), bottom: max(0, new.bottom))
                 }
                 .mask(
                     GeometryReader { geo in

@@ -5,8 +5,9 @@ hotkeys, a text/image clipboard history, an inline calculator, file search, wind
 AI chat, quick actions and an emoji picker. It also **runs Raycast extensions** natively, in
 JavaScriptCore. SwiftUI + AppKit, running as an accessory with no Dock icon (`LSUIElement`).
 
-Upstream is not merged. Planning lives in OpenSpec (`openspec/`); the port is the change
-`openspec/changes/port-to-macos-13/`. The docs under `docs/` and `website/` describe upstream and are not
+Upstream is not merged. Planning lives in OpenSpec (`openspec/`): current behavior in
+`openspec/specs/`, the port in `openspec/changes/archive/2026-10-04-port-to-macos-13/`, open work in
+`openspec/changes/`. The docs under `docs/` and `website/` describe upstream and are not
 kept in sync with the fork; this file and `README.md` win when they disagree.
 
 ## Posture: macOS 13 floor, one code path

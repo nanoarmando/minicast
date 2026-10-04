@@ -12,10 +12,8 @@ struct EdgeDissolveMask: ViewModifier {
     private static let bottomMinAlpha: CGFloat = 0.25
     @Environment(\.metrics) private var metrics
 
-    /// How much content is hidden beyond each edge, 0 when the list rests against it.
-    @State private var topDistance: CGFloat = 0
-    @State private var bottomDistance: CGFloat = 0
-    @State private var canScroll = false
+    /// Nil until measured, so rows never sit opaque under the bars while the probe attaches.
+    @State private var scroll: ScrollState?
 
     private struct ScrollState: Equatable {
         var top: CGFloat
@@ -37,9 +35,8 @@ struct EdgeDissolveMask: ViewModifier {
                         canScroll: geo.contentSize.height > visible
                     )
                 } action: { _, new in
-                    topDistance = max(0, new.top)
-                    bottomDistance = max(0, new.bottom)
-                    canScroll = new.canScroll
+                    scroll = ScrollState(
+                        top: max(0, new.top), bottom: max(0, new.bottom), canScroll: new.canScroll)
                 }
                 .mask(
                     // Must span the scroll view's *full* frame — the bars' safe-area insets would otherwise shift the gradient inward, clipping the underlap regions to black.
@@ -57,10 +54,11 @@ struct EdgeDissolveMask: ViewModifier {
     }
 
     private func stops(height: CGFloat) -> [Gradient.Stop] {
-        guard canScroll, height > 0 else { return [.init(color: .black, location: 0)] }
+        let state = scroll ?? ScrollState(top: topFade, bottom: bottomFade, canScroll: true)
+        guard state.canScroll, height > 0 else { return [.init(color: .black, location: 0)] }
         // Midpoint alpha eases from 1 toward the floor as a full band of content scrolls past.
-        let topAlpha = 1 - (1 - Self.topMinAlpha) * min(topDistance / topFade, 1)
-        let bottomAlpha = 1 - (1 - Self.bottomMinAlpha) * min(bottomDistance / bottomFade, 1)
+        let topAlpha = 1 - (1 - Self.topMinAlpha) * min(state.top / topFade, 1)
+        let bottomAlpha = 1 - (1 - Self.bottomMinAlpha) * min(state.bottom / bottomFade, 1)
         return [
             .init(color: .black.opacity(0), location: 0),
             .init(color: .black.opacity(topAlpha), location: topFade / 2 / height),

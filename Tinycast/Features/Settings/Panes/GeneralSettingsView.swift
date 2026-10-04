@@ -207,7 +207,11 @@ struct GeneralSettingsView: View {
             } message: {
                 Text("Tinycast will relearn your preferred results as you use the launcher.")
             }
-            .onAppear(perform: refreshInputSources)
+            .task {
+                // After the first frame: TIS enumeration is slow and must stay on main.
+                await Task.yield()
+                refreshInputSources()
+            }
             .onReceive(
                 DistributedNotificationCenter.default().publisher(
                     for: InputSourceSwitcher.sourcesDidChange)

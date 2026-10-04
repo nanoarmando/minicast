@@ -1,7 +1,7 @@
 import AppKit
 
 enum MeetingLauncher {
-    struct Browser: Identifiable, Hashable {
+    struct Browser: Identifiable, Hashable, Sendable {
         let id: String
         let name: String
     }
@@ -27,8 +27,7 @@ enum MeetingLauncher {
     }
 
     /// Every app that opens `https`, one per bundle ID, sorted by name.
-    @MainActor
-    static func installedBrowsers() -> [Browser] {
+    nonisolated static func installedBrowsers() -> [Browser] {
         guard let probe = URL(string: "https://example.com") else { return [] }
         var seen = Set<String>()
         return NSWorkspace.shared.urlsForApplications(toOpen: probe)

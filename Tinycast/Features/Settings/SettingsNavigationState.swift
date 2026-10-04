@@ -24,7 +24,7 @@ final class SettingsNavigationState {
     func select(_ tab: SettingsTab, revealing target: SettingsTarget? = nil) {
         history.select(tab)
         // Any navigation puts the previous pulse out, so a stale light can't outlive its pane.
-        flashing = nil
+        if flashing != nil { flashing = nil }
         guard let target else { return }
         requests += 1
         scrollRequest = SettingsScrollRequest(target: target, token: requests)

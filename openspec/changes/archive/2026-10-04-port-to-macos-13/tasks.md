@@ -76,11 +76,11 @@
 
 ## 9. Manual verification
 
-- [ ] 9.1 On the main Mac (macOS 27): run the migration script, then smoke test palette, launcher, clipboard, file search, window management and layouts, calendar, extensions, AI chat with migrated keys, settings live updates and menu bar item; confirm the official app's data, preferences and Keychain items are unchanged
-- [ ] 9.2 Verify the migration's abort paths (app running, fork not installed, fork already has data) and `--force` backup
-- [ ] 9.3 On the 2017 Mac (macOS 13): run the Debug build and fix every Perception untracked-access warning
-- [ ] 9.4 On the 2017 Mac: run the release build and verify the platform-compatibility scenarios (keyboard navigation, live settings, window titles, calendar prompt, palette responsiveness, scrolling) and the feature-availability scenarios
-- [ ] 9.5 Verify that a rebuilt app keeps preferences and the Accessibility permission, and that Backup import from the official app works
+- [x] 9.1 On the main Mac (macOS 27): run the migration script, then smoke test palette, launcher, clipboard, file search, window management and layouts, calendar, extensions, AI chat with migrated keys, settings live updates and menu bar item; confirm the official app's data, preferences and Keychain items are unchanged
+- [ ] 9.2 Verify the migration's abort paths (app running, fork not installed, fork already has data) and `--force` backup (not verified; change closed by the user after successful use on both Macs)
+- [ ] 9.3 On the 2017 Mac (macOS 13): run the Debug build and fix every Perception untracked-access warning (not verified; change closed by the user after successful use on both Macs)
+- [x] 9.4 On the 2017 Mac: run the release build and verify the platform-compatibility scenarios (keyboard navigation, live settings, window titles, calendar prompt, palette responsiveness, scrolling) and the feature-availability scenarios
+- [ ] 9.5 Verify that a rebuilt app keeps preferences and the Accessibility permission, and that Backup import from the official app works (not verified; change closed by the user after successful use on both Macs)
 
 ## 10. Documentation
 

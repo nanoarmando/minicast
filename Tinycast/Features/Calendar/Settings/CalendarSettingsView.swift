@@ -167,7 +167,11 @@ private struct MeetingBrowserPicker: View {
                 SettingsRowTitle(.calendarJoining, "Open Meeting Links In")
                 Text("When no meeting app handles the link.")
             }
-            .onAppear { browsers = MeetingLauncher.installedBrowsers() }
+            .task {
+                browsers = await Task.detached(priority: .userInitiated) {
+                    MeetingLauncher.installedBrowsers()
+                }.value
+            }
         }
     }
 

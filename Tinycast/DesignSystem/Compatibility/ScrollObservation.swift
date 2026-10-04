@@ -90,7 +90,11 @@ private final class ScrollObserverView: NSView {
 
     private weak var scrollView: NSScrollView?
     private var observers: [NotificationToken] = []
-    private var retriesLeft = 10
+    private static let retryBudget = 10
+    private static let retryDelay: TimeInterval = 0.05
+    private var retriesLeft = 0
+    private var isRetryPending = false
+    private var isReportPending = false
     private var lastMetrics: ScrollMetrics?
     private var lastVisible: Bool?
 
@@ -106,24 +110,31 @@ private final class ScrollObserverView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        retriesLeft = 10
+        attach()
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
         attach()
     }
 
     override func layout() {
         super.layout()
-        report()
+        if isAttached { report() } else { attach() }
     }
 
+    private var isAttached: Bool { scrollView?.window != nil && scrollView?.window === window }
+
+    /// Resets the retry budget: every layout, hierarchy or update event is a fresh chance to attach.
     func attach() {
+        retriesLeft = Self.retryBudget
+        tryAttach()
+    }
+
+    private func tryAttach() {
         guard window != nil else { return detach() }
-        guard let found = findScrollView() else {
-            // SwiftUI splices the scroll view in a pass later; retry, bounded.
-            guard retriesLeft > 0 else { return }
-            retriesLeft -= 1
-            DispatchQueue.main.async { [weak self] in self?.attach() }
-            return
-        }
+        if scrollView != nil, !isAttached { detach() }
+        guard let found = findScrollView() else { return scheduleRetry() }
         guard found !== scrollView else { return report() }
         detach()
         scrollView = found
@@ -139,6 +150,18 @@ private final class ScrollObserverView: NSView {
         observe(NSScrollView.willStartLiveScrollNotification, of: found) { $0.onLiveScroll?(true) }
         observe(NSScrollView.didEndLiveScrollNotification, of: found) { $0.onLiveScroll?(false) }
         report()
+    }
+
+    // SwiftUI splices the scroll view in a later pass, so a same-instant retry sees nothing new.
+    private func scheduleRetry() {
+        guard retriesLeft > 0, !isRetryPending else { return }
+        retriesLeft -= 1
+        isRetryPending = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryDelay) { [weak self] in
+            guard let self else { return }
+            isRetryPending = false
+            if !isAttached { tryAttach() }
+        }
     }
 
     private func detach() {
@@ -162,7 +185,20 @@ private final class ScrollObserverView: NSView {
         observers.append(NotificationToken(token, center: center))
     }
 
+    // A programmatic scroll posts inside a SwiftUI update, where a state write would be dropped.
     private func report() {
+        guard scrollView != nil, !isReportPending else { return }
+        isReportPending = true
+        RunLoop.main.perform(inModes: [.common]) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.isReportPending = false
+                self.deliverReport()
+            }
+        }
+    }
+
+    private func deliverReport() {
         guard let scrollView else { return }
         if let onMetrics {
             let metrics = Self.metrics(of: scrollView)
