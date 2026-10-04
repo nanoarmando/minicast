@@ -28,4 +28,4 @@
 - [x] 5.1 `./Scripts/run-tests.sh` passes; Debug and universal Release builds have no errors or new warnings
 - [ ] 5.2 On the main Mac: migrate from Tinycast Fork, check AI keys, extensions, settings file, icons, About, palette names and an extension OAuth or deep link
 - [ ] 5.3 On the 2017 Mac: install, migrate, check the icon on macOS 13
-- [ ] 5.4 Commit, merge, rename the GitHub repository, update the remote and publish `minicast-v0.2.0`
+- [x] 5.4 Commit, merge, rename the GitHub repository, update the remote and publish `minicast-v0.2.0`
