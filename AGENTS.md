@@ -45,7 +45,7 @@ system-wide chord, and HIToolbox's TIS APIs remain the public input-source mecha
 - Release: `com.tinycast.app.fork`, "Tinycast Fork". Debug: `com.tinycast.app.fork.dev`,
   "Tinycast Fork Dev". Every persisted path, preference domain and Keychain service derives from the
   bundle id, so the fork never touches the official app's data. Keep it that way.
-- No self-update code exists; the palette's "Changelog" opens the fork's commit history.
+- No self-update code exists; the palette's "Changelog" opens the fork's commit history on `main`.
 - Removed and not to be reintroduced without an OpenSpec change: Apple Intelligence provider, Translate
   quick action, Updates, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
   Snippets, Support reminder, Onboarding, WindowSwitcher, MenuSearch (Navigation pane).

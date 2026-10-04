@@ -179,7 +179,7 @@ struct RootPaletteView: View {
                     title: "Changelog",
                     systemImage: "clock.arrow.circlepath"
                 ) {
-                    if let url = URL(string: "https://github.com/nanoarmando/tinycast/commits/macos13") {
+                    if let url = URL(string: "https://github.com/nanoarmando/tinycast/commits/main") {
                         openURL(url)
                     }
                 },
