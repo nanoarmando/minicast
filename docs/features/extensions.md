@@ -478,6 +478,13 @@ Settings → Extensions offers four routes, under **Install New**:
 Only `package.json`, the built commands and `assets/` are copied — never `node_modules` or the
 multi-megabyte `.js.map` Raycast writes beside each bundle.
 
+**Extensions are how Minicast grows.** The built-in feature set is close to final, so a requested
+feature is answered with an extension rather than new app code. Writing one and installing it here —
+`npx ray build -e dist -o build`, then **Add from folder** on `build/`, or **Install from GitHub** — is
+documented for users in the [README](../../README.md#writing-your-own-extension). When an extension
+fails because the runtime lacks an API, closing that gap in `Scripts/raycast-runtime/src/` or the
+Swift host is the change to make, not a built-in copy of the feature.
+
 ## Installing from GitHub
 
 The panel takes `owner/repo`, a clone URL, or the `/tree/<ref>/<path>` link a browser copies from an

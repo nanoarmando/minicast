@@ -40,6 +40,43 @@ bar search (the Navigation pane), and updates.
 - **Raycast extensions**, rendered natively.
 - **Backup and import**, including import from Raycast.
 
+## Philosophy: new features are extensions
+
+Minicast stays small on purpose. Very few features will be added beyond the ones listed above; the
+work goes into keeping those fast, stable and working on every Mac from macOS 13.
+
+**If you want a feature, the way to get it is a Raycast extension.** Minicast runs Raycast extensions
+natively, so anything an extension can do — a list, a form, a detail view, a menu bar item, a
+background refresh — needs no change to Minicast at all. Check the
+[Raycast Store](https://www.raycast.com/store) first: the feature may already exist.
+
+### Writing your own extension
+
+1. **Create it.** With Raycast installed, run its **Create Extension** command and pick a template.
+   Without Raycast, copy an existing extension's folder from
+   [raycast/extensions](https://github.com/raycast/extensions/tree/main/extensions) as a starting
+   point. The [Raycast developer docs](https://developers.raycast.com) cover the API.
+2. **Build it** from the extension's folder:
+   ```sh
+   npm install
+   npx ray build -e dist -o build
+   ```
+   Use `-e dist -o build`, not `npm run build`: the plain script builds in Raycast's dev mode, which
+   installs into a local Raycast instead of writing a build.
+3. **Install it in Minicast** (Settings → Extensions; turn extensions on first, which asks for
+   consent because extensions run third-party code). Under **Install New**:
+   - **Add from folder** — pick the `build/` folder from step 2. Rebuild and add it again after each
+     change.
+   - **Install from GitHub** — push the extension to a repository and paste `owner/repo` (or the link
+     to its folder). Minicast downloads only that folder and builds it on this Mac, which needs Node and
+     a package manager (pnpm, Bun, Yarn or npm).
+   - **Search extensions** — once it is published to the Raycast Store, install the store's prebuilt
+     copy; no Node needed.
+
+Not every Raycast API exists here: the `AI`, `BrowserExtension` and `WindowManagement` services and
+AI tools are unavailable. The full list is in
+[docs/features/extensions.md](docs/features/extensions.md#what-isnt-supported-yet).
+
 ## Requirements
 
 - To run: macOS 13 or later, Intel or Apple silicon.

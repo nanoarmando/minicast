@@ -63,6 +63,10 @@ system-wide chord, and HIToolbox's TIS APIs remain the public input-source mecha
 - Removed and not to be reintroduced without an OpenSpec change: Apple Intelligence provider, Translate
   quick action, Updates, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
   Snippets, Support reminder, Onboarding, WindowSwitcher, MenuSearch (Navigation pane).
+- **Few new features; a feature request is answered with a Raycast extension.** The built-in feature
+  set is close to final. Before adding a feature, check whether a Raycast extension can do it — if it
+  can, the answer is an extension (see README "Philosophy"), and the work on Minicast is at most
+  closing a gap in the extension runtime. A genuinely new built-in feature needs an OpenSpec change.
 - Link opening shared by window layouts, clipboard drag and "open in browser" lives in
   `Platform/LinkDestination.swift` and `Platform/LinkLauncher.swift`. `TextInjector` only serves quick
   actions (replace and copy selection).

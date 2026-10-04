@@ -94,7 +94,7 @@ struct AboutView: View {
     }
 
     private var footer: some View {
-        Text("© 2026 Abue Ammar · Released under AGPL-3.0")
+        Text("© 2026 Jose Bianco · Released under AGPL-3.0")
             .font(.caption2)
             .foregroundStyle(.tertiary)
     }
