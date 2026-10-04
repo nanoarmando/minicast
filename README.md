@@ -172,50 +172,51 @@ app; if it was transferred through a download, clear the quarantine flag once:
 xattr -dr com.apple.quarantine /Applications/Minicast.app
 ```
 
-## Data and the other apps
+## Data and the official Tinycast
 
-Minicast keeps its data apart from the official Tinycast and from the earlier "Tinycast Fork", so either
-of them can be installed at any time and finds its own configuration untouched.
+Minicast keeps its data apart from the official Tinycast, so Tinycast can be installed at any time and
+finds its own configuration untouched.
 
-| Data | Minicast | Tinycast Fork | Official Tinycast |
-| --- | --- | --- | --- |
-| Preferences | `com.minicast.app` | `com.tinycast.app.fork` | `com.tinycast.app` |
-| Data (clipboard, AI chats, extensions) | `~/Library/Application Support/com.minicast.app` | `…/com.tinycast.app.fork` | `…/com.tinycast.app` |
-| Settings file | `~/.config/minicast/settings.json` | `~/.config/tinycast-fork/settings.json` | `~/.config/tinycast/settings.json` |
-| Keychain secrets | `com.minicast.app.*` | `com.tinycast.app.fork.*` | `com.tinycast.app.*` |
+| Data | Minicast | Official Tinycast |
+| --- | --- | --- |
+| Preferences | `com.minicast.app` | `com.tinycast.app` |
+| Data (clipboard, AI chats, extensions) | `~/Library/Application Support/com.minicast.app` | `~/Library/Application Support/com.tinycast.app` |
+| Settings file | `~/.config/minicast/settings.json` | `~/.config/tinycast/settings.json` |
+| Keychain secrets | `com.minicast.app.*` | `com.tinycast.app.*` |
 
 The debug build, "Minicast Dev" (`com.minicast.app.dev`), has its own copies of all of these, with the
 settings file in `~/.config/minicast-dev/`.
 
-Minicast registers `minicast://`, `raycast://` and `com.raycast://`. It no longer claims `tinycast://`,
-which stays with the official app. None of the three apps is suggested by Minicast's launcher. Running
-Minicast next to another of them is not recommended because they may register the same hotkeys.
+Minicast registers `minicast://`, `raycast://` and `com.raycast://`. It does not claim `tinycast://`,
+which stays with the official app. Neither app is suggested by Minicast's launcher. Running both at
+once is not recommended because they may register the same hotkeys.
 
-## Migrating into Minicast
+## Migrating from Tinycast
 
-A fresh Minicast starts empty. To bring over an existing setup, run the one-time migration script:
+A fresh Minicast starts empty. To bring over an existing Tinycast setup, run the one-time migration
+script:
 
-1. Quit the source app (Tinycast Fork or the official Tinycast).
+1. Quit Tinycast.
 2. Copy "Minicast.app" to `/Applications` without opening it.
-3. Run one of:
+3. Run:
    ```sh
-   ./Scripts/migrate-to-minicast.sh                  # from Tinycast Fork (default)
-   ./Scripts/migrate-to-minicast.sh --from official  # from the official Tinycast
+   ./Scripts/migrate-to-minicast.sh
    ```
    macOS asks for authorization for each Keychain secret (AI keys, MCP secrets, extension sign-ins).
    Denied secrets are skipped and listed.
 4. Open Minicast, grant **Accessibility** (and any other permission a feature asks for) and turn
-   **launch at login** back on in **Settings → General**. Then quit and remove the old app.
+   **launch at login** back on in **Settings → General**. Then quit and remove Tinycast if you no
+   longer need it.
 
-The script copies preferences, Application Support data, caches, the settings file and Keychain secrets.
-From the official app it leaves out settings of removed features. It never modifies the source app's
-data. It aborts if either app is running, if Minicast is not installed, or if Minicast already has data;
-`--force` first moves Minicast's existing data to `~/Documents/Backups/Minicast-<timestamp>/`.
+The script copies preferences, Application Support data, caches, the settings file (without settings
+of removed features) and Keychain secrets. It never modifies Tinycast's data. It aborts if either app
+is running, if Minicast is not installed, or if Minicast already has data; `--force` first moves
+Minicast's existing data to `~/Documents/Backups/Minicast-<timestamp>/`.
 
 Permissions and the login item cannot be migrated because macOS ties them to the app's identity and
 signature.
 
-Alternatively, export a backup from the other app and import it in **Settings → Backup**. Minicast reads
+Alternatively, export a backup from Tinycast and import it in **Settings → Backup**. Minicast reads
 both `.minicast` and `.tinycast` backups; a backup covers settings, hotkeys, clipboard history and
 launcher learning, but not AI keys, MCP servers or extensions.
 

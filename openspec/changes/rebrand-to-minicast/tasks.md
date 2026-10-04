@@ -19,13 +19,13 @@
 ## 4. Scripts and docs
 
 - [x] 4.1 Update `build-dmg.sh` and `project.yml` for "Minicast", `Minicast-<version>.dmg` and "Minicast Self-Signed"
-- [x] 4.2 Replace the migration script with `migrate-to-minicast.sh` (`--from fork|official`)
+- [x] 4.2 Replace the migration script with `migrate-to-minicast.sh` (from the official Tinycast)
 - [x] 4.3 Rewrite `README.md`, `AGENTS.md` and all of `docs/` for Minicast, including the new signing setup
 - [x] 4.4 Create "Minicast Self-Signed" on the main Mac following `docs/signing.md` (user)
 
 ## 5. Verification and release
 
 - [x] 5.1 `./Scripts/run-tests.sh` passes; Debug and universal Release builds have no errors or new warnings
-- [ ] 5.2 On the main Mac: migrate from Tinycast Fork, check AI keys, extensions, settings file, icons, About, palette names and an extension OAuth or deep link
+- [ ] 5.2 On the main Mac: migrate, check AI keys, extensions, settings file, icons, About, palette names and an extension OAuth or deep link
 - [ ] 5.3 On the 2017 Mac: install, migrate, check the icon on macOS 13
 - [x] 5.4 Commit, merge, rename the GitHub repository, update the remote and publish `minicast-v0.2.0`

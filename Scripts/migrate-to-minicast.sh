@@ -1,6 +1,6 @@
 #!/bin/zsh
-# One-time copy of Tinycast Fork's or the official Tinycast's data into Minicast. The source is only read.
-# Usage: ./Scripts/migrate-to-minicast.sh [--from fork|official] [--force]   (see --help)
+# One-time copy of the official Tinycast's data into Minicast. The source is only read.
+# Usage: ./Scripts/migrate-to-minicast.sh [--force]   (see --help)
 setopt err_exit no_unset pipe_fail
 
 SCRIPT_NAME=${0:t}
@@ -18,35 +18,18 @@ MINICAST_SERVICES=(
     "$MINICAST_ID.installed-ai-environment" "$MINICAST_ID.extensions-oauth"
 )
 
-# Set by select_source.
-SOURCE_NAME="" SOURCE_ID="" SOURCE_CONFIG=""
-SOURCE_SERVICES=()
-
-select_source() {
-    case $1 in
-        fork)
-            SOURCE_NAME="Tinycast Fork" SOURCE_ID="com.tinycast.app.fork"
-            SOURCE_CONFIG="$HOME/.config/tinycast-fork"
-            SOURCE_SERVICES=(
-                "$SOURCE_ID.ai-api-keys" "$SOURCE_ID.mcp-secrets"
-                "$SOURCE_ID.installed-ai-environment" "$SOURCE_ID.extensions-oauth"
-            )
-            ;;
-        official)
-            SOURCE_NAME="Tinycast" SOURCE_ID="com.tinycast.app"
-            SOURCE_CONFIG="$HOME/.config/tinycast"
-            SOURCE_SERVICES=(
-                "$SOURCE_ID.ai-api-keys" "$SOURCE_ID.mcp-secrets"
-                "$SOURCE_ID.installed-ai-environment" "com.tinycast.extensions.oauth"
-            )
-            ;;
-        *) return 1 ;;
-    esac
-}
+SOURCE_NAME="Tinycast"
+SOURCE_ID="com.tinycast.app"
+SOURCE_CONFIG="$HOME/.config/tinycast"
+# Index-aligned with MINICAST_SERVICES; the official app names its OAuth service differently.
+SOURCE_SERVICES=(
+    "$SOURCE_ID.ai-api-keys" "$SOURCE_ID.mcp-secrets"
+    "$SOURCE_ID.installed-ai-environment" "com.tinycast.extensions.oauth"
+)
 
 # Every key Minicast's settings.json accepts, copied from the raw values in
-# Tinycast/Features/Settings/Model/SettingsFileKey.swift. Only an official source is filtered: its
-# removed features' keys are dropped so Minicast does not report them as unknown settings at launch.
+# Tinycast/Features/Settings/Model/SettingsFileKey.swift. Keys of features Minicast removed are
+# dropped so Minicast does not report them as unknown settings at launch.
 # Regenerate this list when that file changes.
 SETTINGS_KEYS=(
     general.showInMenuBar general.popToRootSeconds general.escapeKeyBehavior
@@ -70,14 +53,12 @@ SETTINGS_KEYS=(
 
 usage() {
     cat <<EOF2
-Copies Tinycast Fork's or the official Tinycast's data into Minicast ($MINICAST_ID), once.
+Copies the official Tinycast's data ($SOURCE_ID) into Minicast ($MINICAST_ID), once.
+settings.json keys of features Minicast removed are dropped.
 
-Usage: $SCRIPT_NAME [--from fork|official] [--force]
+Usage: $SCRIPT_NAME [--force]
 
-  --from fork       Copy from Tinycast Fork (com.tinycast.app.fork). The default.
-  --from official   Copy from the official Tinycast (com.tinycast.app); settings.json keys of
-                    features Minicast removed are dropped.
-  --force           Move Minicast's existing data to ~/Documents/Backups/Minicast-<timestamp>/ first.
+  --force   Move Minicast's existing data to ~/Documents/Backups/Minicast-<timestamp>/ first.
 
 Copied: Application Support, Caches, the ~/.config folder, preferences, and the Keychain secrets for
 AI providers, MCP servers, installed AI tools and extension OAuth. macOS asks to allow each Keychain
@@ -187,21 +168,15 @@ copy_keychain_service() {
 }
 
 main() {
-    local force=0 source=fork
+    local force=0
     while (( $# )); do
         case $1 in
             --force) force=1 ;;
-            --from)
-                (( $# >= 2 )) || { usage >&2; die "--from needs fork or official." }
-                source=$2
-                shift
-                ;;
             -h|--help) usage; return 0 ;;
             *) usage >&2; die "Unknown argument: $1" ;;
         esac
         shift
     done
-    select_source "$source" || { usage >&2; die "Unknown source: $source (use fork or official)." }
 
     is_running "$SOURCE_ID" && die "Quit $SOURCE_NAME first."
     is_running "$MINICAST_ID" && die "Quit Minicast first."
@@ -228,7 +203,7 @@ main() {
     if [[ -d "$SOURCE_CONFIG" ]]; then
         say "Copying ${SOURCE_CONFIG/#$HOME/~}…"
         cp -Rp "$SOURCE_CONFIG" "$MINICAST_CONFIG"
-        if [[ $source == official && -f "$MINICAST_CONFIG/settings.json" ]]; then
+        if [[ -f "$MINICAST_CONFIG/settings.json" ]]; then
             local filtered
             if filtered=$(filter_settings "$MINICAST_CONFIG/settings.json"); then
                 print -r -- "$filtered" > "$MINICAST_CONFIG/settings.json"

@@ -8,7 +8,7 @@ A backup carries three independently selectable categories, ticked on export and
 
 Export writes `Minicast-<date>.minicast`, the exported type `com.minicast.backup`. The open panel also
 accepts `.tinycast` (`com.tinycast.backup`, declared as an *imported* type) because the archive
-format is the same: a backup from Tinycast Fork or the official Tinycast imports as before. Categories
+format is the same: a backup from the official Tinycast imports as before. Categories
 Minicast does not have — the official app's snippets and notes — are not offered and are ignored.
 
 ## Invariants

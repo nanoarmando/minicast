@@ -50,8 +50,7 @@ system-wide chord, and HIToolbox's TIS APIs remain the public input-source mecha
 
 - Release: `com.minicast.app`, "Minicast". Debug: `com.minicast.app.dev`, "Minicast Dev". Every
   persisted path, preference domain and Keychain service derives from the bundle id, so Minicast never
-  touches the data of the official Tinycast (`com.tinycast.app`) or the earlier Tinycast Fork
-  (`com.tinycast.app.fork`). Keep it that way. `AppPaths` maps `com.minicast.app[.<suffix>]` to
+  touches the data of the official Tinycast (`com.tinycast.app`). Keep it that way. `AppPaths` maps `com.minicast.app[.<suffix>]` to
   `~/.config/minicast[-<suffix>]`.
 - User-visible text says Minicast (or `Bundle.main.appDisplayName`); the About pane is the only place
   that names Tinycast, as the upstream credit.

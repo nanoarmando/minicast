@@ -72,7 +72,7 @@ Backups exported by Minicast SHALL use the `.minicast` extension, and Backup imp
 - **THEN** the suggested file name is `Minicast-<date>.minicast`
 
 #### Scenario: Import an old backup
-- **WHEN** the user imports a `.tinycast` backup made by Tinycast Fork or the official app
+- **WHEN** the user imports a `.tinycast` backup made by the official app
 - **THEN** the file can be selected and is imported as before
 
 ### Requirement: Names presented to third parties

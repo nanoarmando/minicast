@@ -18,8 +18,8 @@ See `proposal.md`. Verified facts from the codebase inventory:
 
 ## Goals / Non-Goals
 
-**Goals:** a complete user-visible rename with a new identity, icon and scheme; a migration from Tinycast
-Fork that keeps the user's setup; no change in behavior otherwise.
+**Goals:** a complete user-visible rename with a new identity, icon and scheme; a migration from the
+official Tinycast that keeps the user's setup; no change in behavior otherwise.
 
 **Non-Goals:** renaming internal code names (folder, project, target, module, types, `__tinycast*` JS
 globals, `onTinycast*` props, temp-file prefixes, logging subsystems, dispatch labels); `website/`
@@ -86,11 +86,11 @@ Onboarding, WindowSwitcher, MenuSearch) are deleted. `AGENTS.md` drops the note 
 upstream. Archived OpenSpec changes are history and are not edited.
 
 ### 10. Migration
-Generalize `Scripts/migrate-from-official.sh` into `Scripts/migrate-to-minicast.sh` with
-`--from fork` (default) or `--from official`. Source tables: ids, app path, config folder and Keychain
-services per source (official OAuth service `com.tinycast.extensions.oauth`; fork
-`com.tinycast.app.fork.extensions-oauth`). Destination is always Minicast. The settings-key filter
-applies only to the official source. Backups of existing Minicast data go to
+Rename `Scripts/migrate-from-official.sh` to `Scripts/migrate-to-minicast.sh`. The source is the
+official Tinycast only (`com.tinycast.app`, `~/.config/tinycast`, Keychain services
+`com.tinycast.app.*` and `com.tinycast.extensions.oauth`); the destination is Minicast. The internal
+"Tinycast Fork" test build is not a supported source. The settings-key filter drops keys of removed
+features. Backups of existing Minicast data go to
 `~/Documents/Backups/Minicast-<timestamp>/`. The old script is removed.
 
 ### 11. Repository and release
@@ -107,7 +107,7 @@ After merging: `gh repo rename minicast`, update the `origin` remote, release `m
 
 ## Migration Plan
 
-1. Build and install Minicast.app; quit Tinycast Fork.
+1. Build and install Minicast.app; quit Tinycast.
 2. Run `./Scripts/migrate-to-minicast.sh`, authorize Keychain prompts.
-3. Open Minicast, grant permissions, enable launch at login; disable and delete Tinycast Fork.
-4. Repeat on the 2017 Mac. Rollback: keep using Tinycast Fork, whose data is untouched.
+3. Open Minicast, grant permissions, enable launch at login; remove Tinycast if no longer needed.
+4. Repeat on the 2017 Mac. Rollback: keep using Tinycast, whose data is untouched.

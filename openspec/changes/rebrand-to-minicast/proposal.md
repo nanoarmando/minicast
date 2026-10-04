@@ -19,8 +19,7 @@ own name, icon and identity (Minicast) makes it a distinct app while keeping cre
 - Names seen by third parties (AI system prompt, MCP client name, user agents, Codex/Claude titles,
   extension runtime messages) become Minicast. Shell commands receive `MINICAST=1` in addition to the
   existing `TINYCAST=1`.
-- The migration script can migrate from the existing "Tinycast Fork" (default) or from the official app
-  into Minicast, including Keychain secrets.
+- The migration script migrates the official Tinycast's data into Minicast, including Keychain secrets.
 - Builds produce "Minicast.app" and `Minicast-<version>.dmg`, version 0.2.0, signed with a new local
   identity "Minicast Self-Signed" that replaces "Tinycast Self-Signed".
 - The About window explains what Minicast is and why it exists, and keeps the credit to Tinycast.
@@ -40,7 +39,7 @@ own name, icon and identity (Minicast) makes it a distinct app while keeping cre
 ### Modified Capabilities
 
 - `fork-identity`: bundle ids, app names, settings file location, backup import, and the migration
-  (new source: Tinycast Fork; new destination: Minicast).
+  (source: the official Tinycast; destination: Minicast).
 - `local-build`: the build produces "Minicast.app" and its DMG, signed with "Minicast Self-Signed".
 
 ## Impact
@@ -55,5 +54,4 @@ own name, icon and identity (Minicast) makes it a distinct app while keeping cre
 - `README.md`, `AGENTS.md`, `docs/` (39 files), `openspec/specs/`. `website/` is handled by a separate
   change.
 - User impact: a new signing certificate is created once on the build Mac; macOS permissions and launch
-  at login must be granted again; the old Tinycast Fork app and its data stay until the user removes
-  them.
+  at login must be granted again; the official Tinycast and its data stay until the user removes them.

@@ -44,16 +44,6 @@ security find-identity -p codesigning | grep "Minicast Self-Signed"
 
 Now local builds (Xcode, `xcodebuild`, `build-dmg.sh`) sign with it, and you grant Accessibility once.
 
-### Replacing `Tinycast Self-Signed`
-
-Earlier builds of the fork were signed with `Tinycast Self-Signed`. Minicast's new bundle id already
-resets every permission, so switching identity costs nothing extra. Once Minicast is installed and
-working, the old identity can be removed in **Keychain Access → login → My Certificates**, or with:
-
-```sh
-security delete-identity -c "Tinycast Self-Signed" ~/Library/Keychains/login.keychain-db
-```
-
 ### Losing the identity
 
 If the identity is lost, create it again with the steps above. Its key is new, so macOS treats the next
