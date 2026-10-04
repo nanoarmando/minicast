@@ -3,7 +3,8 @@ import UniformTypeIdentifiers
 
 extension UTType {
     /// Not per-channel: a UTI names an interchange format, so Dev must read stable's exports.
-    static let tinycastBackup = UTType(exportedAs: "com.tinycast.backup")
+    static let minicastBackup = UTType(exportedAs: "com.minicast.backup")
+    static let tinycastBackup = UTType(importedAs: "com.tinycast.backup")
 }
 
 /// The backup flows' entry points, shared by the Settings pane and the commands.
@@ -29,11 +30,11 @@ enum BackupActions {
         return panel.url
     }
 
-    static func chooseBackupFile() -> URL? { chooseFile(ofType: .tinycastBackup) }
+    static func chooseBackupFile() -> URL? { chooseFile(ofTypes: [.minicastBackup, .tinycastBackup]) }
 
-    private static func chooseFile(ofType type: UTType) -> URL? {
+    private static func chooseFile(ofTypes types: [UTType]) -> URL? {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [type]
+        panel.allowedContentTypes = types
         panel.allowsMultipleSelection = false
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK else { return nil }
@@ -48,7 +49,7 @@ enum BackupActions {
     ) async throws
         -> BackupComposer.Result
     {
-        guard let destination = chooseSaveLocation(named: "Tinycast", type: .tinycastBackup) else {
+        guard let destination = chooseSaveLocation(named: "Minicast", type: .minicastBackup) else {
             throw CancellationError()
         }
         let plan = BackupComposer.plan(categories, from: core)
@@ -210,7 +211,7 @@ enum BackupActions {
     static let nothingImportedText = "Nothing to import from this file."
 
     /// Not everything an import applies settles in the running app, so say to relaunch.
-    private static let restartAfterImportText = "Quit and reopen Tinycast to finish."
+    private static let restartAfterImportText = "Quit and reopen Minicast to finish."
 
     /// One sentence per Raycast category that actually moved, shown by the pane.
     static func raycastText(_ outcome: RaycastOutcome) -> String {

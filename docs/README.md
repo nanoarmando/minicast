@@ -1,4 +1,4 @@
-# Tinycast documentation
+# Minicast documentation
 
 Start with [`AGENTS.md`](../AGENTS.md) at the repo root — it is the short version, and it links here for
 anything that needs more than a line.
@@ -6,15 +6,18 @@ anything that needs more than a line.
 Each document below has one job and one trigger: the change that obliges you to edit it. A document that
 contradicts the code is a defect, so fix it in the commit that made it wrong.
 
+Source paths still read `Tinycast/…`: the folder, project, target and module keep their internal name
+until the `rename-internal-identifiers` change.
+
 | Document | Covers | Edit it when |
 | --- | --- | --- |
-| [architecture.md](architecture.md) | How the app is wired: the layers, who owns what, the windows, the Observation model, the folder tree | a layer boundary, an owner, or the tree changes |
+| [architecture.md](architecture.md) | How the app is wired: the layers, who owns what, the windows, the Perception model, the folder tree | a layer boundary, an owner, or the tree changes |
 | [standards.md](standards.md) | How code here is written: posture, naming, style, concurrency, performance budgets, comments | a convention changes, or a check is added |
 | [testing.md](testing.md) | How to verify a change: the definition of done, the harnesses, purity checks, budgets, the manual sweep | a harness moves, or a budget changes |
 | [development.md](development.md) | The local loop: setup, build, dev channel, editor, format/lint, generated data | the local toolchain changes |
-| [release.md](release.md) | How a build reaches a user: packaging, PR review, releases, the Homebrew tap | the pipeline changes |
-| [signing.md](signing.md) | The self-signed identity and the two CI secrets | the signing setup changes |
-| [ui.md](ui.md) | The design system: tokens, panel chrome, row grammar, glass, dialogs and HUDs | a token or a presentation rule changes |
+| [release.md](release.md) | How a build reaches a Mac: the local universal build, the DMG, the GitHub release | the build or release steps change |
+| [signing.md](signing.md) | The local self-signed identity "Minicast Self-Signed" | the signing setup changes |
+| [ui.md](ui.md) | The design system: tokens, panel chrome, row grammar, materials, dialogs and HUDs | a token or a presentation rule changes |
 
 ## Features
 
@@ -25,21 +28,16 @@ open with an `## Invariants` section; read it before changing anything in that a
 [palette](features/palette.md) ·
 [launcher](features/launcher.md) ·
 [AI providers and chat](features/ai.md) ·
+[MCP servers](features/mcp.md) ·
 [quick actions](features/quick-actions.md) ·
 [clipboard](features/clipboard.md) ·
 [calculator](features/calculator.md) ·
 [calendar](features/calendar.md) ·
-[camera](features/camera.md) ·
 [emoji](features/emoji.md) ·
 [dictionary](features/dictionary.md) ·
 [file search](features/file-search.md) ·
-[menu search](features/menu-search.md) ·
-[notes](features/notes.md) ·
-[snippets](features/snippets.md) ·
-[quicklinks](features/quicklinks.md) ·
 [Apple Shortcuts](features/apple-shortcuts.md) ·
 [hotkeys](features/hotkeys.md) ·
-[navigation](features/navigation.md) ·
 [window management](features/window-management.md) ·
 [window layouts](features/window-layouts.md) ·
 [rooms](features/window-rooms.md) ·
@@ -48,11 +46,4 @@ open with an `## Invariants` section; read it before changing anything in that a
 [backup](features/backup.md) ·
 [settings file](features/settings-file.md) ·
 [Raycast import](features/raycast-import.md) ·
-[Raycast extensions](features/extensions.md) ·
-[updates](features/updates.md) ·
-[support](features/support.md)
-
-## Contributing
-
-[`CONTRIBUTING.md`](../CONTRIBUTING.md) covers the workflow — what to open, what to test, what a PR needs.
-[`SECURITY.md`](../SECURITY.md) covers vulnerability reports.
+[Raycast extensions](features/extensions.md)

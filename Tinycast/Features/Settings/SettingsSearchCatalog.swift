@@ -418,7 +418,7 @@ enum SettingsSearchCatalog {
             pane: .calendar,
             keywords: ["meetings", "events", "zoom", "join", "schedule"]),
         .init(
-            .calendarCalendar, "Join meetings from Tinycast",
+            .calendarCalendar, "Join meetings from Minicast",
             keywords: ["zoom", "meet", "teams", "permission"]),
         .init(
             .calendarCalendar, "Upcoming meetings in launcher",
@@ -511,10 +511,10 @@ enum SettingsSearchCatalog {
             keywords: ["export", "import", "restore", "migrate", "raycast"]),
         .init(
             .backupExport, "Export Backup",
-            keywords: ["save", "tinycast file", "archive"]),
+            keywords: ["save", "minicast file", "tinycast file", "archive"]),
         .init(
             .backupImport, "Backup File",
-            keywords: ["restore", "choose", "tinycast file"]),
+            keywords: ["restore", "choose", "minicast file", "tinycast file"]),
         .init(
             .backupImportFromRaycast, "Raycast Export",
             keywords: ["migrate", "rayconfig", "passphrase"]),
@@ -529,6 +529,6 @@ enum SettingsSearchCatalog {
             keywords: ["version", "licence", "license", "credits"]),
         .init(
             group: .aboutLinks, "Links",
-            keywords: ["github", "source", "issues", "website"])
+            keywords: ["github", "source", "issues", "minicast", "tinycast", "upstream"])
     ]
 }

@@ -11,7 +11,7 @@ protocol ExtensionOAuthTokenStore: Sendable {
 
 struct KeychainOAuthTokenStore: ExtensionOAuthTokenStore {
     /// Bundle-id scoped like `KeychainSecretStore`, so each channel keeps its own tokens.
-    private let serviceName = "\(Bundle.main.bundleIdentifier ?? "com.tinycast.app").extensions-oauth"
+    private let serviceName = "\(Bundle.main.bundleIdentifier ?? "com.minicast.app").extensions-oauth"
 
     func get(account: String) -> String? {
         let query: [String: Any] = [

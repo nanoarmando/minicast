@@ -59,9 +59,9 @@ enum CommandID: String, CaseIterable, Sendable {
         case .exportSettings: return "Export Backup"
         case .importSettings: return "Import Backup"
         case .importFromRaycast: return "Import from Raycast"
-        case .settings: return "Tinycast Settings"
-        case .about: return "About Tinycast"
-        case .quit: return "Quit Tinycast"
+        case .settings: return "Minicast Settings"
+        case .about: return "About Minicast"
+        case .quit: return "Quit Minicast"
         }
     }
 

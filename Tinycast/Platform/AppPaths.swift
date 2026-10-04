@@ -3,20 +3,20 @@ import Foundation
 /// The per-channel storage roots. Keyed by bundle id so a Dev build never shares a stable's dirs.
 enum AppPaths {
     static func caches(
-        bundleID: String = Bundle.main.bundleIdentifier ?? "com.tinycast.app"
+        bundleID: String = Bundle.main.bundleIdentifier ?? "com.minicast.app"
     ) -> URL {
         root(.cachesDirectory, bundleID: bundleID)
     }
 
     static func applicationSupport(
-        bundleID: String = Bundle.main.bundleIdentifier ?? "com.tinycast.app"
+        bundleID: String = Bundle.main.bundleIdentifier ?? "com.minicast.app"
     ) -> URL {
         root(.applicationSupportDirectory, bundleID: bundleID)
     }
 
-    /// `~/.config/tinycast/settings.json`; another channel suffixes the folder, as `tinycast-dev`.
+    /// `~/.config/minicast/settings.json`; another channel suffixes the folder, as `minicast-dev`.
     static func settingsFile(
-        bundleID: String = Bundle.main.bundleIdentifier ?? "com.tinycast.app"
+        bundleID: String = Bundle.main.bundleIdentifier ?? "com.minicast.app"
     ) -> URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appending(path: ".config", directoryHint: .isDirectory)
@@ -25,10 +25,10 @@ enum AppPaths {
     }
 
     private static func configFolderName(bundleID: String) -> String {
-        let stable = "com.tinycast.app"
-        if bundleID == stable { return "tinycast" }
+        let stable = "com.minicast.app"
+        if bundleID == stable { return "minicast" }
         guard bundleID.hasPrefix(stable + ".") else { return bundleID }
-        return "tinycast-" + bundleID.dropFirst(stable.count + 1)
+        return "minicast-" + bundleID.dropFirst(stable.count + 1)
     }
 
     private static func root(

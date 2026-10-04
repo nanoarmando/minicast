@@ -56,7 +56,7 @@ struct BackupSettingsView: View {
                         }
                     } label: {
                         SettingsRowTitle(.backupExport, "Export Backup")
-                        Text("The ticked items, as one .tinycast file.")
+                        Text("The ticked items, as one .minicast file.")
                     }
                     BackupCategorySelection(selection: $exportSelection)
                     if let backupStatus { statusRow(backupStatus) }
@@ -184,7 +184,7 @@ struct BackupSettingsView: View {
 
     private var backupFileSubtitle: String {
         guard let name = backupFile?.lastPathComponent else {
-            return "A .tinycast file exported from Tinycast."
+            return "A .minicast or .tinycast file exported from Minicast or Tinycast."
         }
         return openedManifest == nil ? "\(name) — couldn't be read" : name
     }

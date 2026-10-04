@@ -17,7 +17,7 @@ enum MCPOAuthService {
             id: 1, method: "initialize",
             params: [
                 "protocolVersion": MCPProtocol.version, "capabilities": [:],
-                "clientInfo": ["name": "tinycast", "version": "1"]
+                "clientInfo": ["name": "minicast", "version": "1"]
             ])
         probe.setValue("application/json", forHTTPHeaderField: "Content-Type")
         probe.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")

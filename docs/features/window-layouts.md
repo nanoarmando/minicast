@@ -116,7 +116,7 @@ lets a later launch take the front back; focusing each app in turn would flicker
 and Spaces. The cost is that a layout waiting on a slow launch focuses only when that wait ends,
 up to the deadline below. A cancelled run focuses nothing, and neither does a run whose frontmost
 app, when the wait ends, is neither the one it started with nor one it opened — the user has moved
-on. `AXWindowAccess.focus` is the same raise-and-activate sequence Switch Windows uses.
+on. `AXWindowAccess.focus` is a raise-and-activate sequence.
 
 ### The launch wait
 
@@ -141,13 +141,13 @@ invariant true for every frame in the pass.
 that is `AXStandardWindow`, not minimized, not natively fullscreen, reports geometry, and is
 positionable — a stricter filter than the mover's, because a Save panel must never become an entry.
 Candidates come from `AppLauncher.quitAllTargets()`'s rule, excluded **by pid** rather than by
-activation policy, since opening About flips Tinycast itself to `.regular`.
+activation policy, since opening About flips Minicast itself to `.regular`.
 
 Only Accessibility is needed: `AXPosition` and `AXSize` are AX attributes. Screen Recording gates
 window *titles*, which nothing here reads.
 
 The frontmost app's focused window, when it is one of the captured windows, is marked **Bring to
-front**. Capturing from Settings marks nothing, because Tinycast itself is frontmost then.
+front**. Capturing from Settings marks nothing, because Minicast itself is frontmost then.
 
 Capture never saves silently — the draft opens in the editor so it can be seen, trimmed and named.
 
@@ -188,10 +188,6 @@ moment an app is picked, and a panel sized to its content would resize under the
 **Bring to front** is a switch on the selected entry. Turning it on for a second entry moves the
 mark rather than refusing, because the draft holds one ID, not a flag per entry.
 
-A **quicklink argument is copied as its link text, not referenced.** A run is one non-interactive
-pass, so a quicklink that later grows a `{placeholder}` would have nothing to prompt with; copying
-also removes a whole failure class and any run-time dependency on `QuicklinkStore`.
-
 ## Wiring
 
 - **`AppEntry.Kind.windowLayout`** — entries are `window-layout:<uuid>`, published by
@@ -199,7 +195,7 @@ also removes a whole failure class and any run-time dependency on `QuicklinkStor
   `LauncherList.rows` mirrors that position; the slice order is the flat-selection invariant, and its
   `assert` proves membership but **not** order, so the two arrays must move together.
 - **`HotKeyAction.windowLayout(id:)`** — persisted under `hotkey.windowLayout.<uuid>` with a
-  `boundWindowLayoutIDs` index, the shape quicklinks and custom commands use. `WindowLayoutStore`
+  `boundWindowLayoutIDs` index, the shape custom commands use. `WindowLayoutStore`
   decodes in `init`, so its live IDs are known by the time `hotKeys.start` prunes.
 - **Settings** — one new key, `windowLayoutsShowInLauncher` (on). Its own flag rather than sharing
   `windowManagementShowInLauncher`: 34 command rows and three named layouts are different amounts of

@@ -1,18 +1,23 @@
-# Tinycast Fork
+# Minicast
 
-A private fork of Tinycast, a native macOS menu-bar launcher: fuzzy app launcher, global and per-app
-hotkeys, a text/image clipboard history, an inline calculator, file search, window management, calendar,
-AI chat, quick actions and an emoji picker. It also **runs Raycast extensions** natively, in
+Minicast is a private fork of Tinycast, a native macOS menu-bar launcher: fuzzy app launcher, global and
+per-app hotkeys, a text/image clipboard history, an inline calculator, file search, window management,
+calendar, AI chat, quick actions and an emoji picker. It also **runs Raycast extensions** natively, in
 JavaScriptCore. SwiftUI + AppKit, running as an accessory with no Dock icon (`LSUIElement`).
 
 Upstream is not merged. Planning lives in OpenSpec (`openspec/`): current behavior in
-`openspec/specs/`, the port in `openspec/changes/archive/2026-10-04-port-to-macos-13/`, open work in
-`openspec/changes/`. The docs under `docs/` and `website/` describe upstream and are not
-kept in sync with the fork; this file and `README.md` win when they disagree.
+`openspec/specs/`, finished work in `openspec/changes/archive/`, open work in `openspec/changes/`.
+`docs/` describes Minicast; `website/` is still upstream's and is handled by its own change.
+
+**Internal names stay `Tinycast`.** The source folder `Tinycast/`, `Tinycast.xcodeproj`, the target,
+scheme and module, type names (`TinycastApp`, …), the `TINYCAST_BUNDLE_IDENTIFIER` build variable, the
+`tinycast.icon` bundle, logging subsystems, queue labels and the `__tinycast*` JS bridge globals keep the
+old name until the `rename-internal-identifiers` change. Everything a user or a third party sees says
+Minicast.
 
 ## Posture: macOS 13 floor, one code path
 
-**The fork targets macOS 13 Ventura and later, Intel and Apple silicon, from one universal build.** It
+**Minicast targets macOS 13 Ventura and later, Intel and Apple silicon, from one universal build.** It
 is built with the Xcode 27 toolchain in Swift 6 language mode. This overrides upstream's "latest macOS
 only" posture.
 
@@ -36,17 +41,25 @@ only" posture.
 - **One appearance:** classic blur materials (`GlassEffectView` is an `NSVisualEffectView`,
   `Theme.frosted(in:)` a SwiftUI material). No Liquid Glass.
 - The rest of upstream's style stays: prefer Swift Concurrency, `SMAppService`, structured concurrency;
-  no migration code inside the app (the one-time `Scripts/migrate-from-official.sh` is external).
+  no migration code inside the app (the one-time `Scripts/migrate-to-minicast.sh` is external).
 
 Carbon is a deliberate capability-gap dependency rather than inertia: nothing modern registers a
 system-wide chord, and HIToolbox's TIS APIs remain the public input-source mechanism.
 
-## Fork identity and removed features
+## Identity and removed features
 
-- Release: `com.tinycast.app.fork`, "Tinycast Fork". Debug: `com.tinycast.app.fork.dev`,
-  "Tinycast Fork Dev". Every persisted path, preference domain and Keychain service derives from the
-  bundle id, so the fork never touches the official app's data. Keep it that way.
-- No self-update code exists; the palette's "Changelog" opens the fork's commit history on `main`.
+- Release: `com.minicast.app`, "Minicast". Debug: `com.minicast.app.dev`, "Minicast Dev". Every
+  persisted path, preference domain and Keychain service derives from the bundle id, so Minicast never
+  touches the data of the official Tinycast (`com.tinycast.app`) or the earlier Tinycast Fork
+  (`com.tinycast.app.fork`). Keep it that way. `AppPaths` maps `com.minicast.app[.<suffix>]` to
+  `~/.config/minicast[-<suffix>]`.
+- User-visible text says Minicast (or `Bundle.main.appDisplayName`); the About pane is the only place
+  that names Tinycast, as the upstream credit.
+- Links: `minicast://`, `raycast://` and `com.raycast://`, never `tinycast://`. Backups export as
+  `.minicast` (`com.minicast.backup`) and still import `.tinycast`. Shell commands get `MINICAST=1` and
+  `TINYCAST=1`.
+- No self-update code exists; the palette's "Changelog" opens the commit history of
+  `github.com/nanoarmando/minicast` on `main`.
 - Removed and not to be reintroduced without an OpenSpec change: Apple Intelligence provider, Translate
   quick action, Updates, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
   Snippets, Support reminder, Onboarding, WindowSwitcher, MenuSearch (Navigation pane).
@@ -95,7 +108,7 @@ feature's doc, under its own `## Invariants`.
   the forced-dark build shipped, restated rather than re-derived. Retune a light branch freely — change
   a dark one only when the task is to change Dark. `AppAppearance` drives `NSApp.appearance`, and
   `.system` maps to `nil` so AppKit follows macOS on its own.
-- **Tinycast presents its own dialogs — never `NSAlert` or a system popover.** A question
+- **Minicast presents its own dialogs — never `NSAlert` or a system popover.** A question
   goes through `DialogController`, a report through a HUD via `HUDPresenter`.
 - **A networked feature fetches on a private `.ephemeral`, `urlCache = nil` session**, never
   `URLSession.shared`, so its own cache file stays the only copy on disk. `CurrencyRateStore` is the
@@ -141,7 +154,7 @@ feature's doc, under its own `## Invariants`.
   constant or type instead. Cap 100 characters, delete rather than update, and never comment a change
   you just made. Nothing lints this; get it right the first time.
   Full rules: [standards.md#comments](docs/standards.md#comments).
-- **Debug builds are their own channel** — `Tinycast Fork Dev.app` / `com.tinycast.app.fork.dev` — so a local run
+- **Debug builds are their own channel** — `Minicast Dev.app` / `com.minicast.app.dev` — so a local run
   never shares prefs, caches, TCC grants or the login item with an installed copy. Anything newly
   persisted must stay keyed by `Bundle.main.bundleIdentifier`.
 - **XcodeGen owns the project.** `Tinycast.xcodeproj` is committed but generated from `project.yml`;

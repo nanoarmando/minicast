@@ -20,8 +20,7 @@ entries and a still-registered shortcut moves nothing.
   stay Foundation + CoreGraphics and pure** — no AX, no `NSScreen`, no clock (`WindowActionMemory`
   takes `now` as a parameter, `SpaceGesture` takes `timestamp`). Every `AXUIElement` call and the
   Cocoa↔AX flip live in `Service/`; every `CGEvent` call lives in `SpaceSwitcher.swift`.
-- **`AXWindowAccess` is the one AX layer**, shared by the mover, the layout runner and
-  [Navigation](navigation.md)'s window switcher. Its `write` is the size → position → size sequence:
+- **`AXWindowAccess` is the one AX layer**, shared by the mover, the layout runner and the rooms. Its `write` is the size → position → size sequence:
   two copies of it would land a stubborn app two ways.
 - **Our own windows are written through AppKit, never AX.** `WindowMover.Surface` is the split:
   an `AXUIElement` write into our own process would stall the main thread that services it.
@@ -175,7 +174,7 @@ Two details carry their weight:
   original frame, because rule 1 captures once and the intermediate actions never overwrite it. A stack
   has no defensible answer for what a _second_ Restore press should do.
 
-Rule 1 also delivers the "works for windows Tinycast never moved" requirement: the capture happens in
+Rule 1 also delivers the "works for windows Minicast never moved" requirement: the capture happens in
 `WindowMover.perform` before a single write.
 
 **Cycling covers the four halves only**, and `WindowCycle` picks one of three modes, `.off` by default
@@ -204,15 +203,15 @@ when a read fails. Nothing is persisted.
 
 ## Choosing a target
 
-Our panels are `.nonactivatingPanel`, so opening one never makes Tinycast frontmost and
+Our panels are `.nonactivatingPanel`, so opening one never makes Minicast frontmost and
 `NSWorkspace.frontmostApplication` keeps naming the app *behind* it rather than the window the user
 is looking at. `WindowTarget` is the answer to "what does this command act on": it prefers a key
 window of ours, falling back to the frontmost app only when there is none.
 
 `canBecomeMain` is the filter, and it needed no new flag — every transient panel in the app already
-declines it, which leaves exactly the Notes editor and the `AppWindowController` windows. When a key
-child is in front, such as the note switcher that `addChildWindow`s itself onto the editor,
-`WindowTarget` looks one level up through `parent` so the command still places the editor.
+declines it, which leaves exactly the `AppWindowController` windows (Settings, AI Chat, Command Output). When a
+key child is in front, `WindowTarget` looks one level up through `parent` so the command still places
+the window it belongs to.
 
 `PalettePanel` is the one main-capable panel of ours and would pass the filter. It never reaches
 here, because `WindowCommandCoordinator.handOffTarget()` branches on `paletteCoordinator.isVisible`
@@ -224,11 +223,8 @@ this section exists.
 Fullscreen on a window of ours fires when it is `.resizable` and its `collectionBehavior` opts out of
 neither `.fullScreenAuxiliary` nor `.fullScreenNone`. AppKit fullscreens a resizable window without
 ever setting `.fullScreenPrimary` on it, so testing that flag would make Fullscreen a silent no-op on
-Settings. The Notes panel is `.fullScreenAuxiliary` and stays a no-op, as an unwilling external
-window already is.
+Settings.
 
-This mirrors `InjectionTarget` in [Text injection](text-injection.md), which solved the same problem
-for keystrokes: same shape, same `Service/` position, one idea applied twice.
 
 ## Applying a placement
 
@@ -312,7 +308,7 @@ Three details are load-bearing and each was expensive to learn:
 - **Velocity is momentum, not latency.** 2000 overshoots by two Spaces; 1000 lands exactly one, and
   lowering it does not make the switch slower.
 - **The Dock ignores a gesture from a short-lived process.** The calls all report success and nothing
-  happens. Tinycast is a resident menu-bar app, so this is free — but it is why a one-shot CLI cannot
+  happens. Minicast is a resident menu-bar app, so this is free — but it is why a one-shot CLI cannot
   be used to reproduce a bug here.
 
 Boundaries are left to macOS. The private `CGSGetActiveSpace` lags behind the Dock after a synthetic
@@ -343,7 +339,7 @@ and every shortcut stays editable afterwards.
   palette toggle, an app hotkey, …) is skipped, the command keeps its previous binding when that is
   still free, and the closing HUD counts the skips.
 - **Key codes, not letters.** Each table stores Carbon key codes, as the original apps register them,
-  so ⌃⌥U lands on the same physical key under Dvorak or AZERTY. Actions with no Tinycast equivalent
+  so ⌃⌥U lands on the same physical key under Dvorak or AZERTY. Actions with no Minicast equivalent
   (Spectacle's next/previous third and redo) are left out.
 - **Choose, then Apply.** The pop-up holds a choice that is never stored, and Apply stays disabled
   until one is made — and while `WindowShortcutPreset.matching` reports the chosen preset as fully
@@ -376,7 +372,7 @@ and every shortcut stays editable afterwards.
 - **Per-command visibility** reuses `VisibilityStore` as-is; clearing a recorded shortcut is how a
   hotkey is disabled, so there is no separate per-command enabled flag. Window commands deliberately
   get **no** launcher-category pane of their own — they are managed inside Settings › Window
-  Management, the same call already made for snippets.
+  Management.
 
 ## Testing
 
@@ -414,7 +410,7 @@ verification, particularly:
 4. Cycling, in both modes: under `.sizes`, three presses of Left Half, then drag the window and confirm
    the next press restarts at ½. Under `.displays` on two monitors, four presses of Left Half must
    visit every half-slot once and return to the first.
-5. Restore on a window Tinycast has never moved, and after a custom size.
+5. Restore on a window Minicast has never moved, and after a custom size.
 6. **Space switching, on the real desktop with three or more Spaces.** Next and Previous each move
    exactly one Space with no visible slide, in and out of a fullscreen Space, and a held shortcut does
    not wedge the Dock or land two Spaces at once. A Space switch is not observable until it settles —

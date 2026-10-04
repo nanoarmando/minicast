@@ -179,11 +179,11 @@ struct RootPaletteView: View {
                     title: "Changelog",
                     systemImage: "clock.arrow.circlepath"
                 ) {
-                    if let url = URL(string: "https://github.com/nanoarmando/tinycast/commits/main") {
+                    if let url = URL(string: "https://github.com/nanoarmando/minicast/commits/main") {
                         openURL(url)
                     }
                 },
-                PopoverMenuItem(title: "About Tinycast", systemImage: "info.circle") {
+                PopoverMenuItem(title: "About Minicast", systemImage: "info.circle") {
                     core.settingsCoordinator.showAbout()
                 },
                 PopoverMenuItem(title: "Settings", systemImage: "gearshape", shortcut: "⌘,") {

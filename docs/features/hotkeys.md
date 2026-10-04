@@ -6,17 +6,16 @@
 - `HotKeyBinding` — what an action is bound to: `.combo(KeyShortcut)`,
   `.doubleTap(DoubleTapModifier)`, sided `.modifier` / `.doubleModifier`, `.globe`, or `.doubleGlobe`.
 - `HotKeyCenter` — the Carbon `RegisterEventHotKey` layer, pausable.
-- Dictation alone also observes Carbon's key-release event for hold-to-talk.
 - `DoubleTapModifier` / `DoubleTapDetector` — the double-tap recognizer.
 - `ModifierKey` / `ModifierKeyDetector` — reported sides, lone presses, taps and holds.
-- `ModifierTapMonitor` — the shared modifier-only tap, including Dictation's hold/release callbacks.
+- `ModifierTapMonitor` — the shared modifier-only tap.
 
 `HotKeyManager` owns them all: persistence, conflict lookup, and dispatch. Every action reads and
 writes one `HotKeyBinding`, so all cases share persistence, conflict detection, the recorder and
 the keycap rendering — only the _engine_ differs.
 
-Carbon's dispatcher enters through an explicit `@MainActor` callback. Press and release handlers
-return `OSStatus` synchronously, preserving event order and hold-to-talk release handling.
+Carbon's dispatcher enters through an explicit `@MainActor` callback. The press handler returns
+`OSStatus` synchronously, preserving event order.
 
 ## Invariants
 
@@ -58,23 +57,14 @@ Window management's shortcuts are also spelled as typeable chords (`ctrl+option+
 [settings file](settings-file.md). `HotKeySpelling` is that grammar; the file applies through
 `setBinding`, so `UserDefaults` stays the one store either way.
 
-System Settings panes use `boundPaneBundleIDs`; custom commands, quicklinks, window layouts, rooms
-and custom window sizes use their stable UUIDs in `boundCustomCommandIDs`, `boundQuicklinkIDs`,
+System Settings panes use `boundPaneBundleIDs`; custom commands, custom quick actions, window layouts,
+rooms and custom window sizes use their stable UUIDs in `boundCustomCommandIDs`, `boundQuickActionIDs`,
 `boundWindowLayoutIDs`, `boundWindowRoomIDs` and `boundCustomWindowSizeIDs`. Those five are the per-item case — unlike a fixed catalog, there is no `allCases` to walk — so each needs an index for `start()`
 to re-register from
-and to prune bindings whose record was deleted while Tinycast wasn't running. That prune is why
-`QuicklinkStore` loads at launch even when the feature is off
-(see [quicklinks.md](quicklinks.md#hotkeys)).
+and to prune bindings whose record was deleted while Minicast wasn't running.
 Apple Shortcuts keep the same kind of index in `boundAppleShortcutIDs`, pruned not at launch but after
 the first successful read of the library, since a failed read looks exactly like deletion
 (see [apple-shortcuts.md](apple-shortcuts.md#sweeping-deleted-shortcuts)).
-
-Snippets index `StoredSnippet.ID`, the file's path, in `boundSnippetIDs`. The store runs only while
-the feature is on, so they are swept not at launch but on every snapshot, by
-`removeSnippetBindings`; a file that fails to parse still counts, since it is mid-edit rather than
-gone. A rename outside Tinycast or a new Snippets Folder therefore drops the shortcut, and none
-travels in a backup, where an imported snippet lands at a new path
-(see [snippets.md](snippets.md#shortcuts)).
 
 `HotKeyBinding` takes the synthesised `Codable`, so a `.combo` writes
 `{"combo":{"_0":{"carbonKeyCode":N,"carbonModifiers":N}}}` and a `.doubleTap` writes
@@ -94,9 +84,8 @@ own pane when `SettingsTab.ownedCommands` names it. `hotkey.togglePalette` is th
 no command row. `HotKeyManager` names them all through `CommandID`, so a conflict callout spells an
 action exactly as its command row does.
 
-Like a window command, the chord registers regardless of the launcher row. Search Files and Notes both
-re-check their feature switches before opening; see [file-search.md](file-search.md#invocation) and
-[notes.md](notes.md#ownership-and-enablement). A hidden launcher row does not disable its shortcut, but
+Like a window command, the chord registers regardless of the launcher row. Search Files re-checks its
+feature switch before opening; see [file-search.md](file-search.md#invocation). A hidden launcher row does not disable its shortcut, but
 disabling the feature does. `SettingsBackup.HotkeyBackup` carries them as one `commands` map keyed by
 `CommandID` raw value.
 
@@ -129,12 +118,6 @@ track Globe from the physical `kVK_Function` keycode, not just the fn flag, beca
 It shares the double-tap's listen-only monitor, permission warning, lifecycle and pause while
 recording. macOS may perform its own Globe action too; set “Press fn/Globe key to” to “Do Nothing” in
 Keyboard settings if it conflicts. Globe+key chords use Carbon registration, like other combos.
-
-Dictation's hold-to-talk mode reserves its single physical modifier across both tap gestures. It
-starts after 250 ms held alone, so ordinary modifier+key chords do not briefly start recording. Another
-key, modifier or mouse click cancels a pending or active hold; Return and Escape belong to the dictation
-panel while listening. Release finishes the recording. Pausing, rebinding, disabling Dictation,
-session changes and tap teardown cancel any hold. Double-tap bindings require toggle mode.
 
 ## Double-tap modifiers
 
@@ -194,7 +177,7 @@ order instead of racing as independent detached tasks and leaving the wrong fina
 
 Because the remap is asynchronous, there is a fallback for the window before it takes hold: the key
 still arrives as Caps Lock, so the tap rides the modifier path instead. The LED toggles during that
-window — that is un-remapped HID behaviour, not something Tinycast can stop.
+window — that is un-remapped HID behaviour, not something Minicast can stop.
 
 Once remapped, Caps Lock arrives as **keyDown/keyUp** rather than `flagsChanged`. Both ends are
 converted into Left Control `flagsChanged` transitions, so everything downstream sees the Hyper chord

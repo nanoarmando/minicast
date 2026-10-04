@@ -283,7 +283,7 @@ struct QuickActionsSettingsView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     SettingsEditorHeader(
                         title: "Customize \(action.title)",
-                        subtitle: "Tell Tinycast how you want \(action.title) to handle your selected text."
+                        subtitle: "Tell Minicast how you want \(action.title) to handle your selected text."
                     )
 
                     TextEditor(text: $instructions)

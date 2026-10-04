@@ -15,10 +15,10 @@ feature is enabled in Settings.
   and the `UniformTypeIdentifiers` of `FileSearchFilter` and `FileSearchPreviewKind` included — value
   types with no environment of their own. `file-search-test` compiles the shipped files together with
   the existing pure fuzzy scorer.
-- **Search is filename-only, and every list comes from Spotlight.** Tinycast creates no content index,
+- **Search is filename-only, and every list comes from Spotlight.** Minicast creates no content index,
   history, query cache, watcher or search data — the blank screen's Recently Used rows are one more
   Spotlight query over the configured scopes, read from the system's own `kMDItemLastUsedDate` and
-  `kMDItemFSContentChangeDate`, never from anything Tinycast recorded. The type filter narrows *which*
+  `kMDItemFSContentChangeDate`, never from anything Minicast recorded. The type filter narrows *which*
   files Spotlight is asked for; it never adds a second pass over the ones it returned.
 - **The filter belongs to the query, not to the rows.** `FileSearchSession` keys its de-dup and its
   supersession check on the query and the filter together, so narrowing re-runs the same words rather
@@ -26,7 +26,7 @@ feature is enabled in Settings.
 - **Hidden paths and application-bundle contents are structural, not patterns.** They are what keeps
   the feature permission-free, so no user setting can re-admit them. Everything else that is dropped
   comes from the ignore list.
-- **`~/Library` is never a scope Tinycast picks by itself.** A configured home root expands into its
+- **`~/Library` is never a scope Minicast picks by itself.** A configured home root expands into its
   visible children plus the two cloud-storage roots instead. A user who adds a folder under `~/Library`
   by hand gets what they asked for.
 - **The shipped ignore rules are compiled in and never persisted.** `fileSearchIgnorePatterns` stores
@@ -35,14 +35,14 @@ feature is enabled in Settings.
 - **File Search is off by default, and off means no entry point or Spotlight work.** A nonempty query
   on that screen is the first operation that searches, and the global shortcut no-ops while the
   feature switch is off.
-- **Tinycast asks for no file permission.** Hidden metadata items and application bundles are filtered,
+- **Minicast asks for no file permission.** Hidden metadata items and application bundles are filtered,
   and Spotlight or TCC omissions produce a thinner result set rather than a prompt for Full Disk Access.
 - **A superseded query never publishes.** The session cancels its pending task and checks cancellation
   after the synchronous Spotlight call, so a late result cannot replace the newer query's rows. Editing
   the scopes or the patterns cancels the session for the same reason: a result found under the old
   rules must not land under the new ones.
-- **Share is the one system popover, and the palette stays up under it.** `AGENTS.md` keeps Tinycast's
-  own dialogs because a question or a report is Tinycast's to word. A share sheet is neither: it is
+- **Share is the one system popover, and the palette stays up under it.** `AGENTS.md` keeps Minicast's
+  own dialogs because a question or a report is Minicast's to word. A share sheet is neither: it is
   AirDrop, Mail and Messages, and re-drawing it would mean re-implementing the transports and losing
   whatever the system adds. So this row hands off, and the two rules it does keep are that the palette
   is never hidden and that the row stays visible beside the sheet — which is what anchoring to
@@ -257,7 +257,7 @@ cleared whenever the palette hides.
 
 Settings ▸ File Search owns the `fileSearchEnabled` switch, which is off when its preference is absent,
 along with the scope list, the ignore patterns and the Search Files command row. All of them are
-ordinary settings carried by Tinycast settings backups; importing them grants no permission or
+ordinary settings carried by Minicast settings backups; importing them grants no permission or
 background access.
 
 `AppCore` observes the switch and asks `FileSearchCoordinator` to project `CommandID.searchFiles` into

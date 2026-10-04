@@ -282,6 +282,9 @@ struct CustomCommandTests {
         let marker = await ShellCommandRunner.run("test \"$TINYCAST\" = 1")
         check("the TINYCAST marker is exported so a shell config can detect us", marker.succeeded)
 
+        let minicastMarker = await ShellCommandRunner.run("test \"$MINICAST\" = 1")
+        check("the MINICAST marker is exported alongside TINYCAST", minicastMarker.succeeded)
+
         let failed = await ShellCommandRunner.run("printf 'expected failure' >&2; exit 7")
         check(
             "a non-zero exit reports its status and stderr",

@@ -20,7 +20,7 @@ earliest scope wins).
 - **One command, one pane, one switch.** `SettingsTab.ownedCommands` is the whole table of which pane
   lists a command's shortcut, alias and launcher checkbox. A feature that names its commands there
   already decides whether they exist, so `Enable Commands` neither lists nor gates them — two switches
-  over one row is how somebody ends up with Notes on and its shortcut dead. Everything the table does
+  over one row is how somebody ends up with a feature on and its shortcut dead. Everything the table does
   not name belongs to Settings › Commands and answers to that switch.
 - **The ranking lives in pure files.** `Model/LauncherMatch.swift` (the scorer),
   `Model/LauncherOrder.swift` (the comparator) and `Model/LauncherSuggestions.swift` are
@@ -31,7 +31,7 @@ earliest scope wins).
   lowers it to the `SearchProfile` the comparator reads. A new naming criterion picks one of those four
   fields; needing a fifth means the criterion was modelled wrong.
 - **`EntryNaming.profile` runs over every kind, once per index change**, so a naming rule can never
-  apply to applications and quietly skip snippets — and nothing is built per keystroke. `AppIndex.scan`
+  apply to applications and quietly skip custom commands — and nothing is built per keystroke. `AppIndex.scan`
   names the app slice on its own, off-main: transliterating a CJK index is ICU work, and
   `publishEntries` runs on the main actor whenever any unrelated slice changes.
 - **The fields stay separate.** Which field matched is half of what the comparator reads — an exact
@@ -63,7 +63,7 @@ lives — `/Applications/Safari.app` is a symlink flagged hidden, so `.skipsHidd
 Finder ships as an individual bundle scope rather than by adding `/System/Library/CoreServices`, which
 holds ~120 background-agent bundles. There is no reliable way to filter those: `LSUIElement`,
 `LSBackgroundOnly` and "declares no icon" each also exclude legitimately launchable apps — Raycast,
-Stats, Tinycast itself, Mission Control, Siri, Time Machine, Screenshot, System Information, Font
+Stats, Minicast itself, Mission Control, Siri, Time Machine, Screenshot, System Information, Font
 Book. Don't reintroduce such a heuristic.
 
 `AppIndex.start(settings:)` observes `$searchScopes`, so an edit re-indexes immediately; overlapping
@@ -74,7 +74,7 @@ refreshes collapse into a single trailing scan.
 | Field | What lands in it | Compared against | Ranks |
 | --- | --- | --- | --- |
 | title | the display name | the query read into Latin | yes |
-| alternate titles | the bundle's names in the user's other languages and English, a renamed bundle's file name, `CFBundleAlternateNames`, a snippet's keyword | the query as typed | yes |
+| alternate titles | the bundle's names in the user's other languages and English, a renamed bundle's file name, `CFBundleAlternateNames` | the query as typed | yes |
 | subtitle | an extension's title, or a row's own subtitle in its place | the query read into Latin | yes |
 | keywords | the declared Info.plist name, an extension command's `keywords`, a meeting's calendar, and the title and subtitle joined both ways | the query read into Latin | no — they only make an entry appear |
 
@@ -149,15 +149,15 @@ the Zed app: rule 3 only protects an exact title past three characters.
 ### Kind priority and boosts
 
 - **Apps win the ties.** `KindDescriptor.rankPriority` puts applications (4) above command-like kinds
-  (3), quicklinks (2), and System Settings panes and meetings (1), so a first-party app is never
-  shadowed by the Tinycast command named after it: Calculator over Calculator History.
-- **One boosted command.** Only AI Chat carries boosted terms (`CommandID.boostedTerms`); boosting Show
-  Notes would shadow Apple's Notes.
+  (3), and System Settings panes and meetings (1), so a first-party app is never
+  shadowed by the Minicast command named after it: Calculator over Calculator History.
+- **One boosted command.** Only Quick AI and AI Chat carry boosted terms (`CommandID.boostedTerms`:
+  `ai`, `chat`); boosting a command named after an app would shadow the app.
 - **Two entries with the same alias** fall through to the next rule.
 
 `settings` is the case these were measured against. Apple declares `Settings` in System Settings'
 `CFBundleAlternateNames`, so it is an exact alternate title and wins rule 3; the command is named
-`Tinycast Settings`, like About, Quit and Support Tinycast, so nothing ties it there.
+`Minicast Settings`, like About and Quit Minicast, so nothing ties it there.
 
 ## One fold, everywhere
 
@@ -240,7 +240,7 @@ by the title's own score, then by name. The subtitle does not name the entry, so
 
 A query that *equals* a category's own name lists that whole category under its section header, in the
 order the section shows when the field is empty. Both words a kind already carries work — the section
-title and the singular label, `Snippets`/`Snippet`, `Window Management`/`Window Command` — read straight
+title and the singular label, `Custom Commands`/`Custom Command`, `Window Management`/`Window Command` — read straight
 off `KindDescriptor` by `AppEntry.Kind.named(by:)`, so no category name is written a second time and a
 new `Kind` case gets its category word for free.
 
@@ -267,9 +267,9 @@ a bare host puts **Open in Browser** on top, and activating it hands the URL to 
 handler through `AppLauncher.open`.
 
 The shape a query has to have is `LinkDestination.detect` returning `.web`, reused rather than
-re-written so `github.com` and `https://…` mean the same thing here as they do in a quicklink. The
+re-written so `github.com` and `https://…` mean the same thing here as they do in a window layout's link entry. The
 entry is an ordinary `.command`, so `VisibilityStore` still gates it — Commands off hides the row —
-and its `url` carries the destination instead of the catalog's `tinycast://` placeholder. Nothing
+and its `url` carries the destination instead of the catalog's `minicast://` placeholder. Nothing
 learns from it and nothing pins it: `LauncherCoordinator.launch` records no visit for a contextual
 row, since a pasted URL is not a term any row should rank under; and ⇧⌘F and ⇧⌘H are both refused,
 because a favorite — or a hidden-item key — the empty query can never resolve is dead state a backup
@@ -285,7 +285,7 @@ offered under a `Use “…” with…` header **below every result**, whatever 
 row leads because it recognised the query; a fallback trails because nothing did.
 
 `Fallback` (`Launcher/Model/`) is the whole vocabulary — `.builtin(Builtin)` for the four shipped
-destinations and `.quicklink(UUID)` for a user's own. `Builtin` exists rather than a bare `CommandID`
+destinations. `Builtin` exists rather than a bare `CommandID`
 so `FallbackCoordinator.run` is **exhaustive**: a fifth built-in cannot compile without saying where
 its query goes. `Fallback.id` is deliberately the row's own `AppEntry.id`, which is what lets a stored
 order name a live row across a rename or a reinstall.
@@ -296,15 +296,6 @@ order name a live row across a rename or a reinstall.
 | Search Files | the file-search screen, already narrowed | `fileSearchEnabled` |
 | Run Shell Command | `/bin/zsh`, streamed into the Command Output window | always |
 | Define Word | the dictionary screen, already showing the entry (see [dictionary.md](dictionary.md)) | the Define Word command is visible in Settings › Commands |
-| a quicklink | its first `{argument}` | `quicklinksEnabled`, and the link has a placeholder |
-
-**A quicklink earns a fallback row by declaring a placeholder**, nothing else —
-`LinkDestination.containsPlaceholder`. `openQuicklink(id:filling:)` assigns the query to the
-first declared argument and opens at once when that was the only one owed; anything still missing
-sends the row to Search Quicklinks with its header fields pre-filled (see
-[quicklinks.md](quicklinks.md#arguments)). The seed never fills the **selection** field: that one is
-not an `{argument}` and is resolved by replacing the context, so seeding it through `userArguments`
-would silently do nothing.
 
 **Run Shell Command carries its own switch, not the custom-command library's.** Turning off Custom
 Commands hides a library of saved commands; it says nothing about a shell line someone types
@@ -314,12 +305,12 @@ never stored — same streaming window, same Stop button — so `CustomCommandCo
 shell config (`ll` should mean the reader's own alias) and takes the runner's default home directory.
 
 **The order and the checkboxes are not in a settings backup.** The fallback list is where an import
-could arm shell execution from the launcher, which is the line `snippetsEnabled` already draws:
+could arm shell execution from the launcher, which is the line `extensionsEnabled` already draws:
 a flag that grants a capability is never carried by a backup.
 
 `FallbackStore` is a thin persistence shell over `Fallback.ordered(_:by:)`, which is pure and covered
 by `fallback-test`: stored ids first, then anything the order has never seen, and a stored id with
-nothing behind it — a deleted quicklink — is skipped rather than resurrected. Settings ▸ Fallbacks
+nothing behind it is skipped rather than resurrected. Settings ▸ Fallbacks
 lists exactly `FallbackCoordinator.available`, so a fallback whose feature is off is absent from the
 pane as well as from the launcher, and reorders through ↑/↓ buttons like a favorite rather than
 introducing this codebase's first drag-reorder.
@@ -334,7 +325,7 @@ revealed: `activate` routes to `FallbackCoordinator.run` instead of `LauncherCoo
 ### User aliases
 
 `AliasStore` (`Launcher/Service/`) keeps one user-chosen alias per entry, keyed by `preferenceKey`
-like favorites and learned ranking, so every entry kind — apps, commands, quicklinks, snippets —
+like favorites and learned ranking, so every entry kind — apps, commands, custom commands, extensions —
 can carry one. An alias is deliberate in a way no vendor field is, so an exact hit is rule 1 and a
 prefix hit rule 6. Only a hit **from its start** earns those rules; anywhere else the alias ranks as
 an alternate title by score, so `dark` finds an alias `toggle light / dark`, while `term` inside
@@ -352,13 +343,12 @@ on `LauncherItemsSection` puts an `AliasField` on each row, dressed like the `Sh
 beside it; edits store as typed and trim when the field loses focus, and a blank means none. That
 list filters by **membership only**, keeping the index's name order — re-ranking it per keystroke
 would move the row being edited out from under its own field editor. A pane with a hand-written row
-hands `AliasField` the key itself: Settings ▸ Quicklinks passes `Quicklink.entryID`, Settings ▸
-Commands passes `CustomCommand.entryID`, Settings ▸ Extensions passes `extension:<name>/<command>`,
+hands `AliasField` the key itself: Settings ▸ Commands passes `CustomCommand.entryID`, Settings ▸ Extensions passes `extension:<name>/<command>`,
 and each dims the field when the entry is hidden from launcher search, whose entry the ranker never
 sees.
 
 Aliases ride along in a settings backup (`launcherAliases`), and deleting what an alias points at —
-uninstalling an app, deleting a quicklink or custom command, uninstalling an extension — removes it
+uninstalling an app, deleting a custom command, uninstalling an extension — removes it
 with the entry's other per-entry preferences.
 
 ### Alternate names
@@ -430,7 +420,7 @@ so the sectioned view stays 1:1 with the flat selection.
 ### Suggestions
 
 `LauncherSuggestions.select` chooses at most five from every visible entry that is not a favorite, a
-meeting, an AI command or Tinycast itself. AI is the lowest priority, so Quick AI and AI Chat are
+meeting, an AI command or Minicast itself. AI is the lowest priority, so Quick AI and AI Chat are
 never suggested, however often they are opened:
 
 1. up to two apps or extensions installed in the last five minutes and never opened —
@@ -438,8 +428,8 @@ never suggested, however often they are opened:
 2. entries with a score above 1 and no bound shortcut, in empty-list order — a shortcut is already the
    faster way in;
 3. while fewer than five, built-in commands with no alias or shortcut, by
-   `CommandID.suggestionPriority`: Clipboard History, Search Files, My Schedule, Search Emoji &
-   Symbols, then Create Quicklink and Create Snippet. A command whose feature is off is absent from the
+   `CommandID.suggestionPriority`: Clipboard History, Search Files, My Schedule, then Search Emoji &
+   Symbols. A command whose feature is off is absent from the
    index, so it is never offered.
 
 A suggested entry leaves its kind section below, so no row appears twice. `AppIndex.Results` carries
@@ -450,7 +440,7 @@ off (`launcherShowsSuggestions`, carried by a settings backup). `HotKeyManager.r
 
 ## System actions
 
-`SystemActionCatalog` is a Foundation-only inventory of the macOS actions Tinycast exposes. Its
+`SystemActionCatalog` is a Foundation-only inventory of the macOS actions Minicast exposes. Its
 stable entry IDs, labels, symbols and confirmation policy are covered by
 `Tests/system-action-test.swift`; platform side effects live separately in `SystemActionRunner`.
 `SystemActionCoordinator.runSystemAction(id:)` remains the one execution funnel — shared by palette activation and a
@@ -459,8 +449,8 @@ permission-aware failures. With the palette closed it targets the frontmost app,
 Quit All act on the same window a palette launch would have.
 
 System actions occupy their own launcher section and their own Settings pane. The empty-query publication
-order is applications, System Settings, quicklinks, snippets, system actions, window commands, custom
-commands, then built-in commands; the sectioned view filters in that same order so the visible rows remain
+order is meetings, applications, System Settings, extension commands, Apple Shortcuts, system actions,
+window layouts, rooms, window commands, custom commands, quick actions, then built-in commands; the sectioned view filters in that same order so the visible rows remain
 identical to the flat selection index.
 Search, favorites, visibility and learned ranking work through the normal `AppEntry` path, and every
 action is bindable to a global shortcut from Settings › System Actions
@@ -470,24 +460,24 @@ Public AppKit, CoreAudio and workspace APIs are preferred. Actions without a sta
 use fixed system tools, Apple Events, Accessibility, or a dynamically resolved Bluetooth power API.
 Those routes run only on explicit activation. Automation, Accessibility or Bluetooth permission is
 requested at first use, and denial produces an alert linking to the relevant System Settings pane.
-Toggle System Appearance changes macOS; Tinycast follows it only while its own Appearance is System.
+Toggle System Appearance changes macOS; Minicast follows it only while its own Appearance is System.
 
 Restart, Shut Down, Log Out, Empty Trash and Quit All Applications confirm before execution: ↵ runs
 the action, Escape cancels. **Empty Trash follows Finder's own "Show warning before emptying the
 Trash"** (Finder ▸ Settings ▸ Advanced) rather than overriding it: with the box off it runs without a
 dialog. `SystemActionRunner.finderWarnsBeforeEmptyingTrash` reads `com.apple.finder`'s
 `WarnOnEmptyTrash` at call time, and an absent key counts as on, because Finder writes it only once
-the box is changed. Every dialog is Tinycast's own: confirmations, failure reports and the Set
+the box is changed. Every dialog is Minicast's own: confirmations, failure reports and the Set
 Volume slider all render through `DialogController` rather than an `NSAlert`
 (see [ui.md](../ui.md#dialogs--hud)). Each confirmation carries the action's own icon — Restart shows
 `arrow.clockwise`, Empty Trash `trash.slash` — so the dialog is recognizably about the row that
-opened it. Volume and mute actions also show Tinycast's transient volume HUD, since macOS only draws
+opened it. Volume and mute actions also show Minicast's transient volume HUD, since macOS only draws
 its own for real media keys. Volume Up/Down walk a 5% grid (`VolumeLevel.stepped`, covered by
 `Tests/volume-test.swift`): an off-grid level snaps to the next line rather than past it, so from 37%
 up lands on 40% and down on 35%, and repeated presses stay on round numbers.
 
 An action whose effect is invisible reports back through a pill (`MessageHUDController`, the same one
-Custom Commands and Snippets confirm through) rather than finishing silently:
+Custom Commands confirm through) rather than finishing silently:
 `SystemActionRunner.run` returns a `SystemActionFeedback` naming the state it landed in
 (`Trash Emptied`, `Hidden Files Shown`, `Dark Appearance`, `Bluetooth Off`, `3 Disks Ejected`), and
 `AppCore` shows it with a `DialogTone` derived from the feedback's `isNoOp` flag: `.success` when
@@ -518,8 +508,7 @@ dismissal matches Accessibility subroles rather than English labels.
 `AppIndex.setWindowCommandsVisible(_:)` and shown under a "Window Management" section. Like system
 actions they carry dedicated global hotkeys (`AppEntry.hotKeyAction` returns `.windowCommand(id:)`),
 so launcher rows render keycaps for them. Their per-command shortcut and visibility controls live in
-Settings › Window Management rather than a launcher-category pane of their own — the same call already
-made for snippets. The feature ships off. User-defined custom sizes join the same section as their
+Settings › Window Management rather than a launcher-category pane of their own. The feature ships off. User-defined custom sizes join the same section as their
 own slice, `AppIndex.setCustomWindowSizes(_:)`, published right after the catalog. See
 [window-management.md](window-management.md#custom-sizes).
 
@@ -539,19 +528,10 @@ enters it through `RoomCoordinator.enterRoom(id:)`, which hides the palette itse
 the two room commands leave together with `windowRoomsShowInLauncher`. See
 [window-rooms.md](window-rooms.md).
 
-## Quicklinks
-
-`QuicklinkStore` supplies its slice the same way custom commands do, sorted pinned-first then
-alphabetically by `Quicklink.precedes`. Only the name is indexed — a URL is a subsequence of nearly
-any query — and a per-item "show in root search" flag filters the slice before it is published. The
-four Quicklinks commands are dropped from the built-in slice in the same publish while the feature is
-off, so a toggle can't leave the section and its commands out of step. See
-[quicklinks.md](quicklinks.md).
-
 ## Apple Shortcuts
 
 `AppleShortcutCoordinator` reads the Shortcuts app's library through `/usr/bin/shortcuts` and supplies
-it as its own slice right after Quicklinks, re-reading on every launcher open. Only the name is indexed,
+it as its own slice right after extension commands, re-reading on every launcher open. Only the name is indexed,
 and the entry id is keyed on the shortcut's UUID, so an alias or binding survives a rename in
 Shortcuts. See [apple-shortcuts.md](apple-shortcuts.md).
 
@@ -568,10 +548,10 @@ execution semantics.
 
 ## Quick Actions
 
-`AppEntry.Kind.quickAction` is one section holding both halves. `CommandID.fixGrammar`, `.rewrite`,
-`.translate` and `.summarize` publish the shipped four while `quickActionsEnabled` is on, each
+`AppEntry.Kind.quickAction` is one section holding both halves. `CommandID.fixGrammar`, `.rewrite`
+and `.summarize` publish the shipped three while `quickActionsEnabled` is on, each
 carrying the action's own title and glyph so the launcher row and the settings row can never drift.
-`CommandID.init(_ action: BuiltInQuickAction)` is exhaustive, so a fifth cannot reach the launcher
+`CommandID.init(_ action: BuiltInQuickAction)` is exhaustive, so a fourth cannot reach the launcher
 without one. They report `CommandID.entryKind`, the one place a catalog command claims a section other
 than Commands.
 
@@ -584,19 +564,7 @@ them. **There is deliberately no `Enable Quick Actions` category toggle** either
 
 Activation hands the action to `QuickActionCoordinator.run(_:)` **without** hiding the palette first:
 the coordinator reads the displaced app and then hides, because after the hide the frontmost app is
-Tinycast. See [quick-actions.md](quick-actions.md).
-
-## Notes commands
-
-`CommandID.showNotes`, `.createNote`, and `.searchNotes` publish the three Notes entry points while the
-feature is enabled. Activation hides the palette without restoring focus and calls the matching
-`NotesCoordinator` action; each `HotKeyAction` reaches that same boundary and rechecks enablement.
-
-`AppIndex` projects the three commands together from `notesEnabled`, independently of File Search and
-Quicklinks. They represent collection actions rather than individual notes, so Notes adds no
-`AppEntry.Kind` or launcher section — it owns them through `SettingsTab.ownedCommands` instead, which
-is what keeps them out of Settings › Commands while they stay in the launcher's Commands section. See
-[notes.md](notes.md).
+Minicast. See [quick-actions.md](quick-actions.md).
 
 ## Pane-owned commands
 
@@ -607,22 +575,14 @@ and three places read it: `FeatureCommandsSection` draws the pane's rows from it
 category gate for it in both `isVisible` and `allowsHotKey`. Stamping the entry rather than sniffing its
 id is what keeps "which pane owns this" out of the entry-ID namespace.
 
-Eleven panes own commands today — AI, Quick Actions, File Search, Notes, Snippets, Navigation,
-Window Management, Clipboard, Emoji, Calendar and Quicklinks. What is left in Settings › Commands is
-the set no feature switch governs: Calculator History, Open Camera, the three backup commands, Check
-for Updates, Tinycast Settings, About, Support and Quit.
+Seven panes own commands today — AI, Quick Actions, File Search, Window Management, Clipboard, Emoji
+and Calendar. What is left in Settings › Commands is the set no feature switch governs: Calculator
+History, Open in Browser, Run Shell Command, Define Word, the three backup commands, Minicast Settings,
+About and Quit.
 
 A pane's list is also its display order, so `CommandID`'s declaration order is grouped by owner.
 Nothing keys on that order — `CommandCatalog.all` sorts by name and every preference keys on the raw
 value — so a command may be moved between owners without migrating anything.
-
-## Navigation commands
-
-`CommandID.switchWindows` opens every running app's windows as a palette screen, and
-`CommandID.searchMenuItems` does the same for the front app's menu bar. Both are plain command
-entries — no new `AppEntry.Kind` and no `VisibilityStore` category — owned by Settings › Navigation
-through `SettingsTab.ownedCommands`, so `navigationEnabled` is their switch. Their invariants and
-internals live in [navigation.md](navigation.md) and [menu-search.md](menu-search.md).
 
 > **Invariant:** `Tests/fuzz-test.swift` compiles the real `Launcher/Model/LauncherMatch.swift` and
 > `LauncherOrder.swift`, so both must stay Foundation-only and pure. There is no copy of the ranking
@@ -714,7 +674,7 @@ favorite, alias and learned ranking survive the round trip, and its shortcut kee
 The row is offered only where Settings can undo it, and `KindDescriptor.canHideFromSearch` is that
 rule — per kind, and a new `Kind` case has to answer it to compile. Applications, System Settings,
 Commands, Quick Actions, System Actions, Window Commands, Window Layouts, Rooms and extension commands each
-draw a per-row checkbox in their pane, so they carry it. Custom commands, quicklinks and snippets do
+draw a per-row checkbox in their pane, so they carry it. Custom commands do
 not: their panes list a record with its own switches, not a launcher checkbox — a hide nothing in
 Settings can visibly undo is a trap, not a shortcut.
 `AppActionsMenu` adds the query-driven guard the favorites row already uses: a typed URL lives only
@@ -777,7 +737,7 @@ running dot and the availability of the running-only actions:
   moment the quit is asked for and never restores focus — either the relaunch takes it, or the app
   that refused the quit is the one asking for it.
 - **Quit All Applications** a system action. `AppLauncher.quitAllTargets()` is the
-  policy (every `.regular` app except Finder — `terminate()` only relaunches it — and Tinycast,
+  policy (every `.regular` app except Finder — `terminate()` only relaunches it — and Minicast,
   excluded by PID because About/Settings temporarily flips it to `.regular`). `SystemActionCoordinator.quitAllApps()`
   resolves that list **once**, confirms it with an `NSAlert`, then terminates exactly what was
   confirmed. The palette hides before the alert — it is a floating panel and would sit above it.

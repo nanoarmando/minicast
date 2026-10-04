@@ -23,6 +23,12 @@ struct AboutView: View {
 
     private static let iconSize: CGFloat = 88
 
+    private static let statement = """
+        Minicast is Tinycast for every Mac: a small, native launcher that runs from macOS 13 on \
+        Intel and Apple silicon. It started as a personal fork to keep older Macs useful without \
+        giving up great tools.
+        """
+
     var body: some View {
         WithPerceptionTracking {
             VStack(spacing: 0) {
@@ -69,9 +75,11 @@ struct AboutView: View {
                     )
             }
 
-            Text("A tiny, native macOS launcher.")
+            Text(Self.statement)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -108,23 +116,13 @@ private struct AboutLink: Identifiable {
 
     static let all: [AboutLink] = [
         AboutLink(
-            id: "website", glyph: .symbol("globe"), title: "Website",
-            detail: "tinycast.dev",
-            url: URL(string: "https://tinycast.dev/")!),
+            id: "github", glyph: .brand("BrandGitHub"), title: "Minicast on GitHub",
+            detail: "github.com/nanoarmando/minicast",
+            url: URL(string: "https://github.com/nanoarmando/minicast")!),
         AboutLink(
-            id: "github", glyph: .brand("BrandGitHub"), title: "GitHub",
-            detail: "github.com/abue-ammar/tinycast",
-            url: URL(string: "https://github.com/abue-ammar/tinycast")!),
-        AboutLink(
-            id: "discord", glyph: .brand("BrandDiscord"), title: "Discord",
-            detail: "Join the Tinycast community",
-            url: URL(string: "https://discord.gg/v2Eeb4QQy3")!),
-        AboutLink(
-            id: "x", glyph: .brand("BrandX"), title: "X", detail: "@abue_ammar",
-            url: URL(string: "https://x.com/abue_ammar")!),
-        AboutLink(
-            id: "email", glyph: .symbol("envelope"), title: "Email",
-            detail: "iabueammar@gmail.com", url: URL(string: "mailto:iabueammar@gmail.com")!)
+            id: "upstream", glyph: .symbol("arrow.triangle.branch"), title: "Based on Tinycast",
+            detail: "by Abue Ammar · AGPL-3.0",
+            url: URL(string: "https://github.com/abue-ammar/tinycast")!)
     ]
 }
 

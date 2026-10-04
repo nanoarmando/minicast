@@ -1,6 +1,6 @@
 name: Tinycast
 options:
-  bundleIdPrefix: com.tinycast
+  bundleIdPrefix: com.minicast
   deploymentTarget:
     macOS: "13.0"
   createIntermediateGroups: true
@@ -8,19 +8,19 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "0.1.1"
+    MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "2"
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Manual
     # Stable self-signed identity so macOS keeps the Accessibility grant across rebuilds.
     # Create it once — see docs/signing.md.
-    CODE_SIGN_IDENTITY: "Tinycast Self-Signed"
+    CODE_SIGN_IDENTITY: "Minicast Self-Signed"
     SWIFT_STRICT_CONCURRENCY: complete
-    TINYCAST_BUNDLE_IDENTIFIER: com.tinycast.app.fork
+    TINYCAST_BUNDLE_IDENTIFIER: com.minicast.app
   configs:
     Debug:
-      TINYCAST_BUNDLE_IDENTIFIER: com.tinycast.app.fork.dev
+      TINYCAST_BUNDLE_IDENTIFIER: com.minicast.app.dev
     Release:
       # The fork ships one universal build for Apple silicon and Intel Macs.
       ARCHS: "arm64 x86_64"
@@ -81,9 +81,9 @@ targets:
         # locally-run build gets its own prefs, caches, TCC grants and login item instead of
         # inheriting — and corrupting — the installed app's state.
         Debug:
-          PRODUCT_NAME: Tinycast Fork Dev
+          PRODUCT_NAME: Minicast Dev
         Release:
-          PRODUCT_NAME: Tinycast Fork
+          PRODUCT_NAME: Minicast
 
   ClipboardTextHelper:
     type: tool

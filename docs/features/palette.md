@@ -92,8 +92,6 @@ every screen but the clipboard, which lands past its pins
 | `.schedule` | `ScheduleScreen` | `ScheduleList` (see [calendar.md](calendar.md)) |
 | `.meetingDetails` | `MeetingDetailsScreen` | `MeetingDetailsView` (see [calendar.md](calendar.md#the-details-page)) |
 | `.uninstall` | `UninstallScreen` | `UninstallList` (see [uninstall.md](uninstall.md)) |
-| `.quicklinks` | `QuicklinkListScreen` | `QuicklinkList` + preview (see [quicklinks.md](quicklinks.md#search-quicklinks)) |
-| `.snippets` | `SnippetsScreen` | `SnippetsList` + preview (see [snippets.md](snippets.md#search-snippets)) |
 | `.dictionary` | `DictionaryScreen` | `DictionaryEntryView` (see [dictionary.md](dictionary.md)) |
 | `.extensionCommand` | `ExtensionCommandScreen` | `ExtensionCommandView` (see [extensions.md](extensions.md)) |
 
@@ -170,10 +168,10 @@ a third screen; ringing round forever therefore never grows the stack past two.
 ### Inline row arguments
 
 A selected row can declare arguments, and they are typed **in the header, beside the search field** —
-not on a screen of their own. Three features answer this way, each owning its own strip: an extension
-command through `ExtensionArgumentsAccessory`, a quicklink through `QuicklinkArgumentsAccessory`, a
-custom command through `CustomCommandArgumentsAccessory`. The last two draw the same fields,
-`DesignSystem/InlineArgumentFields`; an extension draws its own. The palette knows none of them: `PaletteScreen.headerAccessory(at:focus:)` hands back a `PaletteHeaderAccessory`
+not on a screen of their own. Two features answer this way, each owning its own strip: an extension
+command through `ExtensionArgumentsAccessory` and a custom command through
+`CustomCommandArgumentsAccessory`. The custom command draws `DesignSystem/InlineArgumentFields`; an
+extension draws its own. The palette knows none of them: `PaletteScreen.headerAccessory(at:focus:)` hands back a `PaletteHeaderAccessory`
 — a width, the field names in Tab order, the first field still owed a value, a menu for a field that is
 chosen rather than typed, and an opaque view. That costs the header its one simple rule, so it holds
 these invariants:
@@ -186,7 +184,7 @@ these invariants:
 - **`Placement` is what a strip does to the field beside it.** `.afterQuery` (root search) drops the
   prompt and squeezes the field to the typed text, so the chips follow what was typed and a glyph
   anchors them to the row. `.besideSearchField` (a screen of its own, where that row is already
-  listed) keeps the prompt and sizes the field to it, so an empty field reads "Search quicklinks…"
+  listed) keeps the prompt and sizes the field to it, so an empty field reads its search prompt
   with the chip after it and no glyph repeating the row below. One measurement serves both: the
   field's own text, which is the prompt when nothing is typed and "" under `.afterQuery`.
 - Argument focus is its own `@FocusState`, `argumentFocused`, keyed by field id. Every way out
@@ -208,11 +206,11 @@ these invariants:
 The typed values live on `PaletteState.commandArguments`, keyed by
 `PaletteState.argumentKey(entryID, field)` — the argument's name, or a custom command's positional
 `$1`–`$3` — and are cleared with the rest of the screen.
-`PaletteState.pendingArgumentEntryID` is how a *shortcut* reaches them: a quicklink opened with values
-still missing shows its own screen and names the row, and the header focuses that row's first empty
-field instead of the search field. A custom command has no screen of its own, so it also sets
-`argumentEntryID`, which lists that row alone in root search while the query is its name. Both are set
-**after** `showPalette`, since `prepare` clears them.
+`PaletteState.pendingArgumentEntryID` is how a *shortcut* reaches them: a custom command opened with
+values still missing names its row, and the header focuses that row's first empty field instead of the
+search field. A custom command has no screen of its own, so it also sets `argumentEntryID`, which lists
+that row alone in root search while the query is its name. Both are set **after** `showPalette`, since
+`prepare` clears them.
 
 The flat `selection` index is the single source of truth for highlight / activation and **must always
 match the visible row order**, including the card at index 0 when present — the calculator's (see
@@ -323,7 +321,7 @@ rows land in the half-open interval `(minY, maxY]`: the topmost row is exactly `
 excludes, while that same value is the `minY` of the display stacked above. `contains` would therefore
 hand a pointer parked at the top of one display to its neighbour. `NSMouseInRect` exists for this.
 
-## The placeholder is Tinycast's, not the field's
+## The placeholder is Minicast's, not the field's
 
 The search field is a SwiftUI `TextField` with **no `prompt`**; `RootPaletteView` draws the
 placeholder itself as a leading-aligned background `Text`.
@@ -437,7 +435,7 @@ width; their hover keeps the shared 10pt menu-row corner.
 
 A menu is **not** an overlay inside the palette: `MenuPanelController` hosts it in a `MenuPanel`, a
 borderless non-activating `NSPanel` added as a **child window** of the palette's, which is what makes
-it follow a palette drag and vanish with it. Glass renders against the desktop rather than inside an
+it follow a palette drag and vanish with it. Its blur renders against the desktop rather than inside an
 already-blurred, clipped panel, and no menu can be cropped by `RootPaletteView`'s `clipShape` however
 long it grows. The menu temporarily becomes key so its native `TextField` owns the caret and selection, while
 `MenuPanel` hands navigation and action shortcuts back to `RootPaletteView`. It restores key status
@@ -583,6 +581,6 @@ app:
 Both require the Accessibility permission (`Permissions.ensureAccessibility()`).
 
 The same show also mirrors that app into `PaletteState.pasteTarget` (a `PasteTarget`: localized
-name + bundle path), so Clipboard and Emoji can name it — the footer pill reads "Paste to Notes" and
+name + bundle path), so Clipboard and Emoji can name it — the footer pill reads "Paste to TextEdit" and
 the ⌘K paste rows carry the app's icon. Resolved once per summon, never per render, and deliberately
 not cleared by `prepare` (pop-to-root resets the screen, not the target).

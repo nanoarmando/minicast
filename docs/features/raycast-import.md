@@ -1,6 +1,6 @@
 # Raycast import
 
-Tinycast reads the `.rayconfig` written by Raycast v2.x: a `RAYCFG3` container holding an AES-256-GCM
+Minicast reads the `.rayconfig` written by Raycast v2.x: a `RAYCFG3` container holding an AES-256-GCM
 payload under a scrypt-derived key. It is the only format read — the v1.x export and the Raycast X beta
 between them are both gone, deleted rather than carried, as of **v0.10.5**.
 
@@ -30,12 +30,12 @@ key  = scrypt(passphrase, salt, N=16384, r=8, p=1, dkLen=32)
 
 The header carries `schemaVersion`, `iv` and `salt`, hex-encoded, 16 bytes each. `schemaVersion` is
 Raycast's own container number and is **3**; anything else is rejected. The payload is category-keyed
-JSON: `settings`, `clipboardHistory`, a top-level `snippets` whose entries name themselves `title`,
-and a `quicklinks` object holding `quicklinks` plus `openWithPlatforms`.
+JSON: `settings` and `clipboardHistory` are what Minicast reads. The payload also carries Raycast's
+snippets and quicklinks, which are ignored because those features are removed.
 
 Raycast encrypts even when the user never chose a password — it generates one and stores it in the
 login keychain (service `Raycast`, account `export_passphrase`), viewable at Raycast → Settings →
-Extensions → Export Settings & Data. **Tinycast never reads the keychain**; the user supplies the
+Extensions → Export Settings & Data. **Minicast never reads the keychain**; the user supplies the
 passphrase.
 
 ## Mapping
@@ -45,15 +45,10 @@ An applications command hides the launched app's path after `::=::` in its id, r
 are `LayoutIndependent` key codes with named modifiers, and always import as a `.combo`: Raycast has no
 double-tap binding. A clipboard record's representations are nested and its timestamps carry fractional
 seconds; only an `image/*` representation whose file still exists becomes an image clip, and the rest
-are counted as missing rather than dropped silently. Quicklinks land through `QuicklinkArchive.merge`,
-so they add to the library and never replace it. `{Query}` is rewritten to `{argument}`; an `openWith`
-app path (or a platform id in `openWithPlatforms`) resolves to a bundle ID the same way application
-hotkeys do. Raycast's ULID is discarded — each imported row gets a fresh UUID, as a JSON quicklink
-import already does. Importing at least one quicklink turns `quicklinksEnabled` on: opening a link
-grants no permission class.
+are counted as missing rather than dropped silently.
 
 Clipboard entries with the Boolean `pinned: true` remain pinned, for both text and existing images,
-so they are exempt from Tinycast's retention pruning even when their original `createdAt` is old.
+so they are exempt from Minicast's retention pruning even when their original `createdAt` is old.
 The pin flag has no timestamp or order in the observed v2.x clipboard payload; `pinnedAt` uses
 `createdAt` as a deterministic fallback, so imported pins sort by creation date, oldest first.
 Missing, false or malformed pin flags leave an entry unpinned and subject to the configured retention.
@@ -65,7 +60,7 @@ have their own importer, described in
 ## Layout
 
 `RaycastDecoder` unwraps the container and returns Raycast's own values; `RaycastImportReader` turns
-those into Tinycast's domain types. That is the same pure-layer / platform-layer split
+those into Minicast's domain types. That is the same pure-layer / platform-layer split
 `Features/WindowManagement/` uses — the reader needs AppKit, so it lives in `Service/` and is covered by
 the app build. `RaycastClipboardImport` holds the clipboard mapping with an injected clock and file
 existence check; `raycast-test` compiles it alongside the real `ClipboardStore` to cover pin metadata

@@ -92,7 +92,7 @@ struct HTTPAIProvider: AIProvider {
 
     private static var googleClientHeader: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        return "tinycast-oai/\(version)"
+        return "minicast-oai/\(version)"
     }
 
     private static func makeSession() -> URLSession {

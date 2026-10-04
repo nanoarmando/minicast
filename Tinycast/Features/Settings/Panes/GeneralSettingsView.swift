@@ -205,7 +205,7 @@ struct GeneralSettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Tinycast will relearn your preferred results as you use the launcher.")
+                Text("Minicast will relearn your preferred results as you use the launcher.")
             }
             .task {
                 // After the first frame: TIS enumeration is slow and must stay on main.

@@ -73,9 +73,9 @@ enum ExecutableLocator {
             process.executableURL = executable
             process.arguments = arguments
             process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
-            process.environment = ProcessInfo.processInfo.environment.merging(["TINYCAST": "1"]) {
-                _, new in new
-            }
+            process.environment = ProcessInfo.processInfo.environment.merging(
+                ["TINYCAST": "1", "MINICAST": "1"]
+            ) { _, new in new }
             process.standardInput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
             let stdout = Pipe()

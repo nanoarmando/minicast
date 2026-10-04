@@ -2,8 +2,8 @@
 
 Four surfaces over the Mac's own calendar: a **join card** at the top of an empty launcher, a
 **Join Next Meeting** global shortcut, the **menu bar**, and meetings that **join themselves**.
-Around them sit five launcher commands, a `My Schedule` sub-screen, a per-meeting details page, a
-camera preview, and individual events as searchable launcher entries.
+Around them sit five launcher commands, a `My Schedule` sub-screen, a per-meeting details page, and
+individual events as searchable launcher entries. Upstream's camera preview before a join is removed.
 
 ## Invariants
 
@@ -16,12 +16,6 @@ camera preview, and individual events as searchable launcher entries.
 - **Auto join fires at most once per meeting per launch**, and only for a meeting starting at or
   after the moment the switch was armed. Both are why `AutoJoinPolicy` takes `armedAt` and the
   already-joined set rather than reading a clock of its own.
-- **The camera settles before the panel opens, and stops after it closes.**
-  `CameraSession.start()` resolves access and blocks on `startRunning` first, then hands
-  `CameraPreviewController` a settled `Feed` — so the panel's first frame is live video rather than a
-  stage it has to swap out, and the TCC prompt never takes key from a panel already up.
-  `stop()` runs from the fade-out's completion, so the camera light never outlives the preview but
-  is never torn down under a visible one either.
 - **The card's window is `[start - lead, min(start + lead, end)]`.** The grace period exists because
   everyone joins late; the `min` is why it never outlives a meeting shorter than the lead.
 - **Recurrence comes from `predicateForEvents(withStart:end:calendars:)`**, which expands occurrences
@@ -40,7 +34,7 @@ camera preview, and individual events as searchable launcher entries.
   event that starts today, plus an event within 30 minutes after midnight; only then does the title
   mode read `No upcoming events`.
 - **`calendarEnabled` doubles as consent**, so it is in `SettingsBackupCoverage.deliberatelyExcluded`
-  and only `CalendarCoordinator.setCalendarEnabled` may write it. Tinycast's own dialog comes first,
+  and only `CalendarCoordinator.setCalendarEnabled` may write it. Minicast's own dialog comes first,
   the macOS prompt second, and only from the gesture that asked. **It is written only after macOS
   grants**, so a prompt that fails or is dismissed can never leave the feature reading as on with no
   access. Enabling is re-offered whenever access is anything but granted — by the Calendar pane and by
@@ -214,9 +208,9 @@ which is `[start - lead, start)` for **Automatically** and `[start - lead, min(s
 for the timed options. Because the earliest qualifying event wins, one hiding hands the space to the
 next with no extra logic.
 
-**The calendar's item and Tinycast's own item are two independent `MenuBarExtra` scenes**, each
+**The calendar's item and Minicast's own item are two independent `MenuBarExtra` scenes**, each
 inserted by one preference and reading nothing off the other: `showInMenuBar` on General for
-Tinycast's, `calendarMenuBarDisplay` here for the calendar's. Either may be the only one in the menu
+Minicast's, `calendarMenuBarDisplay` here for the calendar's. Either may be the only one in the menu
 bar, both may be, or neither. Dragging the calendar item out writes `.disabled`, which is what the
 picker already said — it never touches `showInMenuBar`.
 
@@ -271,20 +265,12 @@ The meeting is marked joined **before** the confirmation is raised, so declining
 minute later.
 
 Every join — the card, the chord, the menu bar, auto join — funnels through
-`CalendarCoordinator.join(_:uninvited:)`:
+`CalendarCoordinator.join(_:uninvited:)`, which decides in this order:
 
-```
-join(meeting)
-  ├─ no link ────────────► openInCalendar
-  ├─ camera preview on ──► CameraPreviewController.present → join, or drop
-  ├─ uninvited + confirm ► core.confirm → join, or drop
-  └─ otherwise ──────────► MeetingLauncher.join
-```
-
-**The preview is itself a confirmation**, so it stands in for one when both are on rather than asking
-twice. `CameraPanel` sits at `.floating`, below a dialog's `.dialog`, so a failure report
-still lands on top of it. The session, the panel and the stage are the `Camera` feature's — see
-[camera.md](camera.md); only the join-specific controller and footer live here.
+1. A meeting with no link opens in Calendar instead (`openInCalendar`).
+2. Otherwise the palette hides, and an uninvited join (auto join) with **confirm** on asks through
+   `core.confirm` first; declining drops the join.
+3. `MeetingLauncher.join` opens the link, in the chosen meeting browser when one is set.
 
 ## Settings
 
@@ -296,9 +282,9 @@ because a `Form` realizes every row it is handed; a few light rows don't need `L
 The hidden-calendar set stores **exclusions**, so a calendar added after the setting was written
 defaults to on. Holidays and Birthdays are what people switch off.
 
-`autoJoinMeetings` and `cameraPreview` join `calendarEnabled` in
-`SettingsBackupCoverage.deliberatelyExcluded`: one arms the app to open links unattended and the
-other turns on the camera, and an import must grant neither. `meetingBrowser` is excluded too: it names an
+`autoJoinMeetings` joins `calendarEnabled` in
+`SettingsBackupCoverage.deliberatelyExcluded`: it arms the app to open links unattended, and an import
+must never grant that. `meetingBrowser` is excluded too: it names an
 app installed on this Mac, which another Mac may not have. The menu-bar settings carry over
 normally, and so does `calendarSpan`: it sets how far ahead is read rather than widening what
 can be reached.
@@ -323,6 +309,6 @@ the feature was off is not reported as still missing.
 The Permissions pane shows calendar access alongside Accessibility, and when TCC has no record it
 offers the same consent path rather than only opening System Settings — the Calendars pane there
 lists no app that has never asked, so a `notDetermined` state that could only be sent to Settings was
-a dead end. Both entry points funnel through `CalendarCoordinator.setCalendarEnabled`, so Tinycast's
+a dead end. Both entry points funnel through `CalendarCoordinator.setCalendarEnabled`, so Minicast's
 dialog still comes first. A denial is the one state that Settings alone can undo, and both panes send
 it there.

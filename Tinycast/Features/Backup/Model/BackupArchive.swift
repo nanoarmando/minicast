@@ -2,9 +2,9 @@ import AppleArchive
 import Foundation
 import System
 
-/// Seals a `BackupBundle` directory into one `.tinycast` file, and opens one back up.
+/// Seals a `BackupBundle` directory into one `.minicast` file, and opens one back up.
 enum BackupArchive {
-    static let fileExtension = "tinycast"
+    static let fileExtension = "minicast"
 
     enum ArchiveError: LocalizedError, Equatable {
         case cannotWrite
@@ -13,7 +13,7 @@ enum BackupArchive {
         var errorDescription: String? {
             switch self {
             case .cannotWrite: return "Couldn't write the backup file."
-            case .cannotRead: return "This file isn't a Tinycast backup, or it's damaged."
+            case .cannotRead: return "This file isn't a Minicast backup, or it's damaged."
             }
         }
     }

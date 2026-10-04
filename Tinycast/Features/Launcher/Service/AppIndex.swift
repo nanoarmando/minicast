@@ -236,14 +236,14 @@ extension AppEntry {
     init(_ layout: WindowLayout) {
         self.init(
             id: layout.entryID, name: layout.name,
-            url: URL(string: "tinycast://window-layout/" + layout.id.uuidString)!,
+            url: URL(string: "minicast://window-layout/" + layout.id.uuidString)!,
             bundleID: nil, kind: .windowLayout, symbolName: layout.iconSymbol)
     }
 
     init(_ room: Room) {
         self.init(
             id: room.entryID, name: room.name,
-            url: URL(string: "tinycast://window-room/" + room.id.uuidString)!,
+            url: URL(string: "minicast://window-room/" + room.id.uuidString)!,
             bundleID: nil, kind: .windowRoom)
     }
 
@@ -251,7 +251,7 @@ extension AppEntry {
     init(_ size: CustomWindowSize) {
         self.init(
             id: size.entryID, name: size.name,
-            url: URL(string: "tinycast://window-size/" + size.id.uuidString)!,
+            url: URL(string: "minicast://window-size/" + size.id.uuidString)!,
             bundleID: nil, kind: .windowCommand)
     }
 
@@ -259,7 +259,7 @@ extension AppEntry {
     init(_ action: CustomQuickAction) {
         self.init(
             id: action.entryID, name: action.name,
-            url: URL(string: "tinycast://quick-action/" + action.id.uuidString)!,
+            url: URL(string: "minicast://quick-action/" + action.id.uuidString)!,
             bundleID: nil, kind: .quickAction, symbolName: action.iconSymbol)
     }
 
@@ -267,7 +267,7 @@ extension AppEntry {
     init(_ command: CustomCommand) {
         self.init(
             id: command.entryID, name: command.name,
-            url: URL(string: "tinycast://custom-command/" + command.id.uuidString)!,
+            url: URL(string: "minicast://custom-command/" + command.id.uuidString)!,
             bundleID: nil, kind: .customCommand, symbolName: command.iconSymbol)
     }
 
@@ -333,7 +333,7 @@ final class AppIndex {
         .map { command in
             AppEntry(
                 id: command.entryID, name: command.name,
-                url: URL(string: "tinycast://system-action/" + command.id.rawValue)!,
+                url: URL(string: "minicast://system-action/" + command.id.rawValue)!,
                 bundleID: nil, kind: .systemAction)
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -342,7 +342,7 @@ final class AppIndex {
         .map { command in
             AppEntry(
                 id: command.entryID, name: command.name,
-                url: URL(string: "tinycast://window-command/" + command.id.rawValue)!,
+                url: URL(string: "minicast://window-command/" + command.id.rawValue)!,
                 bundleID: nil, kind: .windowCommand)
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -685,13 +685,13 @@ final class AppIndex {
         return ordered
     }
 
-    /// Meetings keep their own card, AI is never pushed, and Tinycast opening Tinycast goes nowhere.
+    /// Meetings keep their own card, AI is never pushed, and opening this app or Tinycast goes nowhere.
     private func suggestions(
         from entries: [AppEntry], usage: LauncherRankingStore.Snapshot, hotKeys: HotKeyManager
     ) -> [AppEntry] {
         let eligible = entries.filter {
             $0.kind != .meeting && $0.settingsOwner != .ai
-                && !($0.bundleID?.hasPrefix(Self.ownBundlePrefix) ?? false)
+                && !Self.isOwnBundle($0.bundleID)
         }
         return LauncherSuggestions.select(from: eligible, now: usage.now) { entry in
             // `hotKeyAction` is nil for an extension command, whose shortcut is keyed by entry ID.
@@ -704,7 +704,12 @@ final class AppIndex {
         }
     }
 
-    private static let ownBundlePrefix = "com.tinycast."
+    private static let ownBundlePrefixes = ["com.minicast.", "com.tinycast."]
+
+    private static func isOwnBundle(_ bundleID: String?) -> Bool {
+        guard let bundleID else { return false }
+        return ownBundlePrefixes.contains { bundleID.hasPrefix($0) }
+    }
 
     private func signals(
         for entry: AppEntry, usage: LauncherRankingStore.Snapshot

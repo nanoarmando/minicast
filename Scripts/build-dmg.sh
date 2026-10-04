@@ -1,13 +1,13 @@
 #!/bin/bash
-# Build a signed universal "Tinycast Fork.app" into build/Tinycast-Fork-<version>.dmg.
+# Build a signed universal "Minicast.app" into build/Minicast-<version>.dmg.
 # Usage: ./Scripts/build-dmg.sh [version]
 set -euo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-IDENTITY="Tinycast Self-Signed"
+IDENTITY="Minicast Self-Signed"
 DERIVED="build/DerivedData"
-APP_NAME="Tinycast Fork"
+APP_NAME="Minicast"
 MINIMUM_MACOS="13.0"
 
 if ! security find-identity -p codesigning | grep -q "$IDENTITY"; then
@@ -39,7 +39,7 @@ for BIN in "$APP/Contents/MacOS/$APP_NAME" "$APP/Contents/Helpers/ClipboardTextH
 done
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
-DMG="build/Tinycast-Fork-${VERSION}.dmg"
+DMG="build/Minicast-${VERSION}.dmg"
 
 echo "▸ Packaging ${DMG}"
 STAGE="$(mktemp -d)"

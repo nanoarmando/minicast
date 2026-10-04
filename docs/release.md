@@ -1,125 +1,64 @@
 # Release
 
-How a build reaches a user. The local development loop is in [development.md](development.md);
-the signing identity itself is in [signing.md](signing.md).
+How a build reaches a Mac. The local development loop is in [development.md](development.md); the
+signing identity itself is in [signing.md](signing.md).
 
-## Packaging a DMG locally
+Minicast has no CI, no self-update and no Homebrew cask. A release is a universal DMG built on the main
+Mac and attached to a GitHub release of `nanoarmando/minicast`.
 
-```sh
-./Scripts/build-dmg.sh            # -> build/Tinycast-<version>.dmg (version from project.yml)
-./Scripts/build-dmg.sh 0.5.7      # -> build/Tinycast-0.5.7.dmg
-```
-
-It builds a Release `Tinycast.app` signed with `Tinycast Self-Signed` and packs it with an
-`/Applications` symlink. Official per-channel releases are built by CI, below.
-
-## Signing & Gatekeeper
-
-Both local builds and CI releases sign with the same stable `Tinycast Self-Signed` identity, not an
-Apple Developer ID — so macOS quarantines a directly-downloaded DMG. The Homebrew cask strips that
-automatically; direct downloaders run `xattr -dr com.apple.quarantine "…/Tinycast.app"` once. Full
-details in [signing.md](signing.md).
-
-## How the in-app updater consumes a release
-
-Every release publishes two assets from one build: `Tinycast-<version>.dmg`, which people download by
-hand and which the cask installs, and `Tinycast-<version>.zip`, which the in-app updater installs. The
-zip is produced with `ditto -c -k --keepParent --sequesterRsrc` — the only zip that leaves the code
-signature verifiable, which matters because the updater refuses any bundle whose signature does not
-prove it is ours.
-
-A stable release publishes two more from the `universal` job, `Tinycast-Universal-<version>.dmg` and
-`.zip`, built from the same commit at the same version and bundle id but with both slices. They are
-uploaded *after* the thin pair, which keeps the thin zip first in the asset list so builds predating
-architecture-aware selection keep choosing it.
-
-Three things a release must keep true, or the updater skips it:
-
-- **It carries a `.zip` asset this Mac can run.** A DMG-only release is not installable and is not
-  offered, and an Intel build is offered nothing rather than a thin arm64 zip.
-- **The tag parses as `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH-beta.N`,** and agrees with the
-  `prerelease` flag. A tag of any other shape is treated as mis-published and skipped.
-- **It is not a draft.**
-
-**Both casks declare `auto_updates true`.** That is Homebrew's flag for an app that manages its own
-version, and it is what keeps `brew update && brew upgrade` from fighting an app that updated itself:
-brew never reports Tinycast outdated, never re-downloads it, and never rolls a self-updated copy back.
-Removing that line would reintroduce exactly those three problems. See
-[features/updates.md](features/updates.md).
-
-## Pull request review
-
-There is no CI workflow. CodeRabbit reviews every PR against `.coderabbit.yaml`: it runs SwiftLint
-with `.swiftlint.yml`, annotates the diff and applies the pre-merge checks. It is a reviewer, not a
-gate — it neither runs the harnesses nor builds the app, so the whole bar in
-[testing.md](testing.md#definition-of-done) is run locally before a PR is opened.
-
-## Releasing
-
-`.github/workflows/release.yml` builds and publishes a DMG from GitHub Actions, no local machine
-needed. Run it from the **Actions** tab (`Release` → **Run workflow**) and pick:
-
-- **channel** — `beta` or `stable`. Each builds a distinct app (`Tinycast Beta.app` / `Tinycast.app`)
-  with its own bundle id, alongside the local `Tinycast Dev.app`. Beta gets an auto-incrementing
-  `-beta.N` suffix (`N` = the Actions run number) so re-running never collides; stable ships the
-  version as-is.
-- **version** — base semver, e.g. `0.2.0`.
-
-It builds on a `macos-26` runner with Xcode 26 and publishes a GitHub Release tagged
-`v<full-version>` with a versioned DMG and zip asset, marked prerelease for beta. On success it also
-bumps the matching cask in the tap and announces the release on Discord. A stable run also
-dispatches the Website workflow, because the site reads the latest version and the
-[changelog](https://tinycast.dev/changelog/) from GitHub at build time.
-
-A stable run then fans out to a second job, `universal`, which rebuilds the same commit with
-`ARCHS="arm64 x86_64"` and attaches `Tinycast-Universal-<version>.dmg` / `.zip` to the release the
-first job created, then bumps `tinycast-universal`. macOS 26 is the last release that boots on Intel,
-and those Macs need both slices. Both jobs pin `ARCHS` explicitly and assert the slices on *every*
-shipping binary — the app, `ClipboardTextHelper` and `Tinycast Dictation`: trusting `ARCHS_STANDARD` is what
-shipped a thin arm64 build to Intel users once already, and it also keeps the Apple silicon download
-from silently gaining a slice it never needs. A thin helper inside a universal app is the quiet form
-of the same bug: the app boots on Intel and only clipboard OCR or dictation stops working.
-
-Channel builds override `TINYCAST_BUNDLE_IDENTIFIER`, not the target-wide `PRODUCT_BUNDLE_IDENTIFIER`.
-The Dictation helper derives its own identifier with a `.dictation` suffix; signature verification
-checks that its bundle and signing identifiers agree and remain distinct from the main app.
-
-### Release notes
-
-`Scripts/release-notes.sh` composes the release body, and CI runs it just before `gh release create`.
-It is safe to run by hand against any tag — it only reads:
+## Building the DMG
 
 ```sh
-CHANNEL=beta TAG=v0.9.13-beta.61 ./Scripts/release-notes.sh /tmp/body.md /tmp/discord.md
+./Scripts/build-dmg.sh            # -> build/Minicast-<version>.dmg (version from project.yml)
+./Scripts/build-dmg.sh 0.2.1      # -> build/Minicast-0.2.1.dmg
 ```
 
-The changelog itself comes from GitHub's own release-notes API, which lists every merged PR with its
-author and number — so contributors are credited without anyone maintaining a `CHANGELOG.md`, and
-without Conventional Commits. **Nothing is ever committed to this repo**: the tag is created
-server-side by `gh release create`, and no release, bot or version-bump commit exists.
+The script:
 
-Two details the script exists for:
+1. Stops before building if the `Minicast Self-Signed` identity is missing, pointing to
+   [signing.md](signing.md).
+2. Builds the Release configuration of the `Tinycast` scheme (the internal name) into
+   `build/DerivedData`, signed with that identity and passing `-skipMacroValidation` for
+   swift-perception's macro.
+3. Checks that `Minicast.app`'s executable and the embedded `ClipboardTextHelper` both carry the
+   `arm64` and `x86_64` slices and a minimum macOS of exactly 13.0. A thin helper inside a universal app
+   is the quiet form of this bug: the app boots on Intel and only clipboard OCR stops working.
+4. Packs the app with an `/Applications` symlink into `build/Minicast-<version>.dmg`.
 
-- **The previous tag is picked per channel.** Beta and stable tags interleave on `main` — the same
-  commit can carry both — so "the previous release" is only ever right within one channel. A stable
-  release therefore spans every beta since the last stable.
-- **The body is split by `<!-- tinycast:install -->`.** Everything above it is the changelog;
-  everything below is the Homebrew and quarantine text, which only a download page needs. The update
-  window cuts at that marker — see [features/updates.md](features/updates.md). Full PR URLs are
-  shortened to `#304`, which still autolinks on the web and fits a 460pt window.
+`./Scripts/verify-signature.sh build/DerivedData/Build/Products/Release/Minicast.app` checks the
+signature, the hardened runtime and the entitlement each usage string needs before macOS shows its
+permission prompt.
 
-The Discord announcement carries the same changelog, truncated to fit Discord's component limit, and
-pings `@everyone`.
+## Gatekeeper
 
-### Homebrew tap automation
+The app is signed with a self-signed identity, not an Apple Developer ID, so macOS quarantines a DMG
+that was downloaded. After copying the app to `/Applications`, clear the flag once:
 
-Each job's final step rewrites the `version` + `sha256` of its cask (`tinycast`, `tinycast@beta` or
-`tinycast-universal`) in the [`homebrew-tinycast`](https://github.com/abue-ammar/homebrew-tinycast) tap
-and pushes. It needs a `HOMEBREW_TAP_TOKEN` repo secret — a fine-grained PAT with **Contents:
-read/write** on the tap repo. Without the secret the step logs a warning and skips; the release still
-publishes. The `sed` is anchored to `^  version` / `^  sha256`, so a cask's two-space indent on those
-lines is load-bearing.
+```sh
+xattr -dr com.apple.quarantine /Applications/Minicast.app
+```
 
-Both stable casks install `Tinycast.app` under `com.tinycast.app`, so they `conflicts_with` one
-another and Homebrew routes each Mac by `depends_on`: `tinycast` requires `arch: :arm64`, and
-`tinycast-universal` takes the Intel Macs.
+A copy made over the local network or from a USB drive is not quarantined. Details in
+[signing.md](signing.md).
+
+## Installing on the second Mac
+
+The same DMG runs on the Intel Mac on macOS 13. Copy the app, clear the quarantine flag if needed, then
+run the migration on that Mac too (see the README). Because both Macs run the same signed build, a later
+rebuild signed with the same identity keeps the Accessibility grant on each.
+
+## Publishing a release
+
+1. Set `MARKETING_VERSION` in `project.yml` (and bump `CURRENT_PROJECT_VERSION`), regenerate with
+   `./.tools/xcodegen/bin/xcodegen generate`, and commit both.
+2. Run the whole bar in [testing.md](testing.md#definition-of-done), then `./Scripts/build-dmg.sh`.
+3. Tag and publish with the GitHub CLI:
+   ```sh
+   gh release create minicast-v<version> build/Minicast-<version>.dmg \
+       --repo nanoarmando/minicast --title "Minicast <version>" --generate-notes
+   ```
+
+The palette's **Changelog** command opens `github.com/nanoarmando/minicast/commits/main`, so the commit
+history is the changelog; nothing else needs updating in the app.
+
+`Scripts/release-notes.sh` is upstream's CI release-notes composer. Minicast does not use it.

@@ -53,7 +53,7 @@ struct ExtensionCommandView: View {
                 } else {
                     ExtensionFailureView(
                         message:
-                            "This command renders \(type), which Tinycast doesn't support yet. See docs/extensions.md."
+                            "This command renders \(type), which Minicast doesn't support yet. See docs/extensions.md."
                     )
                 }
             }

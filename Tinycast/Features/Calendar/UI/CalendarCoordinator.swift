@@ -104,7 +104,7 @@ final class CalendarCoordinator {
                 await core.confirm(
                     title: "Enable calendar?",
                     message:
-                        "Tinycast reads \(settings.calendarSpan.possessivePhrase) events "
+                        "Minicast reads \(settings.calendarSpan.possessivePhrase) events "
                         + "to find join links. Nothing leaves this Mac.",
                     symbol: "calendar", confirmTitle: "Continue", tone: .neutral,
                     confirmRole: .standard)
@@ -220,7 +220,7 @@ final class CalendarCoordinator {
         AppEntry(
             id: meeting.entryID, name: meeting.title,
             url: URL(
-                string: "tinycast://meeting/"
+                string: "minicast://meeting/"
                     + (meeting.id.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
                         ?? ""))!,
             bundleID: nil, kind: .meeting,

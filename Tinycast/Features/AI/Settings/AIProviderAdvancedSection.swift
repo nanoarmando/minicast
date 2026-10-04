@@ -125,7 +125,7 @@ struct AIProviderAdvancedSection: View {
             return "A name is letters, digits and underscores, and does not start with a digit."
         }
         if kind.isManagedVariable(name) {
-            return "Tinycast sets \(name) itself, so this value is not used."
+            return "Minicast sets \(name) itself, so this value is not used."
         }
         return nil
     }
@@ -177,7 +177,7 @@ struct AIProviderAdvancedSection: View {
             ?? FileManager.default.homeDirectoryForCurrentUser
         guard
             let url = ExecutablePicker.choose(
-                message: "Choose the \(kind.command) command Tinycast should run.",
+                message: "Choose the \(kind.command) command Minicast should run.",
                 startingAt: start)
         else { return }
         path = (url.path as NSString).abbreviatingWithTildeInPath

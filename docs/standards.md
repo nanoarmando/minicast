@@ -1,6 +1,6 @@
 # Engineering standards
 
-How code in Tinycast is written. This is **guidance** — it describes what the codebase already looks
+How code in Minicast is written. This is **guidance** — it describes what the codebase already looks
 like so that new code reads like it was there all along, and a good reason to depart from it is a good
 reason. What is actually checked is the bar in
 [testing.md](testing.md#definition-of-done); the rules that may not be broken at all are the
@@ -10,21 +10,26 @@ When this document and the code disagree, the code is probably right and this fi
 
 ## Posture
 
-The rule — latest-only, prefer modern APIs, no compatibility layers, never add backwards compatibility
-unasked — is stated in [`AGENTS.md`](../AGENTS.md#posture-latest-only-always). This section is the
-reasoning and the concrete shape it takes.
+The rule — a macOS 13 floor with one code path for every version — is stated in
+[`AGENTS.md`](../AGENTS.md#posture-macos-13-floor-one-code-path). This section is the reasoning and the
+concrete shape it takes.
 
-The reason it is worth being strict about: a compatibility floor is not a one-time cost. Every shim
-outlives the platform that needed it, gets copied by the next feature that sees it, and turns a
-one-line call into a layer nobody dares delete. Tinycast has no external API, no plugin surface and one
-supported OS, so it has nothing to be compatible *with* — which is the whole reason it stays this
-small. The version-gated code this project has deleted has consistently been larger than the feature it
-was gating.
+Minicast exists to keep older Macs useful, so the floor is the product, not a concession. What keeps it
+small is that there is exactly **one** code path: the deployment target is 13.0, so any newer API is a
+build error, and the macOS 13 call is what runs everywhere. `#available` appears only where the
+macOS 13 call is wrong on a newer system (EventKit full access) or for a cosmetic modifier that simply
+does nothing on macOS 13. A second, "modern" branch beside the old one is the shape to avoid: it doubles
+what must be tested and is only ever exercised on one of the two Macs.
 
-In practice that means Observation and never `ObservableObject` or `@Published`; `async`/`await` and
-never a completion handler or a `DispatchQueue` hop; `SMAppService` and never an `LSSharedFileList`
-shim; structured concurrency and never detached bookkeeping you have to remember to cancel. When one of
-these gains a successor, the migration is the change — not a wrapper preserving the old spelling.
+Where SwiftUI gained a better spelling after macOS 13, the gap is closed once, in
+`DesignSystem/Compatibility/`, by a helper that keeps the newer API's shape — `onValueChange`,
+`onKeyDown`, `onScrollMetricsChange`, `EmptyStateView` — so a call site reads the same as it would on a
+newer target. Reuse those; never add a parallel helper or call the macOS 14+ original.
+
+In practice that means swift-perception and never `ObservableObject` or `@Published` in a view model;
+`async`/`await` and never a completion handler or a `DispatchQueue` hop; `SMAppService` and never an
+`LSSharedFileList` shim; structured concurrency and never detached bookkeeping you have to remember to
+cancel.
 
 Carbon has two deliberate capability-gap uses. The global hotkey engine uses `RegisterEventHotKey`
 because nothing modern can register a system-wide chord, and `CGEventTap` cannot see a lone modifier
@@ -145,25 +150,30 @@ Swift 6 language mode: data-race violations are hard errors, and that is the des
 
 Two gotchas worth knowing before they cost an afternoon:
 
-- **`withObservationTracking`'s `onChange` is a willSet hook.** It fires *before* the write lands, so a
+- **`withPerceptionTracking`'s `onChange` is a willSet hook.** It fires *before* the write lands, so a
   re-read must be deferred into a `Task` — which is also where the tracking is re-armed, since the
   closure is one-shot. `AppCore.track` is the shape to copy.
 - **A signpost interval leaks if the wrapped work throws.** The `.end` emit is skipped on the throw path
   unless it is in a `defer`. `Signposts.interval` already does this.
 
-### Observation
+### Perception
 
-38 types use `@Observable`; nothing uses `ObservableObject` or `@Published`. Migrating anything new into
-this model:
+63 types are `@Perceptible` (swift-perception); the only `ObservableObject` is `MenuBarSceneState`,
+because a scene body cannot use `WithPerceptionTracking`. Adding anything new to this model:
 
-- `@ObservationIgnored` on memo caches and lazily-built collaborators. Without it, reading a memo
+- Wrap every `View` and `ViewModifier` body in `WithPerceptionTracking`, and the lazily built content
+  that reads a model (`GeometryReader`, lazy stacks and grids, `List` content, popovers, sheets, context
+  menus). A missing wrapper only fails on macOS 13, where Perception logs an untracked-access warning in
+  Debug builds.
+- `@PerceptionIgnored` on memo caches and lazily-built collaborators. Without it, reading a memo
   registers a dependency and the view re-renders on its own cache fill.
-- Never write a type annotation on `@Environment` for an `@Observable` type — the macro resolves the
-  keyless overload by type, and an annotation changes which overload is chosen.
+- Use `@Perception.Bindable` for bindings into a model, not SwiftUI's `@Bindable`.
+- Never write a type annotation on `@Environment` for a `@Perceptible` type — the keyless overload is
+  resolved by type, and an annotation changes which overload is chosen.
 - **The compiler is blind to a missed injection site.** A view reading `@Environment(AppSettings.self)`
   from a hierarchy nobody injected into compiles and traps at runtime, so check the injection when adding
   a new hosting view.
-- `swiftc -parse` does not expand macros. Use `-typecheck` when checking an `@Observable` type standalone.
+- `swiftc -parse` does not expand macros. Use `-typecheck` when checking a `@Perceptible` type standalone.
 
 ## Performance and memory
 

@@ -1,6 +1,6 @@
 # Testing and verification
 
-How to check that a change holds up. Tinycast has no XCTest target and no UI tests: the automated half
+How to check that a change holds up. Minicast has no XCTest target and no UI tests: the automated half
 is a set of standalone harnesses, and the manual half is the sweep at the bottom of this file.
 
 ## Definition of done
@@ -12,11 +12,10 @@ The mechanical bar, in one place so it cannot drift. All five pass before a chan
 | The harnesses | `./Scripts/run-tests.sh` |
 | Lint | `./Scripts/lint.sh` |
 | Pure-layer purity | `grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/` |
-| A clean build | `xcodebuild … -configuration Debug CODE_SIGNING_ALLOWED=NO`, zero **new** warnings |
+| A clean build | Debug and the universal Release (`./Scripts/build-dmg.sh`), zero **new** warnings for the 13.0 target |
 | Docs still true | any doc your change made wrong, fixed in the same commit |
 
-There is no CI: every item is on you, run locally. CodeRabbit reviews each PR, but it is a reviewer,
-not a gate. Each is expanded below; the manual sweep at the end of this file is the sixth, judged by
+There is no CI: every item is on you, run locally. Each is expanded below; the manual sweep at the end of this file is the sixth, judged by
 what you touched.
 
 ## The harnesses
@@ -55,12 +54,10 @@ assertion, and it is the more important one.
 
 A harness also runs in your own login session against the real system, with no sandbox and no fixture
 world, so it must never mutate state the machine shares with the apps you use. `NSPasteboard.general`
-is the trap: a running Tinycast records every write to it as a genuine copy, so a fixture left there
-lands in clipboard history looking like something the user copied. `notes-editor-test` seeded one on
-every run from #232 onward by calling the native `copy:`/`cut:`/`paste:` actions; it now drives the
-`writeSelection(to:types:)` and `readSelection(from:)` primitives those actions delegate to, against
-`NSPasteboard.withUniqueName()`. Same AppKit path, no shared side effect. `pasteboard-test` is the
-second case, and it is why `ClipboardManager.fileURLs(on:volatileRoots:)` and `Paster.write(_:store:to:)`
+is the trap: a running Minicast records every write to it as a genuine copy, so a fixture left there
+lands in clipboard history looking like something the user copied. Drive the primitives an action
+delegates to against `NSPasteboard.withUniqueName()` instead: same AppKit path, no shared side effect.
+`pasteboard-test` is the case to copy, and it is why `ClipboardManager.fileURLs(on:volatileRoots:)` and `Paster.write(_:store:to:)`
 each take the thing they act on as a parameter: a seam that exists so the harness never has to reach
 for the shared board. Its scratch tree lives under `temporaryDirectory`, which is itself a volatile
 root, so the cases about *reading* files inject an empty root list and the one case about durability
@@ -84,7 +81,6 @@ If a change touches anything in the right column, the harness on the left is man
 | `fuzz-test` | `Launcher/Model/LauncherMatch.swift`, `LauncherOrder.swift`, `LauncherSuggestions.swift`, `EntryNaming.swift`, `ScriptRomanization.swift`, `SearchRelevance.swift`, `LauncherRankingStore.swift` — **a new ranking complaint is a new case in its `denseIndex`** |
 | `file-search-test` | `FileSearch/Model/`, plus the shared `FuzzyMatch` scorer |
 | `file-search-session-test` | serialized query execution, debounce coalescing and cancellation |
-| `menu-search-test` | `MenuSearch/Model/` decisions, `MenuSearch/Service/` session filtering, the shared `FuzzyMatch` scorer |
 | `action-menu-search-test` | Action-menu query normalization and shared fuzzy matching |
 | `ranking-test` | `Launcher/Model/LauncherRankingStore.swift` |
 | `scopes-test` | `Launcher/Model/SearchScopes.swift` |
@@ -103,11 +99,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `interface-size-test` | `DesignSystem/InterfaceMetrics.swift`, `Features/Settings/InterfaceSize.swift`, `Extensions/Model/ExtensionFormMetrics.swift` |
 | `palette-placement-test` | `DesignSystem/Theme.swift`, `Palette/PalettePlacement.swift` |
 | `hotkey-test` | `HotKeys/Model/DoubleTapModifier.swift`, `DoubleTapDetector.swift`, `ModifierKey.swift`, `ModifierKeyDetector.swift`, `HotKeyBinding.swift`, `HotKeySpelling.swift`, `HyperKey.swift`, `HotKeyAction.swift`, `Service/KeyShortcut.swift`, and the command→action mapping in `Launcher/Model/CommandID.swift` |
-| `dictation-test` | `Dictation/Model/DictationModel.swift`, `DictationTextFormatter.swift` — model paths and text formatting |
-| `dictation-volume-test` | Volume recovery across fade steps, user changes, output switching, failed writes and cancellation; injected audio controls only |
-| `dictation-inference-test` | Dictation byte BPE, Fourier/mel features and non-overlapping audio chunks; no downloaded models |
-| `dictation-worker-test` | Dictation's framed channel, worker reuse/switching, removal, cancellation and broken pipes with a fixture helper |
-| `fallback-test` | `Launcher/Model/Fallback.swift`, plus the `CommandID` and `Quicklink` ids it is built from |
+| `fallback-test` | `Launcher/Model/Fallback.swift`, plus the `CommandID` ids it is built from |
 | `dictionary-test` | `Dictionary/Model/DictionaryEntry.swift`, `DictionaryMarkup.swift` — a real XHTML record and the plain-text fallback, read into page blocks |
 | `callout-test` | `DesignSystem/Theme.swift`, `HotKeys/UI/CalloutPlacement.swift` |
 | `system-action-test` | `SystemActions/Model/SystemAction.swift` |
@@ -117,11 +109,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `window-room-test` | `WindowManagement/Model/Room*.swift` — every room layout and its minimum sizes, the grid, arrangement reading, window matching, parking, the plan, Tab's choices and the three stores |
 | `custom-command-test` | `CustomCommands/Model/CustomCommand.swift`, `Service/ShellCommandRunner.swift` |
 | `uninstall-test` | all five pure files in `Uninstall/Model/` |
-| `quicklink-test` | all of `Quicklinks/Model/` |
 | `apple-shortcut-test` | all of `AppleShortcuts/Model/` — the `shortcuts list` parser and entry ids |
-| `snippets-test` | all of `Snippets/Model/` and `Snippets/Service/`, plus `Platform/HealthTicker.swift` |
-| `notes-test` | all of `Notes/Model/` and `Notes/Service/`, including the Markdown parser, edit plans and reveal policy, plus the real fuzzy matcher and signposts |
-| `notes-editor-test` | the Notes editor, rendered and literal, with real TextKit 2 and AppKit editing objects: styling, reveal, layout fragments, keys, chords, checkboxes and links |
 | `raycast-test` | `Backup/Service/RaycastDecoder.swift`, `Scrypt.swift`, `Platform/Compression/Zlib.swift`, `Clipboard/Model/RaycastClipboardImport.swift` and import-time clipboard retention |
 | `symbols-test` | `Extensions/Service/SymbolCatalog.swift`, against this machine's CoreGlyphs |
 | `ext-store-test` | `Extensions/Model/` — GitHub source parsing and URLs, the store and Git tree parsers |
@@ -137,9 +125,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `settings-file-test` | `Settings/Model/` and `Settings/Service/` — key paths, value tokens, the printer and parser, and the repository's import, replace, save, reload and symlink handling on a scratch folder |
 | `window-file-test` | `WindowManagement/Model/WindowManagementFileFormat.swift` — command shortcuts, custom sizes, layouts and rooms as settings.json spells them, hand edits and bad records |
 | `backup-archive-test` | all of `Backup/Model/`, plus `Backup/Service/BackupStaging.swift` |
-| `updates-test` | `Updates/Model/` — version precedence, channel filtering, install route, readiness |
-| `support-test` | `Support/Model/` — when the support reminder comes due, and a clock moved backwards |
-| `mcp-test` | `MCP/Model/` and `MCPSettingsStore` — JSON-RPC framing, handles, tool names, output flattening, trust, `@server` addressing, the shape a vendor CLI is handed, and which servers Tinycast leaves to that CLI |
+| `mcp-test` | `MCP/Model/` and `MCPSettingsStore` — JSON-RPC framing, handles, tool names, output flattening, trust, `@server` addressing, the shape a vendor CLI is handed, and which servers Minicast leaves to that CLI |
 | `mcp-stdio-test` | `MCP/Service/` against a stub server — handshake, listing, calling, and every way one can go away |
 | `mcp-oauth-test` | OAuth parsing, RFC 7636 PKCE, discovery and resource binding, loopback callback validation/cancellation, dynamic registration, supplied client credentials and their token-endpoint authentication, Keychain token rotation, concurrent refresh, the wider margin for a token lent to a CLI, redirects and one-retry 401 handling |
 
@@ -177,7 +163,6 @@ when touching a pure file:
 - `HotKeys/Model/DoubleTap*` still take the clock as a parameter
 - `WindowManagement/Model/` still touches no `NSScreen` and makes no AX call, layouts included
 - `Features/PaletteRowIndex.swift` still imports Foundation alone, despite living under `Features/`
-- `Quicklinks/Model/` is still handed the home directory rather than reading it
 - `FileSearch/Model/` is still handed the home directory rather than reading it
 
 ## Build and size checks
@@ -185,12 +170,11 @@ when touching a pure file:
 A clean build is part of the bar; nothing builds the app for you, so this is on you.
 
 ```sh
-xcodegen generate                 # only after editing project.yml
+./.tools/xcodegen/bin/xcodegen generate   # only after editing project.yml
 xcodebuild build -project Tinycast.xcodeproj -scheme Tinycast -configuration Debug \
-  CODE_SIGNING_ALLOWED=NO
-xcodebuild build -project Tinycast.xcodeproj -scheme Tinycast -configuration Release \
-  CODE_SIGNING_ALLOWED=NO
-find ~/Library/Developer/Xcode/DerivedData -name "Tinycast*.app" -maxdepth 6 -print -quit
+  -skipMacroValidation CODE_SIGNING_ALLOWED=NO
+./Scripts/build-dmg.sh                          # signed universal Release and DMG
+find ~/Library/Developer/Xcode/DerivedData -name "Minicast*.app" -maxdepth 6 -print -quit
 ```
 
 - Zero **new** warnings. Pre-existing ones are not your problem; new ones are.
@@ -217,9 +201,10 @@ search result that navigates and then sits there.
 
 ## Performance measurement
 
-`Platform/Signposts.swift` emits eight intervals on the `com.tinycast.perf` subsystem: `AppCore.start`,
-`AppIndex.scan`, `AppIndex.rank`, `PaletteWindowController.show`, `UninstallScanner.discover` and
-`UninstallScanner.measure`, `FileSearchService.search`, and `Notes.search`. Open the Time Profiler or
+`Platform/Signposts.swift` emits seven intervals on the `com.tinycast.perf` subsystem (an internal name,
+kept until the internal rename): `AppCore.start`, `AppIndex.scan`, `AppIndex.rank`,
+`PaletteWindowController.show`, `UninstallScanner.discover` and `UninstallScanner.measure`, and
+`FileSearchService.search`. Open the Time Profiler or
 `os_signpost` instrument in Instruments and filter to that subsystem; nothing needs recompiling.
 
 None of the benchmarks below join the suite, so each is registered in `run-tests.sh` as `run index`
@@ -283,33 +268,9 @@ swiftc -O -swift-version 6 Tinycast/Features/Emoji/Model/{EmojiCatalog,EmojiData
 /tmp/emoji-search-performance --languages fr,ja
 ```
 
-`Tests/notes-editor-performance.swift` installs a 100,000-character note in a real rendered editor and
-prints, as JSON, the median over 30 runs of the install with its full restyle, one typed character at
-the end, middle and start, and a caret move between distant lines. The budget is 150 ms, 8 ms (end and
-middle) and 4 ms:
-
-```sh
-N=Tinycast/Features/Notes
-swiftc -O -swift-version 6 Tinycast/Platform/{Signposts,Appearance,NotificationToken}.swift \
-    Tinycast/DesignSystem/{Theme,InterfaceMetrics}.swift \
-    Tinycast/Features/TextInjection/Service/InjectableTextView.swift \
-    $N/Model/{NoteDocument,NoteMarkdown,NoteMarkdownParser,NoteInlineScanner}.swift \
-    $N/Model/{NoteEditPlan,NoteEditAction,NoteFormatting,NoteMarkdownEditing,NoteRevealPolicy}.swift \
-    $N/UI/{NoteMarkdownTypography,NoteBlockDecoration,NoteMarkdownStyler,NoteMarkdownRenderer}.swift \
-    $N/UI/{NoteCheckboxGeometry,NoteBlockLayoutFragment,NoteLayoutFragmentProvider}.swift \
-    $N/UI/{NoteTextViewEditing,NoteTextView,NoteEditorView}.swift \
-    Tests/notes-editor-performance.swift -o /tmp/notes-editor-performance
-/tmp/notes-editor-performance
-```
-
 `Signposts.interval` owns an explicit `defer` around the wrapped work on purpose. The obvious spelling
 leaks the interval when the work throws, because the `.end` emit is skipped on the throw path and the
 instrument then shows an interval that never closes.
-
-`./Scripts/benchmark-dictation.sh AUDIO` measures all four installed dictation models with fresh and
-reused helpers, reporting load time, transcription time, sampled helper footprint and recognized text.
-It uses only the supplied audio and already downloaded models, outside the app and deterministic suite.
-See [Dictation validation](features/dictation.md#validation) for comparison limits and optional arguments.
 
 Measure before optimising, and measure the same way twice. For cold launch: quit fully, relaunch, time
 it three times, take the median.
@@ -327,9 +288,7 @@ Measured at the end of the 2026 refactor, on `main`. Useful as orders of magnitu
 | Comment density | 1,653 of 27,289 source lines (6.1%) |
 | The harness suite | ~15 s wall clock, 11-way parallel (~98 s serial, ~140 s before either) |
 | `palette-selection-test` | 111,684 assertions — a tripwire: a change in this count means the row-order model moved |
-| `SnippetKeywordPolicy` match | 7 µs/keystroke at 50 keywords, 59 µs at 1,000 — the `lowercased()` is 0.09 µs of it |
 | `ClipboardStore.pinnedItems` | 27–127 µs per uncached search, 1,000-row window — no cache earns its invalidation yet |
-| Rendered Notes editor, 100,000 characters | 30 ms install and full restyle; 7.5, 5.9 and 3.3 ms per character typed at the end, middle and start (5.2, 3.1 and 0.6 ms with rendering off); 0.6 ms per caret move |
 | `count items of trash` | 5,000 ms against a cold Finder on an *empty* Trash, 110 ms warm — why AppleScript is detached |
 
 Launch time, allocation counts and RSS have never been captured as numbers. The signposts are in place,
@@ -341,14 +300,14 @@ There is no UI test suite, so this is it. Run the core sweep for any change that
 run the scoped section for whatever feature you touched. Budget about five minutes plus three per
 section.
 
-Run against the **Debug channel** (`Tinycast Dev.app`, `com.tinycast.app.dev`). It has its own prefs,
+Run against the **Debug channel** (`Minicast Dev.app`, `com.minicast.app.dev`). It has its own prefs,
 caches, TCC grants and login item, so this cannot disturb an installed copy.
 
 ### Core
 
 - Palette hotkey opens the launcher; pressing it again closes it; Escape clears a non-empty query,
   then hides on a second press; clicking away closes it
-- Search a mode command (Clipboard History, Search Emoji, Search Quicklinks, Search Files, Quick AI)
+- Search a mode command (Clipboard History, Search Emoji, Search Files, Quick AI)
   and run it: Escape returns to the launcher **with the query still typed and the row still
   selected**, and the next press clears it. The same screen from its own global hotkey hides the
   palette instead, and shows its own header icon rather than a back chevron
@@ -371,7 +330,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - With macOS set to a decimal-comma region (Italian), `2,3 + 1,5` answers `3,8`, `max(2,5; 3)`
   answers `3`, and ↵ pastes `3,8`; General ▸ Calculator ▸ Number format `English` restores `2.3 + 1.5`
   and re-renders past Calculator History in the chosen format
-- Section headers appear in order: Favorites, Applications, System Settings, Quicklinks, Snippets,
+- Section headers appear in order: Favorites, Applications, System Settings,
   System Actions, Window Management, Custom Commands, Commands
 - With a non-ASCII input source active, ⌘K opens Actions; ↑/↓ move it, ↵ activates, Escape closes it
 - In either ⌘K Actions panel, typing filters immediately in the bottom search band without changing
@@ -386,7 +345,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Footer menus are about 30pt wider; their row hover keeps the shared 10pt menu-row corner
 - Tab toggles launcher ↔ clipboard; bare Backspace on an empty query backs out of a sub-screen
 - Launching an app focuses it; escaping the palette returns focus to the app you came from
-- Paste from clipboard history lands in that app, not in Tinycast
+- Paste from clipboard history lands in that app, not in Minicast
 - No flash, flicker or reflow on open, and row metrics unchanged
 
 ### Clipboard
@@ -399,7 +358,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - With enough pins to fill the list, opening it — the first show after launch too — highlights the
   newest clip, centred with pins above; clearing a query or the filter lands there again
 - ⌃X deletes the selected entry and ⌃⇧X clears the history, from the list and from an open ⌘K menu
-- ⌃⇧X asks first, through Tinycast's own dialog; Cancel and Esc both leave every entry in place
+- ⌃⇧X asks first, through Minicast's own dialog; Cancel and Esc both leave every entry in place
 - ↵ pastes into the previous app; ⌥↵ pastes without closing the palette
 - ⌃⌘↵ pastes as plain text: a text entry as typed, a file entry as its path rather than the file
 - Default action ▸ Paste as Plain Text: ↵ pastes plain, ⌃⌘↵ pastes, ⌘↵ still copies; an image
@@ -438,14 +397,14 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 
 ### Hotkeys
 
-- The palette, clipboard, emoji, File Search, and all three Notes shortcuts fire; a per-app shortcut
+- The palette, clipboard, emoji and File Search shortcuts fire; a per-app shortcut
   toggles that app
 - Recording captures a shortcut, and the old binding does not fire while recording
 - A conflicting binding is rejected and names its current owner
 - A double-tap binding fires; Hyper Key remaps and its status dot is green
 - Every binding survives quit and relaunch
-- `Enable Commands` off leaves every pane-owned command listed, searchable and firing — Notes,
-  Clipboard, Emoji, File Search, Snippets, Quicklinks, Calendar, AI and the two layout commands
+- `Enable Commands` off leaves every pane-owned command listed, searchable and firing —
+  Clipboard, Emoji, File Search, Calendar, AI and the two layout commands
 
 ### Uninstall
 
@@ -456,13 +415,6 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Escaping mid-scan cancels promptly with no spinner left behind
 - Hiding and immediately restoring the screen never strands an in-flight file icon as a placeholder
 
-### Quicklinks
-
-- A quicklink opens its destination; `{argument}` prompts in order and Backspace steps back
-- `{selection}` falls back per the Settings choice
-- Pin, duplicate, delete and Open with Default all behave; import and export round-trip
-- Display order is pinned first by pin time, then by name
-
 ### Apple Shortcuts
 
 - Off out of the box: the pane lists nothing and no shortcut reaches the launcher
@@ -471,14 +423,13 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - A row's hotkey runs it with the palette closed; switching the feature off silences it
 - Unchecking a row hides it from search, and its hotkey still fires
 - Deleting a shortcut in Shortcuts frees its alias and hotkey on the next launcher open
-- A shortcut that fails shows Tinycast's dialog with the tool's error
+- A shortcut that fails shows Minicast's dialog with the tool's error
 
 ### File Search
 
 - With File Search **off**: Search Files is absent, its shortcut no-ops, and no permission appears
 - Enabling in Settings exposes Search Files immediately; it persists across relaunch and backup import
 - Disabling during a query cancels it and returns the open screen to the launcher
-- File Search and Quicklinks remain independently visible in all four enabled/disabled combinations
 - An empty query performs no search; a filename query returns only files and folders beneath the scopes
 - Library internals, generated trees, application bundles and hidden paths do not appear
 - Visible custom top-level home folders and cloud-drive files remain searchable
@@ -496,105 +447,6 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Recording a shortcut opens the palette straight into File Search, hidden from the launcher or not
 - Search Files is absent from Settings ▸ Commands, and `Enable Commands` off leaves its shortcut live
 - Export, clear both lists and the shortcut, re-import: all three return, defaults undo not duplicated
-
-### Notes
-
-- With Notes **off**: all three commands are absent, their shortcuts no-op, and the Notes directory is
-  not created
-- Enabling in Settings projects Show Notes, Create Note, and Search Notes immediately; the pane's
-  visibility checkboxes and recorders are the only ones — Settings > Commands lists none of the three
-- Show Notes opens the last active note and focuses an already visible window without hiding it
-- Create Note makes one unique Untitled file, including as the first action in an empty channel
-- Command-P and the Browse button focus search, arrows move selection, Return opens, and Command-N
-  creates
-- Empty switcher search reads the complete recent list; title and body searches rank correctly and a
-  superseded query never publishes
-- An Untitled note titles itself from its first line as it is typed, in the title bar and — after the
-  autosave — in the browse list; naming it replaces that, and clearing the name brings it back
-- Inline rename updates the Markdown filename without changing source, and starts from that filename
-  even where the row shows a derived title; collisions receive a suffix
-- Delete confirms through Tinycast, moves the file to Trash, and selecting another note never loses an
-  unsaved edit
-- An existing `Floating Note.md` appears as an ordinary note without conversion
-- A note using every construct renders in Dark and Light: sized headings, emphasis, strikethrough,
-  inline code, coloured links, bullets, numbers, checkboxes with space between tasks, lists nested at
-  two and four spaces, quote bars, a code band with its language label, and a rule
-- The caret's line shows raw Markdown in the tertiary colour and re-renders when the caret leaves; a
-  multi-line selection reveals every selected line, and Select All shows the whole source
-- Dragging a selection across rendered lines does not jump under the pointer; the lines reveal on
-  mouse-up
-- Clicking another app renders the whole note; clicking back reveals the caret line again
-- Inside a code block both fences show and Markdown inside it stays literal
-- A table shows as its literal source in the code font, with no styling inside it; adding the `| --- |`
-  row under existing rows turns them all into the table at once
-- Bullets, numbers and checkboxes are a neutral gray, bullet, numbered and task items are evenly spaced,
-  and revealing a bullet or numbered line leaves its text where it was
-- A checkbox click toggles without moving the caret, autosaves, and Command-Z restores it; the file on
-  disk shows `[x]`
-- A link click opens the browser, a click at the label's edge places the caret, a `file:` link does
-  nothing, and a link on the caret's line is editable text
-- Return continues and leaves lists and quotes, Tab and Shift-Tab nest, ordered lists renumber, `[] `
-  becomes a task, and every formatting shortcut works and undoes in one step
-- Pasting a URL over selected text makes a link; pasting anything else is plain text
-- Copy from a rendered line pastes raw Markdown into another app; a snippet keyword expands inside a
-  rendered note and is styled at once
-- The derived title of an Untitled note shows no Markdown markers
-- A narrow window wraps list items under their text, not under the marker
-- With Render Markdown **off**, the note is fully literal (markers visible, links inert, task syntax
-  plain) and Return, Tab, Delete, and formatting-looking shortcuts keep native plain-text behavior;
-  flipping it back re-renders without dirtying the note or touching undo
-- Edit one note, switch to a shorter note, then Undo and Redo: the new note remains intact and the app
-  does not terminate
-- Marked-text input, emoji, combining marks, Copy, Cut, Paste, Select All, Undo, and Redo preserve
-  exact source; ⌘F finds occurrences in the active note with rendering on and off, and Escape closes
-  the find bar before hiding Notes
-- An empty note shows `Start writing…`; ⌘F moves it below the find bar without overlap, and closing Find
-  restores its position. The footer count is right after typing, pasting and undoing
-- With Render Markdown and Show Formatting Bar on, the band under a note holds the character count on
-  the left and the round formatting button on the right; with either setting off, the old centred
-  count footer is back and nothing else moved
-- The bar starts collapsed, ⌥⌘T and the round button both expand and collapse it, the buttons slide out
-  from behind that button, and the state survives switching notes, hiding the window and a relaunch
-- Every bar button applies its formatting, undoes in one step with ⌘Z, and autosaves; clicking keeps the
-  caret where it was and the caret's line stays revealed
-- Buttons light for the selection: inside bold, on a list, quote, heading or code line; clicking a lit
-  button removes that formatting and the button goes dark
-- Hovering a button shows its name and shortcut above it, fully visible and not clipped by the capsule;
-  the heading button's tooltip does not show while its menu is open
-- The heading menu opens above the capsule, aligned to its left edge, shows the current level checked,
-  and applies a level on click; it closes on Escape, on a click anywhere in the note window (including
-  the heading button itself, which must not reopen it), on typing, on ⌘P, and when another app is clicked
-- At the smallest window size all eleven controls show and the count is hidden, the note's text keeps
-  its inset in both states, the heading menu still opens in full above the capsule, and widening the
-  window brings the count back
-- ⌥⌘C and ⇧⌘B toggle a code block and a quote; with Render Markdown off they do nothing special
-- Settings > Notes > Show Formatting Bar is disabled while Render Markdown is off, Settings search for
-  "formatting" lands on it, and a backup round trip restores it
-- With VoiceOver, the bar reads as "Formatting" with each button named, lit ones as selected, the round
-  button announcing Expanded or Collapsed, and the heading button its level; menu rows read their titles
-  and the current one as selected
-- Traffic lights sit top-left, the title is centred **on the window**, and the capsule is top-right, all
-  on one line; the yellow light is disabled and green zooms
-- Each capsule button shows a hover capsule and a native tooltip, and fires its action
-- Dragging the title bar moves the window and dragging an edge resizes it; both survive relaunch
-- Clicking another app leaves the panel visible; Escape, Command-W, and the red light hide it
-- Command-Q does nothing anywhere; with Settings in front, Command-W closes Settings
-- Hiding restores the previous external app or Tinycast window
-- Open Notes Folder opens Finder with the active Markdown file selected, or the folder with no note
-- Deleting every note closes the browse list and leaves one clean empty state with no character count;
-  Command-N from there creates and selects one note
-- The browse list fades only at its bottom edge and rests opaque once it reaches the end
-- Quitting inside the debounce window saves the last edit
-- Over a light desktop, the corner matches the palette's, the shadow follows it, and no dark edge shows
-  around the glass controls
-
-### Snippets
-
-- With snippets **off**: no launcher entries, no keyword expansion, and no permission prompt at launch
-- Enabling shows the consent dialog **before** the Accessibility prompt
-- Declining leaves the feature off and prompts for nothing
-- After enabling, a keyword expands in a text field; an argument-bearing snippet prompts then delivers
-- Editing a snippet file externally reloads it
 
 ### Calculator and currency
 
@@ -622,7 +474,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Adding or deleting an event in Calendar.app updates an open palette without a reopen
 - A meeting with no link is listed and searchable, and answers Open in Calendar rather than Join
 - Import a backup taken with Calendar on: it comes back **off**, and no calendar toggle travels
-- Calendar in Menu Bar on Disabled: the calendar item is gone and Tinycast's own item is unaffected;
+- Calendar in Menu Bar on Disabled: the calendar item is gone and Minicast's own item is unaffected;
   turning `Show in menu bar` off leaves an enabled calendar item in place, and both off leaves neither
 - On Meeting Title with Show Upcoming Events at 5 minutes, the title and countdown appear at T-5 and
   step on the minute boundary, not on a keystroke
@@ -635,13 +487,10 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Clicking the calendar item opens `Join <title>`, `Open in Calendar...`, `My Schedule` and
   `Calendar Settings...` and nothing else; the second opens that event in Calendar.app, while a bare
   click never joins
-- Camera Preview on: ↵ on the join card opens the panel **already showing live video** — no black
-  frame, no blank mid-preview; ↵ joins, Esc drops the join; the camera light goes out with the
-  panel, and the first run prompts once, before any panel appears
 - A meeting that ends leaves the launcher results and `My Schedule` on the same minute boundary it
   leaves the menu bar, with the palette open or closed over the end
 - Auto Join on: the meeting opens itself at its start, **once** — dismiss it and it does not return.
-  With confirm on and camera preview off, the dialog asks first
+  With confirm on, the dialog asks first
 - Arming Auto Join during a meeting already under way joins nothing
 - Sleeping over a meeting's start and waking past it reloads the events; one still inside the window
   joins, one long past does not
@@ -650,7 +499,7 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Arrow keys move the caret in the New Event title field, and still step the Set Volume slider
 - Every command row of Settings ▸ Calendar has Add Alias, Record Hotkey and a checkbox, and none of
   the five appears in Settings ▸ Commands
-- Export with auto join and camera preview on, import onto a clean profile: both come back **off**,
+- Export with auto join on, import onto a clean profile: it comes back **off**,
   while the menu-bar settings carry over
 
 ### System actions and window management
@@ -662,10 +511,9 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Holding a bound hotkey does **not** stack dialogs
 - Window commands move the window you were last in; cycle-on-repeat steps ½ → ⅓ → ⅔
 - "Top Half" lands flush with the top of the visible frame, on a secondary display too
-- A command with the Notes window focused places Notes, not the app behind it
-- Cycling, Restore, custom sizes and display moves all work on Notes and on Settings
-- Fullscreen on Settings toggles it; on the Notes window it does nothing
-- With the note switcher open a command places Notes; the switcher and HUDs are never placed
+- A command with Settings or AI Chat focused places that window, not the app behind it
+- Cycling, Restore, custom sizes and display moves all work on Settings; HUDs are never placed
+- Fullscreen on Settings toggles it
 - Rooms: create one from Switch Room; ⇥ glides the preview through its layouts; ↵ lands its windows
   with the gap, hides other apps and parks their extra windows; quitting, `kill -9` then relaunching, and
   turning Window Management off each bring every window back.
@@ -685,13 +533,14 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 
 - Every pane renders and the sidebar switches without flicker
 - A feature switch takes effect in the launcher immediately; every setting survives relaunch
-- Export produces a `.tinycast`; import applies it and reports a per-category summary
+- Export produces a `.minicast`; import applies it and reports a per-category summary, and an
+  older `.tinycast` backup imports the same way
 - Untick a category on export, and the import picker greys that row out rather than offering it
 - Untick a category on **import** and confirm it did not arrive, while the ticked ones did
 - An image clip round-trips and still renders; the archive can then be deleted without breaking it
 - A file whose `manifest.json` `format` was hand-edited is refused **with a message naming it**
-- Cancelling the save panel leaves nothing in `~/Library/Caches/com.tinycast.app.dev/backup-staging/`
-- **`snippetsEnabled` is not in the exported file**, and importing does not enable snippets
+- Cancelling the save panel leaves nothing in `~/Library/Caches/com.minicast.app.dev/backup-staging/`
+- **`extensionsEnabled` is not in the exported file**, and importing does not enable extensions
 - Nothing in the extracted tree names a Keychain item, an extension, or an AI conversation
 
 ### Clean install
@@ -700,19 +549,18 @@ The realistic storage failure is a store that crashes on an absent file rather t
 Wipe the Dev channel and check that path directly:
 
 ```sh
-rm -rf ~/Library/Caches/com.tinycast.app.dev
-rm -rf "$HOME/Library/Application Support/com.tinycast.app.dev"
-rm -rf ~/.config/tinycast-dev
-defaults delete com.tinycast.app.dev 2>/dev/null || true
-tccutil reset Accessibility com.tinycast.app.dev 2>/dev/null || true
+rm -rf ~/Library/Caches/com.minicast.app.dev
+rm -rf "$HOME/Library/Application Support/com.minicast.app.dev"
+rm -rf ~/.config/minicast-dev
+defaults delete com.minicast.app.dev 2>/dev/null || true
+tccutil reset Accessibility com.minicast.app.dev 2>/dev/null || true
 ```
 
-- Launches with every store directory absent — no crash, no hang; onboarding runs
-- Palette opens and lists apps; clipboard, quicklinks, snippets and calculator history are all empty
-  and all accept a first entry
-- Notes creates no directory until Show, Create, or Search is first used, then accepts its first edit
+- Launches with every store directory absent — no crash, no hang
+- Palette opens and lists apps; clipboard and calculator history are both empty and both accept a
+  first entry
 - **Every setting shows its intended default.** Walk the panes: this is what catches a broken
   absence-versus-`false` read
 - Quit and relaunch: everything created above persisted
-- Nothing was written outside `com.tinycast.app.dev/`. Channel isolation is not negotiable — a Dev build
+- Nothing was written outside `com.minicast.app.dev/`. Channel isolation is not negotiable — a Dev build
   writing into the stable app's directory is a defect even though the data is disposable
