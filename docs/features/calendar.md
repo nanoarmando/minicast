@@ -33,15 +33,15 @@ individual events as searchable launcher entries. Upstream's camera preview befo
 - **The menu bar's `Today` horizon follows the same empty-state rule.** It carries any remaining
   event that starts today, plus an event within 30 minutes after midnight; only then does the title
   mode read `No upcoming events`.
-- **`calendarEnabled` doubles as consent**, so it is in `SettingsBackupCoverage.deliberatelyExcluded`
-  and only `CalendarCoordinator.setCalendarEnabled` may write it. Minicast's own dialog comes first,
+- **`calendarEnabled` doubles as consent**, so it is in `SettingsBackupCoverage.capabilities`
+  (an import applies it through `CalendarCoordinator.enableAfterGrant()`) and only `CalendarCoordinator.setCalendarEnabled` may write it. Minicast's own dialog comes first,
   the macOS prompt second, and only from the gesture that asked. **It is written only after macOS
   grants**, so a prompt that fails or is dismissed can never leave the feature reading as on with no
   access. Enabling is re-offered whenever access is anything but granted — by the Calendar pane and by
   the Permissions pane — so a TCC record lost after the setting was already on never strands it.
-- **Per-calendar toggles live on `CalendarStore`, not `AppSettings`.** Calendar identifiers are
-  machine-specific, so they are deliberately outside the backup mirror — the same reasoning as
-  `palettePosition`.
+- **Per-calendar toggles live on `CalendarStore`, not `AppSettings`.** A backup carries
+  `hiddenMeetingCalendars` anyway: identifiers are only tested for membership, so one this Mac lacks
+  is harmless.
 - **`MeetingEvent` carries only what a row needs.** Location, notes and attendees are read for one
   occurrence when its details page opens, never for the whole span, so a busy calendar's invites
   never sit in the snapshot every surface diffs.
@@ -282,9 +282,8 @@ because a `Form` realizes every row it is handed; a few light rows don't need `L
 The hidden-calendar set stores **exclusions**, so a calendar added after the setting was written
 defaults to on. Holidays and Birthdays are what people switch off.
 
-`autoJoinMeetings` joins `calendarEnabled` in
-`SettingsBackupCoverage.deliberatelyExcluded`: it arms the app to open links unattended, and an import
-must never grant that. `meetingBrowser` is excluded too: it names an
+`autoJoinMeetings` joins `calendarEnabled` in `SettingsBackupCoverage.capabilities`: it arms the app
+to open links unattended, so an import applies it only after its consent dialog. `meetingBrowser` is excluded too: it names an
 app installed on this Mac, which another Mac may not have. The menu-bar settings carry over
 normally, and so does `calendarSpan`: it sets how far ahead is read rather than widening what
 can be reached.

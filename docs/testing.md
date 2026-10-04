@@ -124,7 +124,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `settings-backup-test` | `Settings/AppSettingsKey.swift`, `Backup/Model/SettingsBackupCoverage.swift` |
 | `settings-file-test` | `Settings/Model/` and `Settings/Service/` — key paths, value tokens, the printer and parser, and the repository's import, replace, save, reload and symlink handling on a scratch folder |
 | `window-file-test` | `WindowManagement/Model/WindowManagementFileFormat.swift` — command shortcuts, custom sizes, layouts and rooms as settings.json spells them, hand edits and bad records |
-| `backup-archive-test` | all of `Backup/Model/`, plus `Backup/Service/BackupStaging.swift` |
+| `backup-archive-test` | all of `Backup/Model/`, plus `BackupStaging` and `BackupZip` — the format-2 round trip through real `ditto`, format-1 still read, hostile ZIPs, extension links resolved, no Keychain value |
 | `mcp-test` | `MCP/Model/` and `MCPSettingsStore` — JSON-RPC framing, handles, tool names, output flattening, trust, `@server` addressing, the shape a vendor CLI is handed, and which servers Minicast leaves to that CLI |
 | `mcp-stdio-test` | `MCP/Service/` against a stub server — handshake, listing, calling, and every way one can go away |
 | `mcp-oauth-test` | OAuth parsing, RFC 7636 PKCE, discovery and resource binding, loopback callback validation/cancellation, dynamic registration, supplied client credentials and their token-endpoint authentication, Keychain token rotation, concurrent refresh, the wider margin for a token lent to a CLI, redirects and one-retry 401 handling |
@@ -473,7 +473,8 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
   still finds the command, and it still lists the meetings
 - Adding or deleting an event in Calendar.app updates an open palette without a reopen
 - A meeting with no link is listed and searchable, and answers Open in Calendar rather than Join
-- Import a backup taken with Calendar on: it comes back **off**, and no calendar toggle travels
+- Import a backup taken with Calendar on and decline the consent dialog: Calendar stays **off**;
+  accept it and macOS asks for Calendar access before the switch turns on
 - Calendar in Menu Bar on Disabled: the calendar item is gone and Minicast's own item is unaffected;
   turning `Show in menu bar` off leaves an enabled calendar item in place, and both off leaves neither
 - On Meeting Title with Show Upcoming Events at 5 minutes, the title and countdown appear at T-5 and
@@ -533,15 +534,21 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 
 - Every pane renders and the sidebar switches without flicker
 - A feature switch takes effect in the launcher immediately; every setting survives relaunch
-- Export produces a `.minicast`; import applies it and reports a per-category summary, and an
-  older `.tinycast` backup imports the same way
+- The launcher's Export and Import commands open **Import & Export** on the matching side, and a
+  second run brings the open window forward
+- Export produces a `.minicast` that Archive Utility opens once renamed to `.zip`; import applies it
+  and reports a per-category summary. Older format-1 `.minicast` and `.tinycast` files still import
 - Untick a category on export, and the import picker greys that row out rather than offering it
-- Untick a category on **import** and confirm it did not arrive, while the ticked ones did
+- Untick a category on **import** and confirm it did not change, while the ticked ones were replaced
+- The replace confirmation names the installed extensions that are missing from the bundle; after
+  confirming, they are uninstalled and the bundled ones work with their preferences
 - An image clip round-trips and still renders; the archive can then be deleted without breaking it
 - A file whose `manifest.json` `format` was hand-edited is refused **with a message naming it**
 - Cancelling the save panel leaves nothing in `~/Library/Caches/com.minicast.app.dev/backup-staging/`
-- **`extensionsEnabled` is not in the exported file**, and importing does not enable extensions
-- Nothing in the extracted tree names a Keychain item, an extension, or an AI conversation
+- Export shows no Keychain prompt, and no API key or MCP secret appears in the extracted tree
+- Importing a bundle with Extensions on: declining the consent dialog keeps extensions off;
+  accepting turns them on
+- After an AI & MCP import, each connection without a key is listed and opens its settings
 
 ### Clean install
 

@@ -432,6 +432,7 @@ extension View {
             .environment(core.quickActionSettings)
             .environment(core.customQuickActions)
             .environment(core.chatGPTSubscription)
+            .environment(core.backupCoordinator)
             .environment(core.installedAI)
             .scrollContentBackground(.hidden)
     }

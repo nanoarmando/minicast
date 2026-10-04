@@ -90,6 +90,15 @@ final class ExtensionCommandMetadataStore {
         }
     }
 
+    func records(extension name: String) -> [String: ExtensionCommandMetadata] {
+        records[name] ?? [:]
+    }
+
+    func replace(extension name: String, with commands: [String: ExtensionCommandMetadata]) {
+        records[name] = commands.isEmpty ? nil : commands
+        scheduleFlush()
+    }
+
     func removeAll(extension name: String) {
         guard records.removeValue(forKey: name) != nil else { return }
         scheduleFlush()

@@ -39,6 +39,16 @@ final class QuickActionSettingsStore {
             .compactMapValues(\.selection) ?? [:]
     }
 
+    /// A backup restore: every route and per-action choice at once.
+    func replace(
+        model: AIModelSelection?, modelOverrides: [String: AIModelSelection],
+        settings: QuickActionSettings
+    ) {
+        self.model = model
+        self.modelOverrides = modelOverrides
+        self.settings = settings
+    }
+
     func select(_ selection: AIModelSelection?) {
         model = selection
     }

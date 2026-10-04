@@ -115,9 +115,9 @@ feature's doc, under its own `## Invariants`.
   goes through `DialogController`, a report through a HUD via `HUDPresenter`.
 - **A networked feature fetches on a private `.ephemeral`, `urlCache = nil` session**, never
   `URLSession.shared`, so its own cache file stays the only copy on disk. `CurrencyRateStore` is the
-  reference — copy it rather than inventing a second shape. A flag that grants a capability is never
-  carried by a backup or by `settings.json`: `extensionsEnabled` is excluded from settings backups so
-  an import cannot grant extension execution.
+  reference — copy it rather than inventing a second shape. A flag that grants a capability never
+  has a `settings.json` key, and a backup applies one only after the import's consent dialog
+  (`SettingsBackupCoverage.capabilities`). Keychain secrets never enter a backup.
 - **Extensions stay inside `Features/Extensions/`.** Every view, row, menu, geometry and sizing
   constant an extension needs is written and owned there — never added to `DesignSystem/`, never bolted
   onto `Theme`, and never lifted somewhere another feature can build on it. Another surface may render

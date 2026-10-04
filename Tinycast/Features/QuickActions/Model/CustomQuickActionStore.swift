@@ -68,6 +68,11 @@ final class CustomQuickActionStore {
         return removed
     }
 
+    /// A backup restore; invalid or duplicate entries are dropped as `load` drops them.
+    func replaceAll(_ values: [CustomQuickAction]) throws(CustomQuickActionError) {
+        try commit(Self.sanitized(values))
+    }
+
     func setPreviewsResult(
         _ previews: Bool, id: UUID
     ) throws(CustomQuickActionError) {

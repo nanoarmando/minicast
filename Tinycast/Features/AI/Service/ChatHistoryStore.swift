@@ -94,7 +94,8 @@ final class ChatHistoryStore {
           ON conversations(updated_at DESC);
         """
 
-    @PerceptionIgnored private let databaseURL: URL
+    /// Internal, not private: a backup snapshots the file and restores one in its place.
+    @PerceptionIgnored let databaseURL: URL
     @PerceptionIgnored private var database: OpaquePointer?
 
     init(directory: URL) {
@@ -130,6 +131,67 @@ final class ChatHistoryStore {
                     generatedTitle: optionalText(statement, 8)))
         }
         conversations = loaded
+    }
+
+    // MARK: - Backup
+
+    /// `sqlite3_backup` over a connection of its own: consistent, WAL included, while chats write.
+    nonisolated static func snapshot(databaseAt source: URL, to destination: URL) throws -> Int {
+        // An empty file is an empty database, so a restore of no chats still replaces them.
+        guard FileManager.default.fileExists(atPath: source.path) else {
+            FileManager.default.createFile(atPath: destination.path, contents: nil)
+            return 0
+        }
+        var from: OpaquePointer?
+        var into: OpaquePointer?
+        defer {
+            sqlite3_close(from)
+            sqlite3_close(into)
+        }
+        guard
+            sqlite3_open_v2(source.path, &from, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+            sqlite3_open_v2(
+                destination.path, &into, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nil)
+                == SQLITE_OK,
+            let backup = sqlite3_backup_init(into, "main", from, "main")
+        else { throw SnapshotError.failed }
+        let stepped = sqlite3_backup_step(backup, -1)
+        sqlite3_backup_finish(backup)
+        guard stepped == SQLITE_DONE,
+            sqlite3_exec(into, "PRAGMA journal_mode=DELETE;", nil, nil, nil) == SQLITE_OK
+        else { throw SnapshotError.failed }
+        return conversationCount(in: into)
+    }
+
+    enum SnapshotError: LocalizedError {
+        case failed
+
+        var errorDescription: String? { "Couldn't copy the AI chat history." }
+    }
+
+    private nonisolated static func conversationCount(in database: OpaquePointer?) -> Int {
+        var statement: OpaquePointer?
+        guard
+            sqlite3_prepare_v2(database, "SELECT count(*) FROM conversations", -1, &statement, nil)
+                == SQLITE_OK
+        else { return 0 }
+        defer { sqlite3_finalize(statement) }
+        return sqlite3_step(statement) == SQLITE_ROW ? Int(sqlite3_column_int64(statement, 0)) : 0
+    }
+
+    /// Closed, swapped and reopened, so no live handle ever reads a file half replaced.
+    func replaceDatabase(with source: URL) async throws {
+        let wasOpen = database != nil
+        close()
+        let target = databaseURL
+        try await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            try fm.createDirectory(
+                at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            for suffix in ["", "-wal", "-shm"] { try? fm.removeItem(atPath: target.path + suffix) }
+            try fm.copyItem(at: source, to: target)
+        }.value
+        if wasOpen { load() }
     }
 
     /// Off means fully off: the handle and the resident summaries go, the file on disk stays.

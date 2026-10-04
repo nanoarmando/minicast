@@ -38,7 +38,8 @@ bar search (the Navigation pane), and updates.
 - **Emoji picker**.
 - **AI chat and Quick Actions** with your own API keys or installed AI accounts, plus **MCP** servers.
 - **Raycast extensions**, rendered natively.
-- **Backup and import**, including import from Raycast.
+- **Backup and import** of the whole setup as one ZIP bundle (settings, extensions, AI and MCP
+  configuration, chats, clipboard), excluding Keychain secrets, plus import from Raycast.
 
 ## Philosophy: new features are extensions
 
@@ -216,9 +217,28 @@ Minicast's existing data to `~/Documents/Backups/Minicast-<timestamp>/`.
 Permissions and the login item cannot be migrated because macOS ties them to the app's identity and
 signature.
 
-Alternatively, export a backup from Tinycast and import it in **Settings → Backup**. Minicast reads
-both `.minicast` and `.tinycast` backups; a backup covers settings, hotkeys, clipboard history and
-launcher learning, but not AI keys, MCP servers or extensions.
+Alternatively, export a backup from Tinycast and import it in **Settings → Backup**. A `.tinycast`
+backup covers settings, hotkeys, clipboard history and launcher learning, but not AI keys, MCP
+servers or extensions.
+
+## Moving to another Mac
+
+Open **Import & Export** from the launcher (Export Backup / Import Backup) or from **Settings →
+Backup**. Export writes one `Minicast-<date>.minicast` file, which is a ZIP. It can hold six
+categories, all selected by default: Settings & Shortcuts, Extensions, AI & MCP, Clipboard History, AI
+Chat History and Launcher Learning.
+
+On the other Mac, import the file and choose the categories to restore. Each selected category
+**replaces** what is there; unselected ones are not touched. Then:
+
+- Feature switches that grant a capability (extensions, MCP, AI, quick actions, calendar, auto-join,
+  clipboard text recognition) turn on only if you accept a dialog listing what would be able to run.
+- Keychain secrets never travel: the summary lists the AI connections, MCP servers and installed AI
+  tools whose keys must be entered again, and extensions ask for their sign-in again.
+- The file can contain extension passwords, tokens, clipboard content and chats in readable form.
+  Treat it as a sensitive file.
+
+A bundle needs a Minicast build with this format on both Macs; older builds cannot read it.
 
 ## Permissions
 

@@ -34,7 +34,8 @@ produces, rendered natively into the palette. No Electron, no browser, no Node.j
   foreground and menu commands, removes status items and refresh tasks, discards JS contexts, empties
   the installed set and clears the launcher rows;
   `refresh()` returns early while it is off, so nothing is scanned and nothing is held. Enabling is also
-  consent to run third-party code, so it confirms first and never rides a settings backup.
+  consent to run third-party code, so it confirms first. A backup carries the switch but applies it
+  only after the import's consent dialog ([backup.md](backup.md)).
 - **`SymbolCatalog` reads a system bundle, not API.** The list comes from `CoreGlyphs.bundle` at
   runtime; every read stays optional and falls back to `SymbolCatalog.suggested`, and Apple's restricted
   marks are never offered.
@@ -208,8 +209,8 @@ blocking Node shim on the runtime queue.
 
 A saved button restores after relaunch without executing JavaScript; only its next due refresh boots
 the runtime. Activation and the saved button live on the command's own record in
-`extension-commands.json`, which is channel-local Application Support data and is excluded from
-settings backups. The command's **Show in menu bar** toggle, uninstall, and disabling extensions
+`extension-commands.json`, which is channel-local Application Support data and travels with the
+extension in a backup's Extensions category. The command's **Show in menu bar** toggle, uninstall, and disabling extensions
 all tear down the corresponding native items and work. Removing a menu item leaves the extension's
 other commands installed. Only explicitly activated commands have saved records.
 
@@ -621,7 +622,7 @@ Refresh is opt-in per command: off until the first manual run or the Settings to
 last error. The launcher row carries the state too: a dot while refresh is on, its dimmed twin
 while it is off, a warning with the error as its tooltip when the last background run failed, and
 the Actions menu offers Enable / Disable Background Refresh plus Refresh Now. The override lives in
-`extension-commands.json` — derived state, so no backup carries it — and uninstall removes an
+`extension-commands.json` — a backup carries the extension's slice of it — and uninstall removes an
 extension's records with everything else. Deliberately not in `extension-data/<name>.json`: drawing a
 launcher row reads every command's metadata, and that file holds the extension's whole `Cache`.
 
@@ -864,6 +865,11 @@ never shares with an installed copy.
 | User alias | `UserDefaults` → `launcherAliases` | yes |
 | Launch ranking | `launcher-ranking.json` | yes |
 
+A backup's Extensions category carries every row above except the Keychain one
+(`ExtensionBundle`, driven by `ExtensionManager`'s export and restore). Password-type preferences and
+`LocalStorage` travel in plain text, since they are not Keychain items. Restoring uninstalls the
+extensions the bundle lacks through the same cleanup, then installs and restores the rest.
+
 `ExtensionCatalog.safeName` maps an npm-style name onto one path segment, and is the **only** copy of
 that mapping — a second one that drifts orphans every file the first one wrote.
 
@@ -927,7 +933,7 @@ stroke that appearance calls for.
 - 18 tints, pinned sRGB rather than system colours: tiles rasterize off the main thread, where a dynamic
   colour would resolve against whatever appearance that thread sees. Pinning also makes the picker's
   SwiftUI preview and the drawn bitmap the same colour by construction.
-- "Use Original" clears the override. Choices ride along in a settings backup.
+- "Use Original" clears the override. Choices ride along in a backup's Extensions category.
 
 ### Where the symbols come from
 

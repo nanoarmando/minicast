@@ -511,10 +511,10 @@ enum SettingsSearchCatalog {
             keywords: ["export", "import", "restore", "migrate", "raycast"]),
         .init(
             .backupExport, "Export Backup",
-            keywords: ["save", "minicast file", "tinycast file", "archive"]),
+            keywords: ["save", "minicast file", "zip", "archive", "extensions", "migrate"]),
         .init(
-            .backupImport, "Backup File",
-            keywords: ["restore", "choose", "minicast file", "tinycast file"]),
+            .backupImport, "Import Backup",
+            keywords: ["restore", "choose", "minicast file", "tinycast file", "migrate"]),
         .init(
             .backupImportFromRaycast, "Raycast Export",
             keywords: ["migrate", "rayconfig", "passphrase"]),

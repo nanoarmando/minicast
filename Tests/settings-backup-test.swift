@@ -22,16 +22,37 @@ struct SettingsBackupTest {
         let mirrored = SettingsBackupCoverage.mirrored
         let excluded = SettingsBackupCoverage.deliberatelyExcluded
         let external = SettingsBackupCoverage.externallySourced
+        let capabilities = SettingsBackupCoverage.capabilities
+        let elsewhere = SettingsBackupCoverage.carriedElsewhere
         let allKeys = AppSettingsKey.allCases.map(\.rawValue)
         let mirroredKeys = mirrored.values.map(\.rawValue)
+        let capabilityKeys = capabilities.values.map(\.rawValue)
 
-        let uncovered = allKeys.filter { !mirroredKeys.contains($0) && excluded[$0] == nil }
+        // Exactly one bucket per key: mirrored, capability, another part, or machine-local.
+        let buckets = [Set(mirroredKeys), Set(capabilityKeys), Set(elsewhere.keys), Set(excluded.keys)]
+        let uncovered = allKeys.filter { key in !buckets.contains { $0.contains(key) } }
+        check(naming("every AppSettings key sits in a declared bucket", uncovered), uncovered.isEmpty)
+        let doubled = allKeys.filter { key in buckets.filter { $0.contains(key) }.count > 1 }
+        check(naming("no key sits in two buckets", doubled), doubled.isEmpty)
+
+        let unknownElsewhere = elsewhere.keys.filter { AppSettingsKey(rawValue: $0) == nil }
         check(
-            naming("every AppSettings key is backed up or deliberately excluded", uncovered),
-            uncovered.isEmpty)
-
-        let bothWays = mirroredKeys.filter { excluded[$0] != nil }
-        check(naming("no key is both backed up and excluded", bothWays), bothWays.isEmpty)
+            naming("every key carried elsewhere is a real key", Array(unknownElsewhere)),
+            unknownElsewhere.isEmpty)
+        check(
+            "seven capability switches are declared",
+            Set(capabilityKeys) == Set([
+                AppSettingsKey.extensionsEnabled, .mcpEnabled, .aiEnabled, .quickActionsEnabled,
+                .calendarEnabled, .autoJoinMeetings, .clipboardTextSearchEnabled
+            ].map(\.rawValue)))
+        let machineLocal: [AppSettingsKey] = [
+            .palettePosition, .paletteExpandedCenterDisplays, .extensionPackageManager,
+            .extensionCustomSearchPaths, .autoSwitchInputSource, .meetingBrowser,
+            .settingsFileEnabled
+        ]
+        check(
+            "only machine-local keys are excluded",
+            Set(excluded.keys) == Set(machineLocal.map(\.rawValue)))
 
         let unknownExclusions = excluded.keys.filter { AppSettingsKey(rawValue: $0) == nil }
         check(
@@ -59,13 +80,9 @@ struct SettingsBackupTest {
             "emoji grid density rides the settings backup",
             mirrored["emojiGridColumns"] == .emojiGridColumns)
 
-        // Named one by one: a backup now carries content, so it is far likelier to be sent on.
-        for key: AppSettingsKey in [
-            .extensionsEnabled, .calendarEnabled, .autoJoinMeetings, .quickActionsEnabled
-        ] {
-            check(
-                "\(key.rawValue) stays out of a backup",
-                excluded[key.rawValue] != nil && mirrored.values.allSatisfy { $0 != key })
+        // A capability rides the bundle but never the settings mirror the import applies directly.
+        for key in capabilityKeys {
+            check("\(key) is not mirrored", !mirroredKeys.contains(key))
         }
 
         // A reason that only echoes the key name explains nothing, so it fails like a missing one.

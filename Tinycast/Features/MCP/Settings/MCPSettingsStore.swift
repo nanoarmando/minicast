@@ -36,6 +36,12 @@ final class MCPSettingsStore {
         }
     }
 
+    /// A backup restore keeps each id, so a Keychain secret stored under one still applies.
+    func replaceAll(_ servers: [MCPServer]) {
+        self.servers = []
+        for server in servers { save(server) }
+    }
+
     func remove(id: UUID) {
         servers.removeAll { $0.id == id }
     }

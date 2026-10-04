@@ -74,6 +74,8 @@ final class AppCore {
         windowController: windowController)
     /// Its own window and lifecycle: neither coordinator shows or closes the other's surface.
     @PerceptionIgnored private(set) lazy var settingsCoordinator = SettingsCoordinator(core: self)
+    /// The Import & Export window; the launcher commands and Settings › Backup both open it.
+    @PerceptionIgnored private(set) lazy var backupCoordinator = BackupCoordinator(core: self)
     @PerceptionIgnored private(set) lazy var systemActionCoordinator = SystemActionCoordinator(
         paletteCoordinator: paletteCoordinator, core: self)
     @PerceptionIgnored private(set) lazy var uninstallCoordinator = UninstallCoordinator(

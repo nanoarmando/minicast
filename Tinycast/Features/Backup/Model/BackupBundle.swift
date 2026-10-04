@@ -1,6 +1,6 @@
 import Foundation
 
-/// The payload a `.tinycast` seals; pure, so the harness drives the real layout.
+/// The payload a backup carries; pure, so the harness drives the real layout.
 struct BackupBundle: Sendable {
     enum LearningPart: String, CaseIterable, Sendable {
         case ranking
@@ -9,20 +9,32 @@ struct BackupBundle: Sendable {
     }
 
     let root: URL
+    /// The manifest format this tree is laid out for; format 1 kept settings at the root.
+    let format: Int
 
-    init(root: URL) {
+    init(root: URL, format: Int = BackupManifest.currentFormat) {
         self.root = root
+        self.format = format
     }
 
     // MARK: - Layout
 
     var manifestURL: URL { root.appendingPathComponent("manifest.json") }
-    var settingsURL: URL { root.appendingPathComponent("settings.json") }
 
-    private func directory(for category: BackupCategory) -> URL {
-        let subpath = category.descriptor.subpath
-        guard !subpath.isEmpty else { return root }
-        return root.appendingPathComponent(subpath, isDirectory: true)
+    func directory(for category: BackupCategory) -> URL {
+        if category == .configuration, format == BackupManifest.legacyFormat { return root }
+        return root.appendingPathComponent(category.descriptor.subpath, isDirectory: true)
+    }
+
+    var settingsURL: URL { directory(for: .configuration).appendingPathComponent("settings.json") }
+    var quickActionsURL: URL {
+        directory(for: .configuration).appendingPathComponent("quick-actions.json")
+    }
+    var extensionsDirectory: URL { directory(for: .extensions) }
+    var aiURL: URL { directory(for: .aiAndMCP).appendingPathComponent("ai.json") }
+    var mcpURL: URL { directory(for: .aiAndMCP).appendingPathComponent("mcp.json") }
+    var chatDatabaseURL: URL {
+        directory(for: .chatHistory).appendingPathComponent("ai-chats.sqlite3")
     }
 
     var clipboardItemsURL: URL { directory(for: .clipboard).appendingPathComponent("items.jsonl") }
@@ -39,8 +51,8 @@ struct BackupBundle: Sendable {
     /// Called once before composing; the archive carries no directory a category didn't ask for.
     func prepare(_ categories: Set<BackupCategory>) throws {
         try create(root)
+        for category in categories { try create(directory(for: category)) }
         if categories.contains(.clipboard) { try create(clipboardImagesDirectory) }
-        if categories.contains(.learning) { try create(directory(for: .learning)) }
     }
 
     func write(_ data: Data, to url: URL) throws {
@@ -98,7 +110,7 @@ struct BackupBundle: Sendable {
         guard let data = try? Data(contentsOf: manifestURL),
             let manifest = try? Self.decoder.decode(BackupManifest.self, from: data)
         else { throw .unreadable }
-        guard manifest.format == BackupManifest.currentFormat else {
+        guard manifest.format == format else {
             throw .unsupportedFormat(found: manifest.format)
         }
         return manifest
@@ -112,7 +124,11 @@ struct BackupBundle: Sendable {
     }
 
     func decodeLearning<Value: Decodable>(_ part: LearningPart, as type: Value.Type) -> Value? {
-        guard let data = try? Data(contentsOf: learningURL(part)) else { return nil }
+        decode(Value.self, at: learningURL(part))
+    }
+
+    func decode<Value: Decodable>(_ type: Value.Type, at url: URL) -> Value? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
         return try? Self.decoder.decode(Value.self, from: data)
     }
 

@@ -1,19 +1,38 @@
 import Foundation
 
-/// A readable configuration snapshot; every field is optional, so an import merges.
+/// A readable configuration snapshot. Optional throughout: a merge skips what a file lacks, and a
+/// replace resets it.
 struct SettingsBackup: Codable {
 
     var settings: SettingsData?
+    /// Held back by `apply`; only the import's consent step writes them.
+    var capabilities: CapabilityData?
     var hotkeys: HotkeyBackup?
     var customCommands: [CustomCommand]?
     var windowLayouts: [WindowLayout]?
     var windowRooms: [Room]?
     var customWindowSizes: [CustomWindowSize]?
+    var roomMinimumWindowSizes: [String: CGSize]?
     var favoriteApps: [String]?
     var hiddenLauncherItems: [String]?
     var hiddenLauncherKinds: [String]?
     var launcherAliases: [String: String]?
     var pinnedEmoji: [String]?
+    var fallbackOrder: [String]?
+    var disabledFallbacks: [String]?
+    /// Calendar identifiers; one this Mac lacks is never matched, so it does nothing here.
+    var hiddenMeetingCalendars: [String]?
+
+    /// The switches that grant a capability; `SettingsBackupCoverage.capabilities` lists each.
+    struct CapabilityData: Codable, Equatable {
+        var extensionsEnabled: Bool?
+        var mcpEnabled: Bool?
+        var aiEnabled: Bool?
+        var quickActionsEnabled: Bool?
+        var calendarEnabled: Bool?
+        var autoJoinMeetings: Bool?
+        var clipboardTextSearchEnabled: Bool?
+    }
 
     /// Enums store by raw value, so an unknown one is ignored rather than failing.
     struct SettingsData: Codable {
@@ -57,13 +76,13 @@ struct SettingsBackup: Codable {
         var extensionsShowInLauncher: Bool?
         // Carried: running a shortcut the user built grants no permission class.
         var appleShortcutsEnabled: Bool?
-        // `calendarEnabled` is absent: an import must not grant calendar access.
+        // `calendarEnabled` rides `CapabilityData`: granting calendar access needs consent.
         var calendarShowInLauncher: Bool?
         var calendarLauncherLimit: Int?
         // Carried: it narrows what is read rather than widening what may be reached.
         var calendarSpan: Int?
         var joinWindowMinutes: Int?
-        // `autoJoinMeetings` is absent: an import must not arm it.
+        // `autoJoinMeetings` rides `CapabilityData` too: arming it needs consent.
         var autoJoinConfirms: Bool?
         var menuBarEvents: Int?
         var calendarMenuBarDisplay: Int?
@@ -85,6 +104,10 @@ struct SettingsBackup: Codable {
         var windowLayouts: [String: HotKeyBinding]?
         var windowRooms: [String: HotKeyBinding]?
         var customWindowSizes: [String: HotKeyBinding]?
+        var quickActions: [String: HotKeyBinding]?
+        var appleShortcuts: [String: HotKeyBinding]?
+        /// Keyed by the command's entry id, which outlives a reinstall of its extension.
+        var extensionCommands: [String: HotKeyBinding]?
     }
 
     /// A tally of what an import touched, for user-facing confirmation.
@@ -107,9 +130,37 @@ struct SettingsBackup: Codable {
 @MainActor
 extension SettingsBackup {
     static func gather(from core: AppCore) -> SettingsBackup {
-        let s = core.settings
         var backup = SettingsBackup()
-        backup.settings = SettingsData(
+        var settings = settingsData(from: core.settings)
+        // Machine-local: a login item belongs to the Mac that registered it.
+        settings.launchAtLogin = nil
+        backup.settings = settings
+        let s = core.settings
+        backup.capabilities = CapabilityData(
+            extensionsEnabled: s.extensionsEnabled, mcpEnabled: s.mcpEnabled, aiEnabled: s.aiEnabled,
+            quickActionsEnabled: s.quickActionsEnabled, calendarEnabled: s.calendarEnabled,
+            autoJoinMeetings: s.autoJoinMeetings,
+            clipboardTextSearchEnabled: s.clipboardTextSearchEnabled)
+        backup.hotkeys = hotkeys(from: core.hotKeys)
+        backup.customCommands = core.customCommands.commands
+        backup.windowLayouts = core.windowLayouts.layouts
+        backup.windowRooms = core.rooms.rooms
+        backup.customWindowSizes = core.customWindowSizes.sizes
+        backup.roomMinimumWindowSizes = core.roomMinimums.sizes
+        backup.favoriteApps = core.favorites.keys
+        backup.hiddenLauncherItems = Array(core.visibility.hiddenItemKeys)
+        backup.hiddenLauncherKinds = Array(core.visibility.disabledKinds)
+        backup.launcherAliases = core.aliases.aliases
+        backup.pinnedEmoji = core.pinnedEmoji.glyphs
+        backup.fallbackOrder = core.fallbacks.orderedIDs
+        backup.disabledFallbacks = core.fallbacks.disabledIDs.sorted()
+        backup.hiddenMeetingCalendars = core.calendarStore.hiddenCalendarIDs.sorted()
+        return backup
+    }
+
+    /// Every `AppSettings` value `SettingsData` mirrors, read from any instance.
+    static func settingsData(from s: AppSettings) -> SettingsData {
+        SettingsData(
             clipboardEnabled: s.clipboardEnabled,
             clipboardRetentionDays: s.clipboardRetention.rawValue,
             clipboardDefaultAction: s.clipboardDefaultAction.rawValue,
@@ -156,8 +207,9 @@ extension SettingsBackup {
             menuBarLinkedEventsOnly: s.menuBarLinkedEventsOnly,
             calendarMenuBarHidesWhenEmpty: s.calendarMenuBarHidesWhenEmpty,
             hideCurrentEvent: s.hideCurrentEvent.rawValue)
+    }
 
-        let hk = core.hotKeys
+    private static func hotkeys(from hk: HotKeyManager) -> HotkeyBackup {
         var hotkeys = HotkeyBackup()
         hotkeys.togglePalette = hk.binding(for: .togglePalette)
         hotkeys.commands = Dictionary(
@@ -196,22 +248,53 @@ extension SettingsBackup {
             uniqueKeysWithValues: hk.boundCustomWindowSizeIDs.compactMap { id in
                 hk.binding(for: .customWindowSize(id: id)).map { (id.uuidString.lowercased(), $0) }
             })
-        backup.hotkeys = hotkeys
-
-        backup.customCommands = core.customCommands.commands
-        backup.windowLayouts = core.windowLayouts.layouts
-        backup.windowRooms = core.rooms.rooms
-        backup.customWindowSizes = core.customWindowSizes.sizes
-        backup.favoriteApps = core.favorites.keys
-        backup.hiddenLauncherItems = Array(core.visibility.hiddenItemKeys)
-        backup.hiddenLauncherKinds = Array(core.visibility.disabledKinds)
-        backup.launcherAliases = core.aliases.aliases
-        backup.pinnedEmoji = core.pinnedEmoji.glyphs
-        return backup
+        hotkeys.quickActions = Dictionary(
+            uniqueKeysWithValues: hk.boundQuickActionIDs.compactMap { id in
+                hk.binding(for: .quickAction(id: id)).map { (id.uuidString.lowercased(), $0) }
+            })
+        hotkeys.appleShortcuts = Dictionary(
+            uniqueKeysWithValues: hk.boundAppleShortcutIDs.compactMap { id in
+                hk.binding(for: .appleShortcut(id: id)).map { (id.uuidString.lowercased(), $0) }
+            })
+        hotkeys.extensionCommands = Dictionary(
+            uniqueKeysWithValues: hk.boundExtensionCommandEntryIDs.compactMap { id in
+                hk.binding(for: .extensionCommand(entryID: id)).map { (id, $0) }
+            })
+        return hotkeys
     }
 
+    /// Merges by default, as a Raycast or format-1 import always has; `replacing` resets every
+    /// field the file lacks, which is what a format-2 bundle's import promises.
     @discardableResult
-    func apply(to core: AppCore) -> ApplySummary {
+    func apply(to core: AppCore, replacing: Bool = false) -> ApplySummary {
+        let backup = replacing ? filledForReplace() : self
+        return backup.applyMerging(to: core, replacing: replacing)
+    }
+
+    /// A replace is a merge of a complete file: every absent field becomes its empty or default.
+    private func filledForReplace() -> SettingsBackup {
+        var filled = self
+        var defaults = Self.settingsData(from: AppSettings.factoryDefaults())
+        defaults.launchAtLogin = nil
+        filled.settings = (settings ?? SettingsData()).filling(from: defaults)
+        filled.hotkeys = hotkeys ?? HotkeyBackup()
+        filled.customCommands = customCommands ?? []
+        filled.windowLayouts = windowLayouts ?? []
+        filled.windowRooms = windowRooms ?? []
+        filled.customWindowSizes = customWindowSizes ?? []
+        filled.roomMinimumWindowSizes = roomMinimumWindowSizes ?? [:]
+        filled.favoriteApps = favoriteApps ?? []
+        filled.hiddenLauncherItems = hiddenLauncherItems ?? []
+        filled.hiddenLauncherKinds = hiddenLauncherKinds ?? []
+        filled.launcherAliases = launcherAliases ?? [:]
+        filled.pinnedEmoji = pinnedEmoji ?? []
+        filled.fallbackOrder = fallbackOrder ?? []
+        filled.disabledFallbacks = disabledFallbacks ?? []
+        filled.hiddenMeetingCalendars = hiddenMeetingCalendars ?? []
+        return filled
+    }
+
+    private func applyMerging(to core: AppCore, replacing: Bool) -> ApplySummary {
         var summary = ApplySummary()
         if let s = settings { summary.settingsFields = applySettings(s, to: core) }
         if let customCommands {
@@ -229,6 +312,8 @@ extension SettingsBackup {
             summary.customWindowSizes =
                 core.customWindowSizeCoordinator.replaceCustomWindowSizes(customWindowSizes)
         }
+        if let roomMinimumWindowSizes { core.roomMinimums.replace(roomMinimumWindowSizes) }
+        if replacing { core.hotKeys.removeAllBindings() }
         if let hotkeys { summary.hotkeys = applyHotkeys(hotkeys, to: core) }
         if let favoriteApps {
             core.favorites.replace(keys: favoriteApps)
@@ -248,6 +333,14 @@ extension SettingsBackup {
         if let pinnedEmoji {
             core.pinnedEmoji.replace(pinnedEmoji)
             summary.pinnedEmoji = core.pinnedEmoji.glyphs.count
+        }
+        if fallbackOrder != nil || disabledFallbacks != nil {
+            core.fallbacks.replace(
+                order: fallbackOrder ?? core.fallbacks.orderedIDs,
+                disabled: disabledFallbacks ?? Array(core.fallbacks.disabledIDs))
+        }
+        if let hiddenMeetingCalendars {
+            core.calendarStore.replaceHiddenCalendars(hiddenMeetingCalendars)
         }
         return summary
     }
@@ -489,11 +582,42 @@ extension SettingsBackup {
             else { continue }
             apply(b, .customWindowSize(id: id))
         }
+        for (rawID, b) in hotkeys.quickActions ?? [:] {
+            guard let id = UUID(uuidString: rawID), core.customQuickActions.action(id: id) != nil
+            else { continue }
+            apply(b, .quickAction(id: id))
+        }
+        // Not checked against the Shortcuts library: it is read lazily, and a stale id runs nothing.
+        for (rawID, b) in hotkeys.appleShortcuts ?? [:] {
+            guard let id = UUID(uuidString: rawID) else { continue }
+            apply(b, .appleShortcut(id: id))
+        }
+        // Bound by id alone, as the store does: the extension may install after the hotkey.
+        for (entryID, b) in hotkeys.extensionCommands ?? [:] {
+            apply(b, .extensionCommand(entryID: entryID))
+        }
         return count
     }
 }
 
 // MARK: - Serialization
+
+extension SettingsBackup.SettingsData {
+    /// Field by field through JSON, so a new field needs no line here to be filled.
+    func filling(from defaults: Self) -> Self {
+        let encoder = JSONEncoder()
+        guard
+            let own = try? JSONSerialization.jsonObject(with: encoder.encode(self))
+                as? [String: Any],
+            let base = try? JSONSerialization.jsonObject(with: encoder.encode(defaults))
+                as? [String: Any],
+            let merged = try? JSONSerialization.data(
+                withJSONObject: base.merging(own) { _, mine in mine }),
+            let filled = try? JSONDecoder().decode(Self.self, from: merged)
+        else { return self }
+        return filled
+    }
+}
 
 extension SettingsBackup {
     func encoded() throws -> Data {

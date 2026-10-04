@@ -27,6 +27,11 @@ extension InstalledAIEnvironmentStore {
 }
 
 extension InstalledAIKind {
+    /// Attributes only: answering never reads the variables, so it never prompts.
+    var hasStoredEnvironment: Bool {
+        (try? KeychainSecretStore.installedAIEnvironment.hasSecret(for: keychainAccount)) ?? false
+    }
+
     /// The Keychain store names an item by UUID, so each tool has one that never changes.
     fileprivate var keychainAccount: UUID {
         let value =

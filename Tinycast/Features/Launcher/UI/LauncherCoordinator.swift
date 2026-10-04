@@ -185,10 +185,10 @@ final class LauncherCoordinator {
             core.roomCoordinator.createRoom()
         case .exportSettings:
             dismissPalette()
-            Task { await BackupActions.runExportCommand(core: core) }
+            core.backupCoordinator.show(.export)
         case .importSettings:
             dismissPalette()
-            Task { await BackupActions.runImportCommand(core: core) }
+            core.backupCoordinator.show(.import)
         case .importFromRaycast:
             dismissPalette()
             settingsCoordinator.showBackupSettings()

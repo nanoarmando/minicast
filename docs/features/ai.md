@@ -18,8 +18,8 @@ bottom with the model picker. ⌘J hands a Quick AI conversation to the window.
   helper for chat, no stop for it on Tab's ring, the palette leaves `.ai` and the window closes.
   Installed providers may still remain available for Quick Actions, which has its own switch and route. Turning AI off cancels
   every streaming reply and drops both transcripts, but touches neither the saved conversations in
-  `ai-chats.sqlite3` nor a Keychain key. `aiEnabled` is excluded from settings backups like every
-  other AI key, so an import can never arm a feature it cannot configure.
+  `ai-chats.sqlite3` nor a Keychain key. A backup carries `aiEnabled` as a capability,
+  applied only after the import's consent dialog.
 - **Installed model discovery is per-provider.** Settings → AI → Providers keeps Codex, Claude, Grok,
   OpenCode and Cursor visible with an individual toggle for each, all off by default. Turning one off cancels
   its check, clears its catalog and releases its process; saved API connections stay available. There
@@ -54,7 +54,7 @@ bottom with the model picker. ⌘J hands a Quick AI conversation to the window.
   the system prompt off, and every transport drops a nil instruction, so a turn then carries none.
 - **API keys live only in the login Keychain.** `AIConnection` persists the provider, endpoint and
   model identifiers in `UserDefaults`; it never contains a key. Keys are addressed by connection UUID
-  through `KeychainSecretStore.aiAPIKeys`, and never enter logs, errors or settings backups. A key is issued for one
+  through `KeychainSecretStore.aiAPIKeys`, and never enter logs, errors or backups. A key is issued for one
   endpoint and never follows a connection retargeted at another — change the provider or base URL and
   both model discovery and Save ask for a new key, rather than introduce the saved one to a host it
   was never meant to reach (`AIEndpointPolicy.sameDestination`).
@@ -690,7 +690,7 @@ doesn't simply returns the provider's error.
 
 Web search is a Settings → AI toggle, `aiWebSearch`, off by default: a prompt reaches a search engine
 only once the user has opted in.
-It's still excluded from backups — which Mac may send prompts to a search engine is that Mac's call.
+A backup's AI & MCP category carries it with the other AI settings.
 Nothing *guesses* at a capability: images ride on what the model's own catalog said, and a vendor
 API that does not take one simply returns its error. What is gated is only what a route provably
 cannot carry — a PDF to a text transport — refused at the composer with a HUD naming the reason.
@@ -826,16 +826,11 @@ commands or touch files, and never to invoke a tool beyond the MCP tools an arme
 turn supplies. That is a sandbox boundary on a local CLI, not Minicast describing itself, and a user
 switch must not be able to lift it.
 
-`mcpEnabled` and `mcpServers` are excluded for the reasons in [mcp.md](mcp.md).
-`aiConnections`, `aiDefaultModel`, `aiSystemPrompt` and `aiSystemPromptEnabled` are deliberately
-excluded from settings backups. The first is meaningless without machine-local Keychain items; the
-second names an external destination and must not silently redirect AI traffic after an import; the
-last two are standing instructions and the switch that sends them, both of which change every
-answer and must not arrive on another Mac unread. `aiRetention`, `aiOpensTo` and `aiNewChatAfter`
-join them: all three are decisions about conversations that never leave the Mac that had them, and
-an import must not arrive carrying an instruction to delete them. `aiToolRounds` stays behind too: it
-limits what a tool-driven reply may spend, and an import must not raise that unasked.
-`aiShownModels` and `aiDisabledRoutes` name this Mac's own tools, connections and their models, which
-another Mac may not have. `aiInstalledOverrides` names a command to run and the variables to run it
-with, and an import must never decide which program a Mac launches. None of the three has a
-`settings.json` key, for the same reasons: they are machine state, and the last grants a capability.
+A backup's **AI & MCP** category carries every AI setting (`AISettingsSnapshot`, in `ai/ai.json`),
+the connections and MCP servers, but never a Keychain key. Connection ids are kept, so a key this Mac
+already holds under the same id still matches. After the import, the summary lists each connection
+and installed tool whose secret must be entered again. `aiEnabled` and `mcpEnabled` travel as
+capabilities, applied only after the consent dialog, which also lists every `aiInstalledOverrides`
+command. Chat history is its own category ([backup.md](backup.md)).
+`aiShownModels`, `aiDisabledRoutes` and `aiInstalledOverrides` still have no `settings.json` key:
+the file is hand-edited, and the last one names a program to launch.

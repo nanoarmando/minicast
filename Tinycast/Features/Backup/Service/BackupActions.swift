@@ -16,7 +16,7 @@ enum BackupActions {
         var missingImages: Int
     }
 
-    // MARK: - Tinycast native (own file panels; dialogs come from `AppCore`)
+    // MARK: - File panels (dialogs come from `AppCore`)
 
     /// The shared save panel; an accessory app must activate first or it opens behind.
     static func chooseSaveLocation(named base: String, type: UTType = .json) -> URL? {
@@ -41,34 +41,53 @@ enum BackupActions {
         return panel.url
     }
 
-    // MARK: - Tinycast backups
+    // MARK: - Minicast backups
 
-    /// Composes off-main, then seals — a clipboard history runs to gigabytes.
+    /// An extracted bundle, held between choosing the file and applying it.
+    struct OpenedBackup: Sendable {
+        let staging: BackupStaging
+        let bundle: BackupBundle
+        let manifest: BackupManifest
+    }
+
+    /// Composed off-main, zipped beside it, then moved into place already `0600`.
     static func exportBackup(
-        core: AppCore, categories: Set<BackupCategory>
-    ) async throws
-        -> BackupComposer.Result
-    {
-        guard let destination = chooseSaveLocation(named: "Minicast", type: .minicastBackup) else {
-            throw CancellationError()
-        }
-        let plan = BackupComposer.plan(categories, from: core)
+        core: AppCore, categories: Set<BackupCategory>, to destination: URL
+    ) async throws -> BackupComposer.Result {
+        let plan = await BackupComposer.plan(categories, from: core)
         return try await Task.detached(priority: .userInitiated) {
             let staging = try BackupStaging()
             defer { staging.discard() }
-            let result = try BackupComposer.write(plan, into: staging.bundle)
-            try BackupArchive.seal(directory: staging.root, into: destination)
+            let bundle = staging.bundle()
+            let result = try BackupComposer.write(plan, into: bundle)
+            let sealed = staging.root.appendingPathComponent("bundle.zip")
+            try BackupZip.compress(bundle.root, into: sealed)
+            let fm = FileManager.default
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: sealed.path)
+            try? fm.removeItem(at: destination)
+            try fm.moveItem(at: sealed, to: destination)
             return result
         }.value
     }
 
-    /// Opens the archive and reads its manifest, leaving staging for the caller to apply and discard.
-    static func openBackup(at file: URL) async throws -> (BackupStaging, BackupManifest) {
+    /// Every check runs here, before the caller can apply anything: container, manifest, names.
+    static func openBackup(at file: URL) async throws -> OpenedBackup {
         try await Task.detached(priority: .userInitiated) {
             let staging = try BackupStaging()
             do {
-                try BackupArchive.open(file: file, into: staging.root)
-                return (staging, try staging.bundle.readManifest())
+                let bundle: BackupBundle
+                if BackupArchive.isZip(file) {
+                    try BackupZip.extract(file, into: staging.payload)
+                    bundle = staging.bundle()
+                } else {
+                    try BackupArchive.open(file: file, into: staging.payload)
+                    bundle = staging.bundle(format: BackupManifest.legacyFormat)
+                }
+                let manifest = try bundle.readManifest()
+                if manifest.categories.contains(.extensions) {
+                    _ = try ExtensionBundle.entries(in: bundle.extensionsDirectory)
+                }
+                return OpenedBackup(staging: staging, bundle: bundle, manifest: manifest)
             } catch {
                 staging.discard()
                 throw error
@@ -76,52 +95,130 @@ enum BackupActions {
         }.value
     }
 
+    /// Confirms, applies, then asks separately before any capability switch is turned on.
     static func applyBackup(
-        _ categories: Set<BackupCategory>, from staging: BackupStaging, to core: AppCore
+        _ categories: Set<BackupCategory>, from opened: OpenedBackup, to core: AppCore
     ) async -> BackupApplier.Summary? {
-        let bundle = staging.bundle
-        if categories.contains(.configuration),
-            let data = try? Data(contentsOf: bundle.settingsURL),
-            let backup = try? SettingsBackup(json: data)
+        let bundle = opened.bundle
+        let staged =
+            categories.contains(.configuration) ? BackupApplier.settingsBackup(in: bundle) : nil
+        guard await confirmImport(categories, of: bundle, settings: staged, core: core) else {
+            return nil
+        }
+        let summary = await BackupApplier.apply(categories, from: bundle, to: core)
+        if let capabilities = staged?.capabilities {
+            await offerCapabilities(capabilities, core: core)
+        }
+        return summary
+    }
+
+    /// Names every category it replaces and every extension it removes, before anything moves.
+    private static func confirmImport(
+        _ categories: Set<BackupCategory>, of bundle: BackupBundle, settings: SettingsBackup?,
+        core: AppCore
+    ) async -> Bool {
+        let replacing = bundle.format == BackupManifest.currentFormat
+        let labels = BackupCategory.ordered(categories).map(\.descriptor.label)
+        var message =
+            replacing
+            ? "Replaces \(list(labels)) on this Mac with the backup's. Anything you didn't select "
+                + "stays as it is."
+            : "Adds the backup's \(list(labels)) to this Mac."
+        if categories.contains(.extensions),
+            let bundled = try? ExtensionBundle.entries(in: bundle.extensionsDirectory)
         {
-            let commands = backup.customCommands?.count ?? 0
-            let shortcuts = backup.hotkeys?.customCommands?.count ?? 0
-            guard await confirmExecutableImport(core: core, commands: commands, shortcuts: shortcuts)
-            else { return nil }
+            let kept = Set(bundled.map(\.name))
+            let removed = await core.extensions.installedOnDisk()
+                .filter { !kept.contains($0.manifest.name) }.map(\.title)
+            if !removed.isEmpty { message += " These extensions will be uninstalled: \(list(removed))." }
         }
-        return await BackupApplier.apply(categories, from: bundle, to: core)
+        let commands = settings?.customCommands?.count ?? 0
+        if commands > 0 {
+            message +=
+                " It contains \(count(commands, "custom command")), which can run shell code. "
+                + "Only import files you trust."
+        }
+        return await core.confirm(
+            title: replacing ? "Replace with this backup?" : "Import this backup?",
+            message: message, symbol: importSymbol,
+            confirmTitle: replacing ? "Replace" : "Import",
+            confirmRole: replacing ? .destructive : .standard)
     }
 
-    /// The launcher has no picker, so its commands take everything; the pane is where you choose.
-    static func runExportCommand(core: AppCore) async {
-        do {
-            let result = try await exportBackup(core: core, categories: BackupCategory.all)
-            await present(
-                core: core, title: "Backup Exported", message: exportText(result),
-                symbol: exportSymbol, tone: .success)
-        } catch is CancellationError {
-        } catch {
-            await present(
-                core: core, title: "Export Failed", message: error.localizedDescription,
-                symbol: exportSymbol)
+    // MARK: - Capability consent
+
+    /// Turning a switch off grants nothing, so only a switch that would turn on needs the answer.
+    private static func offerCapabilities(
+        _ wanted: SettingsBackup.CapabilityData, core: AppCore
+    ) async {
+        let enabling = BackupCapability.allCases.filter {
+            $0.value(in: wanted) == true && !$0.value(in: core.settings)
         }
+        guard !enabling.isEmpty else { return await applyCapabilities(wanted, core: core) }
+        let message = await consentMessage(enabling: enabling, core: core)
+        guard
+            await core.confirm(
+                title: "Turn on what this backup had on?", message: message,
+                symbol: importSymbol, confirmTitle: "Turn On", tone: .neutral,
+                confirmRole: .standard, dismissTitle: "Keep Off")
+        else { return }
+        await applyCapabilities(wanted, core: core)
     }
 
-    static func runImportCommand(core: AppCore) async {
-        guard let file = chooseBackupFile() else { return }
-        do {
-            let (staging, manifest) = try await openBackup(at: file)
-            defer { staging.discard() }
-            guard
-                let summary = await applyBackup(manifest.categories, from: staging, to: core)
-            else { return }
-            await present(
-                core: core, title: "Backup Imported", message: summaryText(summary),
-                symbol: importSymbol, tone: .success)
-        } catch {
-            await present(
-                core: core, title: "Import Failed", message: error.localizedDescription,
-                symbol: importSymbol)
+    /// What would become able to run, read from this Mac after the import, not from the file.
+    private static func consentMessage(
+        enabling: [BackupCapability], core: AppCore
+    ) async -> String {
+        var parts = ["Turns on \(list(enabling.map(\.title)))."]
+        if enabling.contains(.extensions) {
+            let names = await core.extensions.installedOnDisk().map(\.title)
+            if !names.isEmpty { parts.append("Extensions that would run: \(list(names)).") }
+        }
+        if enabling.contains(.mcp) || enabling.contains(.ai) {
+            let commands = core.mcpSettings.enabledServers.compactMap { server -> String? in
+                guard case .stdio(let command, _, _) = server.transport else { return nil }
+                return "\(server.title) (\(command))"
+            }
+            if !commands.isEmpty { parts.append("Local MCP servers: \(list(commands)).") }
+        }
+        if enabling.contains(.ai) {
+            let overrides = InstalledAIKind.allCases.compactMap { kind -> String? in
+                let path = core.aiSettings.override(for: kind).commandPath
+                return path.isEmpty ? nil : "\(kind.title) (\(path))"
+            }
+            if !overrides.isEmpty { parts.append("AI tools run as: \(list(overrides)).") }
+        }
+        let shell = core.customCommands.commands.filter(\.isEnabled).map(\.name)
+        if !shell.isEmpty { parts.append("Custom commands that run shell code: \(list(shell)).") }
+        if core.fallbacks.isEnabled(.builtin(.runShellCommand)) {
+            parts.append("The Run Shell Command fallback is on.")
+        }
+        parts.append("macOS still asks for Calendar or Accessibility access when it's first needed.")
+        return parts.joined(separator: " ")
+    }
+
+    /// Through the same paths the switches use, so each feature starts or stops as it would.
+    private static func applyCapabilities(
+        _ wanted: SettingsBackup.CapabilityData, core: AppCore
+    ) async {
+        let settings = core.settings
+        if let value = wanted.aiEnabled { settings.aiEnabled = value }
+        if let value = wanted.mcpEnabled { settings.mcpEnabled = value }
+        if let value = wanted.quickActionsEnabled { settings.quickActionsEnabled = value }
+        if let value = wanted.clipboardTextSearchEnabled {
+            settings.clipboardTextSearchEnabled = value
+        }
+        if let value = wanted.autoJoinMeetings { settings.autoJoinMeetings = value }
+        if let value = wanted.extensionsEnabled, value != settings.extensionsEnabled {
+            settings.extensionsEnabled = value
+            core.extensionCoordinator.applyEnabled()
+        }
+        if let value = wanted.calendarEnabled, value != settings.calendarEnabled {
+            if value {
+                await core.calendarCoordinator.enableAfterGrant()
+            } else {
+                core.calendarCoordinator.setCalendarEnabled(false)
+            }
         }
     }
 
@@ -185,10 +282,22 @@ enum BackupActions {
             parts.append(applied)
         }
         var imported: [String] = []
+        if summary.quickActions > 0 { imported.append(count(summary.quickActions, "quick action")) }
+        if let restored = summary.extensions?.restored.count, restored > 0 {
+            imported.append(count(restored, "extension"))
+        }
+        if summary.aiConnections > 0 {
+            imported.append(count(summary.aiConnections, "AI connection"))
+        }
+        if summary.mcpServers > 0 { imported.append(count(summary.mcpServers, "MCP server")) }
         if summary.clipboard > 0 { imported.append("\(summary.clipboard) clips") }
+        if summary.chats > 0 { imported.append(count(summary.chats, "conversation")) }
         if summary.learning > 0 { imported.append("\(summary.learning) learning records") }
         if !imported.isEmpty {
             parts.append("Imported " + imported.joined(separator: ", ") + ".")
+        }
+        if let removed = summary.extensions?.removed, !removed.isEmpty {
+            parts.append("Uninstalled \(list(removed)).")
         }
         parts.append(contentsOf: summary.problems)
         return parts.isEmpty ? nothingImportedText : parts.joined(separator: " ")
@@ -283,24 +392,6 @@ enum BackupActions {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.settingsFile()])
     }
 
-    private static func confirmExecutableImport(
-        core: AppCore, commands: Int, shortcuts: Int
-    ) async
-        -> Bool
-    {
-        guard commands > 0 || shortcuts > 0 else { return true }
-        let commandText = commands == 1 ? "1 custom command" : "\(commands) custom commands"
-        let shortcutText =
-            shortcuts == 1 ? "1 global shortcut" : "\(shortcuts) global shortcuts"
-        // Red glyph for a real warning, plain button: importing destroys nothing.
-        return await core.confirm(
-            title: "Import executable commands?",
-            message:
-                "This backup contains \(commandText) and \(shortcutText). Custom commands can run "
-                + "arbitrary shell code. Only import files you trust.",
-            symbol: importSymbol, confirmTitle: "Import", confirmRole: .standard)
-    }
-
     private static func dateStamp() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -309,11 +400,62 @@ enum BackupActions {
 
     /// Every import dialog carries the same glyph, so the flow reads as one thing.
     private static let importSymbol = "square.and.arrow.down"
-    private static let exportSymbol = "square.and.arrow.up"
 
-    private static func present(
-        core: AppCore, title: String, message: String, symbol: String, tone: DialogTone = .danger
-    ) async {
-        await core.showNotice(title: title, message: message, symbol: symbol, tone: tone)
+    /// At most a handful of names: a dialog that lists forty extensions is read by nobody.
+    private static func list(_ names: [String], limit: Int = 6) -> String {
+        guard names.count > limit else { return names.joined(separator: ", ") }
+        return names.prefix(limit).joined(separator: ", ") + " and \(names.count - limit) more"
+    }
+
+    private static func count(_ value: Int, _ noun: String) -> String {
+        value == 1 ? "1 \(noun)" : "\(value) \(noun)s"
+    }
+}
+
+/// The switches a bundle carries but only the consent step writes.
+enum BackupCapability: CaseIterable {
+    case extensions
+    case mcp
+    case ai
+    case quickActions
+    case calendar
+    case autoJoin
+    case clipboardTextSearch
+
+    var title: String {
+        switch self {
+        case .extensions: return "Extensions"
+        case .mcp: return "MCP"
+        case .ai: return "AI"
+        case .quickActions: return "Quick Actions"
+        case .calendar: return "Calendar"
+        case .autoJoin: return "auto-join meetings"
+        case .clipboardTextSearch: return "clipboard text recognition"
+        }
+    }
+
+    func value(in data: SettingsBackup.CapabilityData) -> Bool? {
+        switch self {
+        case .extensions: return data.extensionsEnabled
+        case .mcp: return data.mcpEnabled
+        case .ai: return data.aiEnabled
+        case .quickActions: return data.quickActionsEnabled
+        case .calendar: return data.calendarEnabled
+        case .autoJoin: return data.autoJoinMeetings
+        case .clipboardTextSearch: return data.clipboardTextSearchEnabled
+        }
+    }
+
+    @MainActor
+    func value(in settings: AppSettings) -> Bool {
+        switch self {
+        case .extensions: return settings.extensionsEnabled
+        case .mcp: return settings.mcpEnabled
+        case .ai: return settings.aiEnabled
+        case .quickActions: return settings.quickActionsEnabled
+        case .calendar: return settings.calendarEnabled
+        case .autoJoin: return settings.autoJoinMeetings
+        case .clipboardTextSearch: return settings.clipboardTextSearchEnabled
+        }
     }
 }

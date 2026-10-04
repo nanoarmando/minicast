@@ -17,10 +17,10 @@ nothing about MCP. `AIChatCoordinator.send` is the one place the two meet.
   exits: when MCP goes off, or a server it runs is removed, set to Never Allow or signed out of,
   `ChatGPTSubscriptionManager.dropWithdrawnServers` stops it between turns rather than leave the
   server process and any lent token in it for its ten idle minutes; a change made mid-turn leaves it
-  to the next turn's relaunch or that idle stop. Both flags and `mcpServers`
-  are excluded from settings backups — a server list is a source of executable code and a
-  destination for chat context, and the flag doubles as consent to run it, so an import can never
-  arrive having connected one.
+  to the next turn's relaunch or that idle stop. A backup's
+  AI & MCP category carries `mcpServers`, and the flags travel as capabilities. A server list is a
+  source of executable code and the flag doubles as consent to run it, so an import applies the flag
+  only after a consent dialog that lists every stdio command ([backup.md](backup.md)).
 - **Credentials live only in the login Keychain.** `MCPServer` persists the endpoint, authentication
   mode, the header *name*, the command, its arguments and its environment variable *names* in
   `UserDefaults`; it never contains a secret. The HTTP header value, environment values, OAuth client
@@ -349,7 +349,8 @@ caught there rather than in the middle of a conversation.
   is managed by your organization and the turn runs with no MCP flags at all.
 - Switching MCP off, then AI off, leaves no server process resident — including right after a
   Codex turn that used a local server.
-- A settings backup carries neither a server nor the flag.
+- A backup carries the servers but no secret; after import, the summary lists each server whose
+  secret must be entered again, and MCP stays off unless the consent dialog was accepted.
 - Harnesses: `mcp-test`, `mcp-stdio-test` and `mcp-oauth-test`, plus the tool halves of `ai-provider-test`
   (catalog and turn encoding, fragmented argument decoding, both CLIs' launch encodings and their
   two consent channels), `ai-chat-test` (the loop, its cap, its output bounds, and tool-use

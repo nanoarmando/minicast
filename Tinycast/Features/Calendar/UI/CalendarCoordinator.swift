@@ -110,11 +110,16 @@ final class CalendarCoordinator {
                     confirmRole: .standard)
             else { return }
 
-            guard await store.requestAccess() else { return }
-            // The flag is consent, so it is written only once macOS has actually granted access.
-            settings.calendarEnabled = true
-            applyEnabled()
+            await enableAfterGrant()
         }
+    }
+
+    /// For a caller that already asked: macOS still asks for access, and the flag waits on it.
+    func enableAfterGrant() async {
+        guard await store.requestAccess() else { return }
+        // The flag is consent, so it is written only once macOS has actually granted access.
+        settings.calendarEnabled = true
+        applyEnabled()
     }
 
     /// Publishes or withdraws everything the feature contributes to the launcher.

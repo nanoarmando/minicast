@@ -419,13 +419,13 @@ final class ClipboardStore {
     }
 
     /// A pin is a deliberate keep, so it outlives the bulk clear; `remove` is the way to drop one.
-    func clearAll() {
+    /// Pinned clips survive unless `includingPinned`, which a backup restore's replace asks for.
+    func clearAll(includingPinned: Bool = false) {
         invalidateSearch()
         extractionGeneration = UUID()
+        let filter = includingPinned ? "" : " WHERE pinned_at IS NULL"
         // RETURNING hands back the deleted blobs in the same pass, so no separate SELECT is needed.
-        if db != nil,
-            let stmt = prepare("DELETE FROM items WHERE pinned_at IS NULL RETURNING image_path")
-        {
+        if db != nil, let stmt = prepare("DELETE FROM items\(filter) RETURNING image_path") {
             var orphaned: [String] = []
             while sqlite3_step(stmt) == SQLITE_ROW {
                 if let path = Self.columnString(stmt, 0), owns(path) { orphaned.append(path) }
@@ -438,7 +438,7 @@ final class ClipboardStore {
             }
         }
         // Every pinned row is resident however old, so the window stays whole without a reload.
-        items = items.filter(\.isPinned)
+        items = includingPinned ? [] : items.filter(\.isPinned)
     }
 
     @discardableResult

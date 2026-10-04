@@ -361,6 +361,102 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         await refresh()
     }
 
+    // MARK: - Backup
+
+    /// What a restore did, per extension, so the import summary can name each failure.
+    struct RestoreReport: Sendable {
+        var restored: [String] = []
+        var removed: [String] = []
+        var failures: [(name: String, reason: String)] = []
+    }
+
+    /// Read from disk, not `installed`: with the feature off that list is empty by design.
+    func installedOnDisk() async -> [InstalledExtension] {
+        await Task.detached(priority: .userInitiated) { ExtensionCatalog.scan() }.value
+    }
+
+    /// Everything keyed to each installed extension, read here; the copying happens off-main.
+    func bundleSnapshot() async -> ExtensionBundle.Snapshot {
+        let encoder = JSONEncoder()
+        let items = await installedOnDisk().map { owner in
+            let name = owner.manifest.name
+            let tracked = storeVersions.tracked.contains(name)
+            return ExtensionBundle.Snapshot.Item(
+                entry: ExtensionBundle.Entry(
+                    name: name,
+                    storeVersion: tracked
+                        ? ExtensionBundle.StoreVersion(commitSHA: storeVersions.commitSHA(for: name))
+                        : nil,
+                    appearance: appearances.appearance(for: name)),
+                directory: owner.directory,
+                supportDirectory: ExtensionCatalog.supportPath(for: name),
+                data: storage.exportedData(extension: name),
+                commands: try? encoder.encode(commandMetadata.records(extension: name)))
+        }
+        return ExtensionBundle.Snapshot(items: items)
+    }
+
+    /// Replace semantics: what the bundle lacks is uninstalled, what it has is installed over.
+    func restoreBundle(from root: URL) async -> RestoreReport {
+        var report = RestoreReport()
+        guard let entries = try? ExtensionBundle.entries(in: root) else {
+            report.failures.append((name: "Extensions", reason: ExtensionBundle.BundleError.unreadable
+                .localizedDescription))
+            return report
+        }
+        let bundled = Set(entries.map(\.name))
+        for owner in await installedOnDisk() where !bundled.contains(owner.manifest.name) {
+            await uninstall(owner)
+            report.removed.append(owner.title)
+        }
+        for entry in entries {
+            do {
+                try await restore(entry, from: root)
+                report.restored.append(entry.name)
+            } catch {
+                report.failures.append((name: entry.name, reason: error.localizedDescription))
+            }
+        }
+        await refresh()
+        return report
+    }
+
+    private func restore(_ entry: ExtensionBundle.Entry, from root: URL) async throws {
+        let name = entry.name
+        menuBars?.remove(extensionName: name)
+        if running?.extensionName == name { await stop() }
+        if backgroundRef?.extensionName == name { await abortBackgroundRun() }
+        let installed = try ExtensionCatalog.install(
+            from: ExtensionBundle.packageURL(name, in: root))
+        guard installed.manifest.name == name else {
+            try? ExtensionCatalog.uninstall(installed)
+            throw ExtensionCatalog.InstallError.notAnExtension(
+                ExtensionBundle.packageURL(name, in: root))
+        }
+        try storage.replaceAll(
+            extension: name, with: try? Data(contentsOf: ExtensionBundle.dataURL(name, in: root)))
+        let commands =
+            (try? Data(contentsOf: ExtensionBundle.commandsURL(name, in: root)))
+            .flatMap { try? JSONDecoder().decode([String: ExtensionCommandMetadata].self, from: $0) }
+        commandMetadata.replace(extension: name, with: commands ?? [:])
+        let support = ExtensionCatalog.supportPath(for: name)
+        let fm = FileManager.default
+        try? fm.removeItem(at: support)
+        let bundledSupport = ExtensionBundle.supportURL(name, in: root)
+        if fm.fileExists(atPath: bundledSupport.path) {
+            try fm.createDirectory(
+                at: support.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fm.copyItem(at: bundledSupport, to: support)
+        }
+        if let version = entry.storeVersion {
+            storeVersions.record(version.commitSHA, for: name)
+        } else {
+            storeVersions.forget(name)
+        }
+        updates[name] = nil
+        appearances.set(entry.appearance, for: name)
+    }
+
     // MARK: - Running a command
 
     /// Resolve a launcher row to a command, or nil when the row isn't an extension command.

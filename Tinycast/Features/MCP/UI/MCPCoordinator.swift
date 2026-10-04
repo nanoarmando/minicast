@@ -151,6 +151,14 @@ final class MCPCoordinator {
         applyEnabled()
     }
 
+    /// A backup restore: every connection goes, so none outlives the server it was made for.
+    func replaceServers(_ servers: [MCPServer]) {
+        for server in store.servers { core.mcpOAuth.cancelSignIn(server.id) }
+        manager.stop()
+        store.replaceAll(servers)
+        applyEnabled()
+    }
+
     func remove(_ id: UUID) throws {
         core.mcpOAuth.cancelSignIn(id)
         try MCPSecretStore().remove(for: id)

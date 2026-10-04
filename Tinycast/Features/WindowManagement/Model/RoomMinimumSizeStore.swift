@@ -29,7 +29,16 @@ final class RoomMinimumSizeStore {
         let raised = CGSize(width: max(known.width, size.width), height: max(known.height, size.height))
         guard raised != known else { return false }
         sizes[bundleID] = raised
-        if let data = try? JSONEncoder().encode(sizes) { defaults.set(data, forKey: Self.defaultsKey) }
+        persist()
         return true
+    }
+
+    func replace(_ sizes: [String: CGSize]) {
+        self.sizes = sizes.filter { $0.value.width.isFinite && $0.value.height.isFinite }
+        persist()
+    }
+
+    private func persist() {
+        if let data = try? JSONEncoder().encode(sizes) { defaults.set(data, forKey: Self.defaultsKey) }
     }
 }

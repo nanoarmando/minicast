@@ -177,6 +177,21 @@ final class ExtensionStorage {
         }
     }
 
+    // MARK: - Backup
+
+    /// The extension's whole file as it stands in memory, unflushed writes included.
+    func exportedData(extension name: String) -> Data? {
+        try? JSONEncoder().encode(store(for: name))
+    }
+
+    /// Replaces the extension's store outright and writes it now, ahead of any pending flush.
+    func replaceAll(extension name: String, with data: Data?) throws {
+        let replacement = try data.map { try JSONDecoder().decode(Store.self, from: $0) } ?? Store()
+        stores[name] = replacement
+        dirty.remove(name)
+        try JSONEncoder().encode(replacement).write(to: fileURL(for: name), options: .atomic)
+    }
+
     func removeAll(extension name: String) {
         stores.removeValue(forKey: name)
         try? FileManager.default.removeItem(at: fileURL(for: name))

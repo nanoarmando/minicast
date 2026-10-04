@@ -162,9 +162,9 @@ final class ClipboardCoordinator {
     }
 
     /// Reachable with the feature off, so what was kept before can still be erased afterwards.
-    func clearHistory() {
+    func clearHistory(includingPinned: Bool = false) {
         clipboardStore.open()
-        clipboardStore.clearAll()
+        clipboardStore.clearAll(includingPinned: includingPinned)
         if !settings.clipboardEnabled { clipboardStore.close() }
     }
 

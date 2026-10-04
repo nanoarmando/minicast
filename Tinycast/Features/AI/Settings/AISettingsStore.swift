@@ -109,6 +109,11 @@ final class AISettingsStore {
             defaults.stringArray(forKey: AppSettingsKey.aiDisabledRoutes.rawValue) ?? [])
         enabledInstalledProviders = Self.decodeEnabledInstalledProviders(
             defaults.data(forKey: AppSettingsKey.aiInstalledProviders.rawValue))
+        repairDefaultModel()
+    }
+
+    /// A stored default naming a connection or route that is gone takes the first available one.
+    private func repairDefaultModel() {
         if case .api(let connection, let model, _) = defaultModel,
             !connections.contains(where: { $0.id == connection && $0.models.contains(model) })
         {
@@ -120,6 +125,44 @@ final class AISettingsStore {
         if defaultModel == nil {
             defaultModel = firstAvailableSelection()
         }
+    }
+
+    var snapshot: AISettingsSnapshot {
+        AISettingsSnapshot(
+            connections: connections, defaultModel: defaultModel,
+            webSearchEnabled: webSearchEnabled, systemPrompt: systemPrompt,
+            systemPromptEnabled: systemPromptEnabled, retention: retention.rawValue,
+            opensTo: opensTo.rawValue, newChatAfter: newChatAfter.rawValue,
+            toolRounds: toolRounds.rawValue, shownModels: shownModels,
+            disabledRoutes: disabledRoutes.sorted(),
+            enabledInstalledProviders: enabledInstalledProviders.sorted { $0.rawValue < $1.rawValue },
+            installedOverrides: Dictionary(
+                uniqueKeysWithValues: installedOverrides.map { ($0.key.rawValue, $0.value) }))
+    }
+
+    /// Replaces every setting at once; ids are kept, so a Keychain item under one still matches.
+    func replace(with snapshot: AISettingsSnapshot) {
+        let overrides = Dictionary(
+            uniqueKeysWithValues: snapshot.installedOverrides.compactMap { key, value in
+                InstalledAIKind(rawValue: key).map { ($0, value) }
+            })
+        for kind in InstalledAIKind.allCases where overrides[kind] != installedOverrides[kind] {
+            launchRevisions[kind, default: 0] += 1
+        }
+        installedOverrides = overrides
+        connections = snapshot.connections.map(normalized)
+        webSearchEnabled = snapshot.webSearchEnabled
+        systemPrompt = snapshot.systemPrompt
+        systemPromptEnabled = snapshot.systemPromptEnabled
+        retention = AIRetention(rawValue: snapshot.retention) ?? .forever
+        opensTo = AIOpensTo(rawValue: snapshot.opensTo) ?? .recent
+        newChatAfter = AINewChatAfter(rawValue: snapshot.newChatAfter) ?? .fiveMinutes
+        toolRounds = AIToolRounds(rawValue: snapshot.toolRounds) ?? .twentyFive
+        shownModels = snapshot.shownModels
+        disabledRoutes = Set(snapshot.disabledRoutes)
+        enabledInstalledProviders = Set(snapshot.enabledInstalledProviders)
+        defaultModel = snapshot.defaultModel
+        repairDefaultModel()
     }
 
     func connection(id: UUID) -> AIConnection? {

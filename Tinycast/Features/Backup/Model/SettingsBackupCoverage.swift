@@ -53,20 +53,54 @@ enum SettingsBackupCoverage {
 
     /// The `SettingsData` fields no `AppSettings` key stands behind, and what they read instead.
     static let externallySourced: [String: String] = [
-        "launchAtLogin": "Read from LaunchAtLogin, which owns the login item, not UserDefaults."
+        "launchAtLogin":
+            "Read from LaunchAtLogin, which owns the login item; machine-local, so an export leaves "
+            + "it out and only a format-1 file still sets it."
     ]
 
-    /// Keys kept out of a backup on purpose, each with the reason it has to stay out.
+    /// `CapabilityData` fields: carried, but applied only after the import's consent dialog.
+    static let capabilities: [String: AppSettingsKey] = [
+        "extensionsEnabled": .extensionsEnabled,
+        "mcpEnabled": .mcpEnabled,
+        "aiEnabled": .aiEnabled,
+        "quickActionsEnabled": .quickActionsEnabled,
+        "calendarEnabled": .calendarEnabled,
+        "autoJoinMeetings": .autoJoinMeetings,
+        "clipboardTextSearchEnabled": .clipboardTextSearchEnabled
+    ]
+
+    /// Keys a bundle carries in a part of its own rather than `settings.json`, by that part.
+    static let carriedElsewhere: [String: String] = [
+        AppSettingsKey.aiInstalledProviders.rawValue: aiPart,
+        AppSettingsKey.aiConnections.rawValue: aiPart,
+        AppSettingsKey.aiDefaultModel.rawValue: aiPart,
+        AppSettingsKey.aiWebSearch.rawValue: aiPart,
+        AppSettingsKey.aiSystemPrompt.rawValue: aiPart,
+        AppSettingsKey.aiSystemPromptEnabled.rawValue: aiPart,
+        AppSettingsKey.aiRetention.rawValue: aiPart,
+        AppSettingsKey.aiOpensTo.rawValue: aiPart,
+        AppSettingsKey.aiNewChatAfter.rawValue: aiPart,
+        AppSettingsKey.aiToolRounds.rawValue: aiPart,
+        AppSettingsKey.aiShownModels.rawValue: aiPart,
+        AppSettingsKey.aiDisabledRoutes.rawValue: aiPart,
+        AppSettingsKey.aiInstalledOverrides.rawValue: aiPart,
+        AppSettingsKey.mcpServers.rawValue: "ai/mcp.json",
+        AppSettingsKey.quickActionModel.rawValue: quickActionsPart,
+        AppSettingsKey.quickActionModelOverrides.rawValue: quickActionsPart,
+        AppSettingsKey.quickActionPreviews.rawValue: quickActionsPart,
+        AppSettingsKey.quickActionInstructions.rawValue: quickActionsPart
+    ]
+
+    private static let aiPart = "ai/ai.json"
+    private static let quickActionsPart = "settings/quick-actions.json"
+
+    /// Machine-local keys, kept out of a bundle because they describe this Mac and no other.
     static let deliberatelyExcluded: [String: String] = [
-        AppSettingsKey.clipboardTextSearchEnabled.rawValue:
-            "Background OCR is an opt-in processing choice on this Mac; a backup must not enable it.",
         AppSettingsKey.extensionPackageManager.rawValue:
             "Names a tool on this Mac; the machine a backup lands on may not have it.",
         AppSettingsKey.extensionCustomSearchPaths.rawValue:
             "Machine-local toolchain paths; the Mac a backup lands on may not have them, or may have "
             + "something else there.",
-        AppSettingsKey.extensionsEnabled.rawValue:
-            "Doubles as consent to run third-party JavaScript; an import must not switch it on.",
         AppSettingsKey.palettePosition.rawValue:
             "Machine-local geometry: every entry names a display this Mac has, and no other one.",
         AppSettingsKey.paletteExpandedCenterDisplays.rawValue:
@@ -75,68 +109,6 @@ enum SettingsBackupCoverage {
             "Names a keyboard input source installed on this Mac; another Mac may not have it.",
         AppSettingsKey.meetingBrowser.rawValue:
             "Names a browser installed on this Mac; another Mac may not have it.",
-        AppSettingsKey.calendarEnabled.rawValue:
-            "Doubles as consent to read your calendar; an import must not grant calendar access.",
-        AppSettingsKey.autoJoinMeetings.rawValue:
-            "Arms the app to open meeting links unattended; an import must not switch that on.",
-        AppSettingsKey.aiEnabled.rawValue:
-            "No other AI setting travels in a backup, so an import would arm a feature it cannot "
-            + "configure.",
-        AppSettingsKey.aiInstalledProviders.rawValue:
-            "Installed commands and their accounts belong to this Mac; an import must not enable "
-            + "their discovery on another one.",
-        AppSettingsKey.aiConnections.rawValue:
-            "AI connection metadata stays on the Mac with the Keychain credentials it describes.",
-        AppSettingsKey.aiDefaultModel.rawValue:
-            "The default model names an external AI destination; importing must not choose one.",
-        AppSettingsKey.aiWebSearch.rawValue:
-            "Whether prompts may reach a search engine is a choice each Mac makes for itself.",
-        AppSettingsKey.aiSystemPrompt.rawValue:
-            "Standing instructions to a model are the one AI setting that changes every answer; an "
-            + "import must not carry them onto another Mac unseen.",
-        AppSettingsKey.aiSystemPromptEnabled.rawValue:
-            "Governs whether a turn carries standing instructions at all, so it changes every answer "
-            + "the same way the prompt it gates does.",
-        AppSettingsKey.aiRetention.rawValue:
-            "How long conversations survive is a decision about the chats on this Mac, and an import "
-            + "must never arrive carrying an instruction to delete them.",
-        AppSettingsKey.aiOpensTo.rawValue:
-            "Whether chat reopens on an existing conversation depends on the history this Mac holds, "
-            + "which no other Mac has.",
-        AppSettingsKey.aiNewChatAfter.rawValue:
-            "Paces the same decision as the setting it accompanies, against conversations that stay "
-            + "on the Mac that had them.",
-        AppSettingsKey.aiToolRounds.rawValue:
-            "Decides how much a tool-driven reply may spend on this Mac's own connections; no other "
-            + "AI setting travels, and an import must not raise a spending limit unasked.",
-        AppSettingsKey.aiShownModels.rawValue:
-            "Names the models of this Mac's own installed tools and connections, which another Mac "
-            + "may not have.",
-        AppSettingsKey.aiDisabledRoutes.rawValue:
-            "Names this Mac's own API connections, which travel in no backup.",
-        AppSettingsKey.aiInstalledOverrides.rawValue:
-            "Names a command to run and the variables to run it with; an import must never decide "
-            + "which program this Mac launches.",
-        AppSettingsKey.mcpEnabled.rawValue:
-            "Doubles as consent to run third-party MCP servers, one of which is a local process; a "
-            + "flag that grants a capability is never carried by a backup.",
-        AppSettingsKey.mcpServers.rawValue:
-            "An MCP server is a source of executable code and a destination for chat context, and "
-            + "it is meaningless without the machine-local Keychain secrets it describes.",
-        AppSettingsKey.quickActionsEnabled.rawValue:
-            "Grants keystroke delivery into other apps through the Accessibility permission, and a "
-            + "flag that grants a capability is never carried by a backup.",
-        AppSettingsKey.quickActionModel.rawValue:
-            "Names an external AI destination for text taken from whatever app is frontmost; an "
-            + "import must not choose one.",
-        AppSettingsKey.quickActionModelOverrides.rawValue:
-            "Sends one action's text to its own AI destination, some keyed by actions that exist only "
-            + "on the Mac that made them.",
-        AppSettingsKey.quickActionPreviews.rawValue:
-            "Says which actions may rewrite a document without showing the result first, which is a "
-            + "decision each Mac makes about its own text.",
-        AppSettingsKey.quickActionInstructions.rawValue:
-            "Custom model instructions change transformed results and must not move unseen.",
         AppSettingsKey.settingsFileEnabled.rawValue:
             "Lets a file on this Mac change its settings; an import must not hand that to another."
     ]

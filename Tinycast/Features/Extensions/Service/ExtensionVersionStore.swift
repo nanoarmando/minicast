@@ -20,6 +20,8 @@ final class ExtensionVersionStore {
 
     var tracked: Set<String> { Set(entries.keys) }
 
+    func commitSHA(for name: String) -> String? { entries[name]?.commitSHA }
+
     func record(_ commitSHA: String?, for name: String) {
         update { $0[name] = Entry(commitSHA: commitSHA) }
     }

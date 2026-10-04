@@ -27,7 +27,7 @@ final class CalendarStore {
     private let defaults = UserDefaults.standard
     private let hiddenKey = "hiddenMeetingCalendars"
     /// Exclusions, not inclusions, so a calendar added after this was written defaults to on.
-    private var hiddenCalendarIDs: Set<String>
+    private(set) var hiddenCalendarIDs: Set<String>
 
     /// Built on first use, so a Mac with the feature off never loads EventKit at launch.
     @PerceptionIgnored private var eventStore: EKEventStore?
@@ -294,5 +294,12 @@ final class CalendarStore {
         }
         defaults.set(Array(hiddenCalendarIDs), forKey: hiddenKey)
         reload()
+    }
+
+    func replaceHiddenCalendars(_ ids: [String]) {
+        hiddenCalendarIDs = Set(ids)
+        defaults.set(Array(hiddenCalendarIDs), forKey: hiddenKey)
+        // Only a running store re-reads: with the feature off, EventKit must stay unloaded.
+        if eventStore != nil { reload() }
     }
 }

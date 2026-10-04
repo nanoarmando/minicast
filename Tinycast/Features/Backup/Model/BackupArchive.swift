@@ -2,7 +2,7 @@ import AppleArchive
 import Foundation
 import System
 
-/// Seals a `BackupBundle` directory into one `.minicast` file, and opens one back up.
+/// Recognises a backup's container and checks it; the format-1 AppleArchive reader lives here.
 enum BackupArchive {
     static let fileExtension = "minicast"
 
@@ -18,36 +18,37 @@ enum BackupArchive {
         }
     }
 
-    /// No `UID`/`GID` to restore a foreign owner, no `IDX` to dangle.
-    private static var keySet: ArchiveHeader.FieldKeySet? {
-        ArchiveHeader.FieldKeySet("TYP,PAT,DAT,MOD,MTM")
+    // MARK: - Format 2: ZIP
+
+    /// A local-file header opens every ZIP; anything else is read as a format-1 archive.
+    static func isZip(_ file: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: file) else { return false }
+        defer { try? handle.close() }
+        return (try? handle.read(upToCount: 4)) == Data([0x50, 0x4B, 0x03, 0x04])
     }
 
-    /// LZFSE, not LZMA: the payload is dominated by PNGs that are already compressed.
-    static func seal(directory: URL, into file: URL) throws {
-        guard let keySet,
-            let destination = ArchiveByteStream.fileStream(
-                path: FilePath(file.path), mode: .writeOnly, options: [.create, .truncate],
-                permissions: FilePermissions(rawValue: 0o600)),
-            let compressor = ArchiveByteStream.compressionStream(
-                using: .lzfse, writingTo: destination)
-        else { throw ArchiveError.cannotWrite }
-        var sealed = false
-        defer {
-            if !sealed {
-                try? compressor.close()
-                try? destination.close()
-            }
-        }
-        try ArchiveStream.withEncodeStream(writingTo: compressor) { encoder in
-            try encoder.writeDirectoryContents(
-                archiveFrom: FilePath(directory.path), keySet: keySet)
-        }
-        // Explicit, not `try?`: the last block flushes in `close`, so a truncated write must throw.
-        try compressor.close()
-        try destination.close()
-        sealed = true
+    /// Checked before anything is extracted: an absolute or `..` entry names a place outside.
+    static func isContainedEntry(_ path: String) -> Bool {
+        guard !path.isEmpty, !path.hasPrefix("/"), !path.hasPrefix("~") else { return false }
+        return !path.split(separator: "/", omittingEmptySubsequences: false).contains("..")
     }
+
+    /// `zipinfo`'s listing spells each entry's mode `ls`-style, so a link starts with `l`.
+    static func listsSymbolicLink(_ listing: String) -> Bool {
+        listing.split(separator: "\n").contains { line in
+            line.count > 10 && line.first == "l"
+                && line.dropFirst().prefix(9).allSatisfy { "rwxsStT-".contains($0) }
+        }
+    }
+
+    /// Both checks a ZIP must pass before `ditto` may write a single byte of it.
+    static func validateZip(entries: [String], listing: String) throws {
+        guard entries.allSatisfy(isContainedEntry), !listsSymbolicLink(listing) else {
+            throw ArchiveError.cannotRead
+        }
+    }
+
+    // MARK: - Format 1: AppleArchive
 
     static func open(file: URL, into directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -77,7 +78,7 @@ enum BackupArchive {
     }
 
     /// A link entry passes the path filter, and reading through one would leave the extract.
-    private static func containsSymbolicLink(_ directory: URL) -> Bool {
+    static func containsSymbolicLink(_ directory: URL) -> Bool {
         let keys: Set<URLResourceKey> = [.isSymbolicLinkKey]
         guard
             let entries = FileManager.default.enumerator(

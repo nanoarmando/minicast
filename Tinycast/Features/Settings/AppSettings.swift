@@ -109,7 +109,7 @@ enum HideCurrentEvent: Int, CaseIterable, Identifiable, Sendable {
 @MainActor
 @Perceptible
 final class AppSettings {
-    @PerceptionIgnored private let defaults = UserDefaults.standard
+    @PerceptionIgnored private let defaults: UserDefaults
     private typealias Key = AppSettingsKey
 
     /// What `AppIndex` scans, in scan order; editing it re-indexes, being observed.
@@ -483,7 +483,16 @@ final class AppSettings {
         didSet { defaults.set(settingsFileEnabled, forKey: Key.settingsFileEnabled.rawValue) }
     }
 
-    init() {
+    /// What a fresh install reads: a replace resets an absent field to this, never to a guess.
+    static func factoryDefaults() -> AppSettings {
+        let suite = (Bundle.main.bundleIdentifier ?? "com.minicast.app") + ".factory-defaults"
+        let empty = UserDefaults(suiteName: suite) ?? UserDefaults()
+        empty.removePersistentDomain(forName: suite)
+        return AppSettings(defaults: empty)
+    }
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         // The only feature switch that defaults on, so absence has to outrank a stored `false`.
         clipboardEnabled =
             defaults.object(forKey: Key.clipboardEnabled.rawValue) == nil

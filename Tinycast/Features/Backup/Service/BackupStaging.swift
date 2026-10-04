@@ -24,7 +24,12 @@ struct BackupStaging: Sendable {
         }
     }
 
-    var bundle: BackupBundle { BackupBundle(root: root) }
+    /// Where the payload is laid out; a ZIP holds it at the root, so a sealed file is the root.
+    var payload: URL { root.appendingPathComponent("payload", isDirectory: true) }
+
+    func bundle(format: Int = BackupManifest.currentFormat) -> BackupBundle {
+        BackupBundle(root: payload, format: format)
+    }
 
     func discard() {
         try? FileManager.default.removeItem(at: root)

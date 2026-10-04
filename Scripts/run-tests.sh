@@ -448,12 +448,25 @@ run settings-file-test     Tinycast/Features/Settings/Model/*.swift \
                            Tinycast/Features/Settings/Service/SettingsFileRepository.swift \
                            Tinycast/Platform/AppPaths.swift
 run backup-archive-test    Tinycast/Platform/AppPaths.swift \
+                           Tinycast/Platform/AppDisplayName.swift \
                            Tinycast/Features/Backup/Model/BackupArchive.swift \
                            Tinycast/Features/Backup/Model/BackupBundle.swift \
                            Tinycast/Features/Backup/Model/BackupCategory.swift \
                            Tinycast/Features/Backup/Model/BackupClipboardItem.swift \
                            Tinycast/Features/Backup/Model/BackupManifest.swift \
-                           Tinycast/Features/Backup/Service/BackupStaging.swift
+                           Tinycast/Features/Backup/Model/BackupPayloads.swift \
+                           Tinycast/Features/Backup/Service/BackupStaging.swift \
+                           Tinycast/Features/Backup/Service/BackupZip.swift \
+                           Tinycast/Features/AI/Model/*.swift \
+                           Tinycast/Features/MCP/Model/*.swift \
+                           Tinycast/Features/QuickActions/Model/CustomQuickAction.swift \
+                           Tinycast/Features/Extensions/Service/ExtensionBundle.swift \
+                           Tinycast/Features/Extensions/Service/ExtensionCatalog.swift \
+                           Tinycast/Features/Extensions/Model/ExtensionAppearance.swift \
+                           Tinycast/Features/Extensions/Model/ExtensionManifest.swift \
+                           Tinycast/Features/Extensions/Model/ExtensionLaunchType.swift \
+                           Tinycast/Features/Extensions/Model/ExtensionRefreshPolicy.swift \
+                           Tinycast/Features/Extensions/Model/ExtensionRefreshState.swift
 E=Tinycast/Features/Extensions
 run symbols-test           $E/Service/SymbolCatalog.swift
 run ext-cleanup-test       $E/Service/ExtensionCleanup.swift \

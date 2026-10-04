@@ -141,8 +141,8 @@ capture-time pruning from hitching.
 
 ## Image and PDF text search
 
-**Search text in images and PDFs is off by default.** The per-machine switch is excluded from
-settings backups. A cold disabled launch creates no OCR schema, indexer, search task or Vision request,
+**Search text in images and PDFs is off by default.** A backup carries the switch as a
+capability, applied only after the import's consent dialog. A cold disabled launch creates no OCR schema, indexer, search task or Vision request,
 and loads no extracted strings. Existing derived data stays on disk when disabled and is reused on
 reenabling; deletion and retention still remove it with its original item.
 

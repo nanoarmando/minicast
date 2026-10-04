@@ -41,6 +41,11 @@ struct MCPSecretStore: Sendable {
         try keychain.setSecret(encoded, for: serverID)
     }
 
+    /// Attributes only: answering never reads the secret, so it never prompts.
+    func hasSecrets(for serverID: UUID) -> Bool {
+        (try? keychain.hasSecret(for: serverID)) ?? false
+    }
+
     func remove(for serverID: UUID) throws {
         try keychain.removeSecret(for: serverID)
     }

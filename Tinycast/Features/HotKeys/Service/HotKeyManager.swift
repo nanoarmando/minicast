@@ -128,6 +128,12 @@ final class HotKeyManager {
 
     func binding(for action: HotKeyAction) -> HotKeyBinding? { bindings[action] }
 
+    /// A backup restore replaces every binding, so the ones it does not carry go first.
+    func removeAllBindings() {
+        recordingAction = nil
+        for action in candidateActions where bindings[action] != nil { setBinding(nil, for: action) }
+    }
+
     private func storedBinding(for action: HotKeyAction) -> HotKeyBinding? {
         // The stored value is a JSON string; anything else reads as unbound.
         guard
