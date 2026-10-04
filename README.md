@@ -52,17 +52,77 @@ background refresh — needs no change to Minicast at all. Check the
 
 ### Writing your own extension
 
-1. **Create it.** With Raycast installed, run its **Create Extension** command and pick a template.
-   Without Raycast, copy an existing extension's folder from
-   [raycast/extensions](https://github.com/raycast/extensions/tree/main/extensions) as a starting
-   point. The [Raycast developer docs](https://developers.raycast.com) cover the API.
+Raycast itself is not needed: an extension is a small Node project, and the `ray` build tool comes
+with the `@raycast/api` package. You need Node and npm (or pnpm, Bun or Yarn).
+
+1. **Create it.** A folder with four files is a complete extension:
+
+   ```
+   hello-minicast/
+     package.json        the manifest: name, title, commands
+     tsconfig.json
+     assets/icon.png     a 512×512 PNG
+     src/hello.tsx       one file per command, named after the command
+   ```
+
+   `package.json`:
+   ```json
+   {
+     "$schema": "https://www.raycast.com/schemas/extension.json",
+     "name": "hello-minicast",
+     "title": "Hello Minicast",
+     "description": "A minimal extension",
+     "icon": "icon.png",
+     "author": "your-github-user",
+     "license": "MIT",
+     "platforms": ["macOS"],
+     "categories": ["Developer Tools"],
+     "commands": [
+       { "name": "hello", "title": "Say Hello", "description": "Shows a greeting", "mode": "view" }
+     ],
+     "dependencies": { "@raycast/api": "latest" },
+     "devDependencies": { "@types/react": "^19", "@types/node": "^22", "typescript": "^5" }
+   }
+   ```
+
+   `tsconfig.json`:
+   ```json
+   {
+     "compilerOptions": {
+       "lib": ["ES2023"], "module": "commonjs", "target": "ES2022", "strict": true,
+       "isolatedModules": true, "esModuleInterop": true, "skipLibCheck": true,
+       "forceConsistentCasingInFileNames": true, "jsx": "react-jsx", "resolveJsonModule": true
+     },
+     "include": ["src/**/*", "raycast-env.d.ts"]
+   }
+   ```
+
+   `src/hello.tsx`:
+   ```tsx
+   import { List } from "@raycast/api";
+
+   export default function Command() {
+     return (
+       <List>
+         <List.Item title="Hello from Minicast" />
+       </List>
+     );
+   }
+   ```
+
+   A command's `mode` is `view` (it shows a list, grid, form or detail), `no-view` (it runs and
+   finishes) or `menu-bar`. The [Raycast developer docs](https://developers.raycast.com) cover the
+   whole API, and the extensions in
+   [raycast/extensions](https://github.com/raycast/extensions/tree/main/extensions) are good examples
+   to copy from.
 2. **Build it** from the extension's folder:
    ```sh
    npm install
    npx ray build -e dist -o build
    ```
-   Use `-e dist -o build`, not `npm run build`: the plain script builds in Raycast's dev mode, which
-   installs into a local Raycast instead of writing a build.
+   The `build/` folder then holds `package.json`, `assets/` and one `.js` file per command. Use
+   `-e dist -o build`, not `ray build` alone: its default dev mode tries to install into a local
+   Raycast instead of writing a build.
 3. **Install it in Minicast** (Settings → Extensions; turn extensions on first, which asks for
    consent because extensions run third-party code). Under **Install New**:
    - **Add from folder** — pick the `build/` folder from step 2. Rebuild and add it again after each
