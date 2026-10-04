@@ -191,7 +191,7 @@ final class ExtensionMenuBarController: NSObject, NSMenuDelegate {
                 ?? {
                     switch entry.role {
                     case "separator": return NSMenuItem.separator()
-                    case "header": return NSMenuItem.sectionHeader(title: entry.node.string("title") ?? "")
+                    case "header": return Self.sectionHeader(title: entry.node.string("title") ?? "")
                     default: return NSMenuItem(title: "", action: nil, keyEquivalent: "")
                     }
                 }()
@@ -207,12 +207,22 @@ final class ExtensionMenuBarController: NSObject, NSMenuDelegate {
         while menu.numberOfItems > entries.count { menu.removeItem(at: menu.numberOfItems - 1) }
     }
 
+    /// `NSMenuItem.sectionHeader` is macOS 14; a disabled titled item reads the same way.
+    private static let sectionHeaderTag = -1
+
+    private static func sectionHeader(title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.tag = sectionHeaderTag
+        item.isEnabled = false
+        return item
+    }
+
     private func update(
         _ item: NSMenuItem, from node: RenderNode, session: String?, parent: RenderNode?,
         path: [PathComponent]
     ) {
         let title = node.string("title") ?? ""
-        if item.isSectionHeader {
+        if item.tag == Self.sectionHeaderTag {
             if item.title != title { item.title = title }
         } else {
             let attributed = NSMutableAttributedString(

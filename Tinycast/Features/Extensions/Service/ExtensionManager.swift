@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Perception
 
 /// What the palette is showing for the running command.
 enum ExtensionSessionState: Equatable {
@@ -13,7 +14,7 @@ enum ExtensionSessionState: Equatable {
 
 /// Owns the installed set, the runtime and the running command.
 @MainActor
-@Observable
+@Perceptible
 final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     private(set) var installed: [InstalledExtension] = []
     /// The store's newer version of each installed extension that has one, keyed by manifest name.
@@ -43,23 +44,23 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     private let commandMetadata = ExtensionCommandMetadataStore(
         fileURL: ExtensionCatalog.commandMetadataFile())
     private let storeVersions = ExtensionVersionStore(fileURL: ExtensionCatalog.storeVersionsFile())
-    @ObservationIgnored private let runtime: ExtensionRuntime
-    @ObservationIgnored private let bridge: ExtensionHostBridge
-    @ObservationIgnored private let oauthSession = ExtensionOAuthSession()
-    @ObservationIgnored private weak var appIndex: AppIndex?
-    @ObservationIgnored private weak var coordinator: ExtensionCoordinator?
+    @PerceptionIgnored private let runtime: ExtensionRuntime
+    @PerceptionIgnored private let bridge: ExtensionHostBridge
+    @PerceptionIgnored private let oauthSession = ExtensionOAuthSession()
+    @PerceptionIgnored private weak var appIndex: AppIndex?
+    @PerceptionIgnored private weak var coordinator: ExtensionCoordinator?
 
     /// The entry ids an uninstall invalidated, so another feature can drop what it keyed to them.
-    @ObservationIgnored var onDidUninstall: (([String]) -> Void)?
+    @PerceptionIgnored var onDidUninstall: (([String]) -> Void)?
 
-    @ObservationIgnored private var sessionID: String?
-    @ObservationIgnored private var backgroundSessionID: String?
-    @ObservationIgnored private var backgroundRef: ExtensionCommandRef?
-    @ObservationIgnored private var backgroundContinuation: CheckedContinuation<Bool, Never>?
-    @ObservationIgnored private var backgroundFailure: String?
-    @ObservationIgnored private var backgroundTask: Task<Void, Never>?
-    @ObservationIgnored private var nextToastID = 1
-    @ObservationIgnored private var lastOAuthExtensionName: String?
+    @PerceptionIgnored private var sessionID: String?
+    @PerceptionIgnored private var backgroundSessionID: String?
+    @PerceptionIgnored private var backgroundRef: ExtensionCommandRef?
+    @PerceptionIgnored private var backgroundContinuation: CheckedContinuation<Bool, Never>?
+    @PerceptionIgnored private var backgroundFailure: String?
+    @PerceptionIgnored private var backgroundTask: Task<Void, Never>?
+    @PerceptionIgnored private var nextToastID = 1
+    @PerceptionIgnored private var lastOAuthExtensionName: String?
 
     init(clipboardStore: ClipboardStore) {
         storage = ExtensionStorage(directory: ExtensionCatalog.storageDirectory())

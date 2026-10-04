@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The parsed catalog: sections precomputed at load, search memoized one query deep.
 @MainActor
-@Observable
+@Perceptible
 final class EmojiIndex {
     private(set) var entries: [EmojiEntry] = []
     private(set) var categorySections: [(category: EmojiCategory, entries: [EmojiEntry])] = []
@@ -38,7 +39,7 @@ final class EmojiIndex {
     private var byGlyph: [String: EmojiEntry] = [:]
     /// Parallel to `entries`.
     private var foldedEntries: [FoldedEntry] = []
-    @ObservationIgnored private var searchMemo = Memo<SearchKey, [EmojiEntry]>()
+    @PerceptionIgnored private var searchMemo = Memo<SearchKey, [EmojiEntry]>()
     /// Bumped on each load, so the key above names the catalog it scored.
     private var revision = 0
 

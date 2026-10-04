@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Carries a field's error and `info` to the control; drawn text alone is never spoken.
 struct ExtensionFieldHint: ViewModifier {
@@ -6,11 +7,13 @@ struct ExtensionFieldHint: ViewModifier {
     var error: String?
 
     func body(content: Content) -> some View {
-        let spoken = [error, info].compactMap { $0 }.filter { !$0.isEmpty }
-        if spoken.isEmpty {
-            content
-        } else {
-            content.accessibilityHint(Text(spoken.joined(separator: ". ")))
+        WithPerceptionTracking {
+            let spoken = [error, info].compactMap { $0 }.filter { !$0.isEmpty }
+            if spoken.isEmpty {
+                content
+            } else {
+                content.accessibilityHint(Text(spoken.joined(separator: ". ")))
+            }
         }
     }
 }

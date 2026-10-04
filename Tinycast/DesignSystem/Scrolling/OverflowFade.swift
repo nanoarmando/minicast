@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Edge fade for bounded lists: marks hidden content and clears once the list reaches that edge.
 struct OverflowFadeMask: ViewModifier {
@@ -15,23 +16,27 @@ struct OverflowFadeMask: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .onScrollGeometryChange(for: Overflow.self) { geo in
-                Overflow(
-                    top: geo.contentOffset.y + geo.contentInsets.top,
-                    bottom: geo.contentSize.height + geo.contentInsets.bottom
-                        - geo.containerSize.height - geo.contentOffset.y)
-            } action: { _, new in
-                overflow = Overflow(top: max(0, new.top), bottom: max(0, new.bottom))
-            }
-            .mask(
-                GeometryReader { geo in
-                    LinearGradient(
-                        stops: stops(height: geo.size.height),
-                        startPoint: .top, endPoint: .bottom
-                    )
+        WithPerceptionTracking {
+            content
+                .onScrollMetricsChange(for: Overflow.self) { geo in
+                    Overflow(
+                        top: geo.contentOffset.y + geo.contentInsets.top,
+                        bottom: geo.contentSize.height + geo.contentInsets.bottom
+                            - geo.containerSize.height - geo.contentOffset.y)
+                } action: { _, new in
+                    overflow = Overflow(top: max(0, new.top), bottom: max(0, new.bottom))
                 }
-            )
+                .mask(
+                    GeometryReader { geo in
+                        WithPerceptionTracking {
+                            LinearGradient(
+                                stops: stops(height: geo.size.height),
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        }
+                    }
+                )
+        }
     }
 
     private func stops(height: CGFloat) -> [Gradient.Stop] {
@@ -63,7 +68,7 @@ struct OverflowFadeMask: ViewModifier {
         ]
     }
 
-    /// The original Settings and Notes curve stays unchanged when no popup opts into its top edge.
+    /// The original Settings curve stays unchanged when no popup opts into its top edge.
     private func bottomStops(height: CGFloat) -> [Gradient.Stop] {
         let strength = min(overflow.bottom / band, 1)
         guard strength > 0, height > band else { return [.init(color: .black, location: 0)] }

@@ -3,15 +3,15 @@ import Carbon.HIToolbox
 import SwiftUI
 
 /// Borderless floating panel that hosts the SwiftUI command palette.
-final class PalettePanel: NSPanel {
+final class PalettePanel: NSPanel, KeyPressRoutingWindow {
     enum HeaderFieldBoundary {
         case leading
         case trailing
     }
 
-    /// Bare backspace, which the field editor swallows before `onKeyPress` could see it.
+    /// Bare backspace, which the field editor swallows before `onKeyDown` could see it.
     var onBareBackspace: (() -> Bool)?
-    /// Escape, which an `AVPlayerView` in the preview answers before `onKeyPress` could see it.
+    /// Escape, which an `AVPlayerView` in the preview answers before `onKeyDown` could see it.
     var onEscape: (() -> Bool)?
     /// Command chords the field editor swallows, plus the ones no main menu handles.
     var onCommandShortcut: ((NSEvent) -> Bool)?
@@ -81,7 +81,7 @@ final class PalettePanel: NSPanel {
         compositionObserver = NotificationToken(token, center: center)
     }
 
-    /// Keys driving an open menu; they reach `onKeyPress` even while editing is frozen.
+    /// Keys driving an open menu; they reach `onKeyDown` even while editing is frozen.
     private static let menuNavKeys: Set<Int> = [
         kVK_UpArrow, kVK_DownArrow, kVK_LeftArrow, kVK_RightArrow,
         kVK_Return, kVK_ANSI_KeypadEnter, kVK_Escape, kVK_Tab
@@ -205,6 +205,7 @@ final class PalettePanel: NSPanel {
         {
             return
         }
+        if event.type == .keyDown, KeyPressRouter.dispatch(event) { return }
         super.sendEvent(event)
     }
     init<Content: View>(rootView: Content) {

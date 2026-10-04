@@ -1,12 +1,12 @@
 import Foundation
-import Observation
+import Perception
 import SQLite3
 
 private let chatSQLiteTransient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
 /// Durable local chats; summaries stay resident while transcripts load only when requested.
 @MainActor
-@Observable
+@Perceptible
 final class ChatHistoryStore {
     private(set) var conversations: [ChatConversation] = []
     private(set) var isAvailable = true
@@ -94,8 +94,8 @@ final class ChatHistoryStore {
           ON conversations(updated_at DESC);
         """
 
-    @ObservationIgnored private let databaseURL: URL
-    @ObservationIgnored private var database: OpaquePointer?
+    @PerceptionIgnored private let databaseURL: URL
+    @PerceptionIgnored private var database: OpaquePointer?
 
     init(directory: URL) {
         databaseURL = directory.appendingPathComponent("ai-chats.sqlite3")

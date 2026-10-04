@@ -1,19 +1,22 @@
 import SwiftUI
+import Perception
 
 private struct ArmedHover: ViewModifier {
     @Environment(PaletteState.self) private var palette
     @Binding var hovered: Bool
 
     func body(content: Content) -> some View {
-        content
-            .onContinuousHover(coordinateSpace: .local) { phase in
-                switch phase {
-                case .active: hovered = palette.hoverHighlightArmed
-                case .ended: hovered = false
+        WithPerceptionTracking {
+            content
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    switch phase {
+                    case .active: hovered = palette.hoverHighlightArmed
+                    case .ended: hovered = false
+                    }
                 }
-            }
-            // Disarming under a still pointer fires no hover phase, so the drop clears the row.
-            .onChange(of: palette.hoverDisarmToken) { hovered = false }
+                // Disarming under a still pointer fires no hover phase, so the drop clears the row.
+                .onValueChange(of: palette.hoverDisarmToken) { hovered = false }
+        }
     }
 }
 

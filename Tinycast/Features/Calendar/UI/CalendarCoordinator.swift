@@ -1,8 +1,9 @@
 import AppKit
+import Perception
 
 /// Owns joining a meeting: the consent gate, the card's and the chord's actions, feature presence.
 @MainActor
-@Observable
+@Perceptible
 final class CalendarCoordinator {
     private let store: CalendarStore
     private let clock: MeetingClock
@@ -12,14 +13,11 @@ final class CalendarCoordinator {
     /// Dialogs and the HUD, so both stay owned by `AppCore`.
     private unowned let core: AppCore
 
-    /// Its own surface, the way `NotesCoordinator` owns the notes window.
-    @ObservationIgnored private lazy var cameraPreview = CameraPreviewController()
-
-    @ObservationIgnored private var paletteVisible = false
+    @PerceptionIgnored private var paletteVisible = false
     /// When auto join was last armed; a meeting already under way then is never joined.
-    @ObservationIgnored private var armedAt = Date.distantFuture
+    @PerceptionIgnored private var armedAt = Date.distantFuture
     /// Auto joined this launch, so a meeting opens itself at most once.
-    @ObservationIgnored private var autoJoined: Set<MeetingEvent.ID> = []
+    @PerceptionIgnored private var autoJoined: Set<MeetingEvent.ID> = []
 
     /// Stored and written only on a flip: the menu-bar scene reads it, and must not re-run per tick.
     private(set) var hasMenuBarEvent = false
@@ -322,14 +320,10 @@ final class CalendarCoordinator {
         Task { await joinAfterGate(meeting, link: link, uninvited: uninvited) }
     }
 
-    /// The camera preview doubles as the auto join confirmation, so there is one surface, not two.
     private func joinAfterGate(
         _ meeting: MeetingEvent, link: MeetingLink, uninvited: Bool
     ) async {
-        // The preview is itself a confirmation, so it stands in for one when both are on.
-        if settings.cameraPreview {
-            guard await cameraPreview.present(meeting: meeting, now: Date()) else { return }
-        } else if uninvited, settings.autoJoinConfirms {
+        if uninvited, settings.autoJoinConfirms {
             NSApp.activate(ignoringOtherApps: true)
             guard
                 await core.confirm(

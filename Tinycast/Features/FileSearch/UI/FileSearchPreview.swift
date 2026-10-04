@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The pane beside the results: the file itself over what the filesystem says about it.
 struct FileSearchPreview: View {
@@ -7,20 +8,22 @@ struct FileSearchPreview: View {
     let result: FileSearchResult?
 
     var body: some View {
-        if let result {
-            VStack(alignment: .leading, spacing: 0) {
-                // Sized before the block below it, which then scrolls in whatever is left.
-                FileSearchPreviewStage(result: result)
-                    .aspectRatio(Theme.Size.previewAspectRatio, contentMode: .fit)
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(1)
-                ScrollView {
-                    FileSearchInfoSection(result: result)
+        WithPerceptionTracking {
+            if let result {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Sized before the block below it, which then scrolls in whatever is left.
+                    FileSearchPreviewStage(result: result)
+                        .aspectRatio(Theme.Size.previewAspectRatio, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .layoutPriority(1)
+                    ScrollView {
+                        FileSearchInfoSection(result: result)
+                    }
                 }
+                .padding(.horizontal, metrics.spacing.xl)
+            } else {
+                Color.clear
             }
-            .padding(.horizontal, metrics.spacing.xl)
-        } else {
-            Color.clear
         }
     }
 }
@@ -37,9 +40,11 @@ private struct FileSearchPreviewStage: View {
     }
 
     var body: some View {
-        stage
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.top, metrics.spacing.xl)
+        WithPerceptionTracking {
+            stage
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, metrics.spacing.xl)
+        }
     }
 
     /// Unmounting is the teardown: an ordered-out panel keeps its tree, and the overlay hides this.
@@ -89,26 +94,28 @@ private struct FileSearchInfoSection: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            Text("Information")
-                .font(metrics.typography.sectionHeader)
-                .foregroundStyle(.secondary)
-            VStack(spacing: 0) {
-                let rows = self.rows
-                ForEach(rows) { row in
-                    if row.id != rows.first?.id { Divider() }
-                    HStack(spacing: metrics.spacing.sm) {
-                        Text(row.label).foregroundStyle(.secondary)
-                        Spacer(minLength: metrics.spacing.lg)
-                        Text(row.value).lineLimit(1).truncationMode(.middle)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                Text("Information")
+                    .font(metrics.typography.sectionHeader)
+                    .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    let rows = self.rows
+                    ForEach(rows) { row in
+                        if row.id != rows.first?.id { Divider() }
+                        HStack(spacing: metrics.spacing.sm) {
+                            Text(row.label).foregroundStyle(.secondary)
+                            Spacer(minLength: metrics.spacing.lg)
+                            Text(row.value).lineLimit(1).truncationMode(.middle)
+                        }
+                        .font(metrics.typography.keyCap)
+                        .padding(.vertical, metrics.spacing.xs)
                     }
-                    .font(metrics.typography.keyCap)
-                    .padding(.vertical, metrics.spacing.xs)
                 }
             }
+            .padding(.vertical, metrics.spacing.md)
+            .task(id: result.id) { await loadDetails() }
         }
-        .padding(.vertical, metrics.spacing.md)
-        .task(id: result.id) { await loadDetails() }
     }
 
     private var rows: [InfoRow] {

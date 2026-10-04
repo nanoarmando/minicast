@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Overflow is a button rather than a slot, so no favorite loses its digit to it.
 struct CompactFavoritesRow: View {
@@ -9,28 +10,30 @@ struct CompactFavoritesRow: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        HStack(spacing: metrics.spacing.xs) {
-            // Identified by the app, so a reorder moves an icon with its app, not by position.
-            ForEach(Array(favorites.enumerated()), id: \.element.id) { index, app in
-                CompactFavoriteButton(help: help(for: app, at: index)) {
-                    onLaunch(app)
-                } content: {
-                    // The result rows' size, so collapsing and expanding share one cached bitmap.
-                    AppIconView(app: app, pointSize: metrics.size.resultRowIcon)
-                        .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.xs) {
+                // Identified by the app, so a reorder moves an icon with its app, not by position.
+                ForEach(Array(favorites.enumerated()), id: \.element.id) { index, app in
+                    CompactFavoriteButton(help: help(for: app, at: index)) {
+                        onLaunch(app)
+                    } content: {
+                        // The result rows' size, so collapsing and expanding share one cached bitmap.
+                        AppIconView(app: app, pointSize: metrics.size.resultRowIcon)
+                            .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
+                    }
                 }
-            }
-            if showsOverflow {
-                CompactFavoriteButton(help: "Show all  ↓", action: onOverflow) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(Theme.Colors.controlSurface)
-                                .padding(metrics.spacing.xxs)
-                        )
+                if showsOverflow {
+                    CompactFavoriteButton(help: "Show all  ↓", action: onOverflow) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .frame(width: metrics.size.rowIcon, height: metrics.size.rowIcon)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(Theme.Colors.controlSurface)
+                                    .padding(metrics.spacing.xxs)
+                            )
+                    }
                 }
             }
         }
@@ -50,11 +53,13 @@ private struct CompactFavoriteButton<Content: View>: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        Button(action: action) {
-            content
-                .contentShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
+        WithPerceptionTracking {
+            Button(action: action) {
+                content
+                    .contentShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .help(help)
         }
-        .buttonStyle(.plain)
-        .help(help)
     }
 }

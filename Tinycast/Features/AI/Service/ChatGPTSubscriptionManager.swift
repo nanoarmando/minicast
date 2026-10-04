@@ -1,9 +1,9 @@
 import Foundation
-import Observation
+import Perception
 
 /// Owns the app-server, reusing the account already configured in the user's Codex installation.
 @MainActor
-@Observable
+@Perceptible
 final class ChatGPTSubscriptionManager {
     /// Long enough to span a conversation; a relaunch costs a second, a resident server ~20 MB.
     private static let idleShutdown: Duration = .seconds(600)
@@ -11,7 +11,7 @@ final class ChatGPTSubscriptionManager {
     private let client: CodexAppServerClient
     let turns: CodexTurnRunner
     /// Forwarded to the app-server's launch; a change takes effect at its next start.
-    @ObservationIgnored var launchSettings: () -> InstalledAILaunch {
+    @PerceptionIgnored var launchSettings: () -> InstalledAILaunch {
         get { client.launchSettings }
         set { client.launchSettings = newValue }
     }
@@ -23,8 +23,8 @@ final class ChatGPTSubscriptionManager {
     /// Copied from the client at each check: the client is not observed, and Settings shows this.
     private(set) var executable: URL?
 
-    @ObservationIgnored private var operationTask: Task<Void, Never>?
-    @ObservationIgnored private var idleTask: Task<Void, Never>?
+    @PerceptionIgnored private var operationTask: Task<Void, Never>?
+    @PerceptionIgnored private var idleTask: Task<Void, Never>?
 
     init(supportDirectory: URL = AppPaths.applicationSupport()) {
         let root = supportDirectory.appending(path: "InstalledAI/Codex", directoryHint: .isDirectory)

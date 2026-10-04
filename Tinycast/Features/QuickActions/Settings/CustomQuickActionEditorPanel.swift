@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct CustomQuickActionEditRequest: Identifiable {
     let id = UUID()
@@ -20,7 +21,7 @@ struct CustomQuickActionEditorPanel: View {
     private static let iconSymbols = [
         "wand.and.stars", "textformat", "text.append", "text.quote", "text.badge.checkmark",
         "character.cursor.ibeam", "scissors", "arrow.down.right.and.arrow.up.left", "list.bullet",
-        "bubble.left.and.text.bubble.right", "envelope", "megaphone", "face.smiling",
+        "bubble.left.and.bubble.right", "envelope", "megaphone", "face.smiling",
         "theatermasks", "graduationcap", "book", "brain", "lightbulb", "sparkles", "checkmark.seal",
         "globe", "curlybraces", "terminal", "chart.bar", "tag", "flag", "bolt", "leaf",
         "paintbrush", "hammer", "heart", "star"
@@ -38,48 +39,50 @@ struct CustomQuickActionEditorPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-            SettingsEditorHeader(
-                title: existing == nil ? "New Quick Action" : "Edit \(existing?.name ?? "")",
-                subtitle: "Tinycast sends your selected text to the model with these instructions."
-            )
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                SettingsEditorHeader(
+                    title: existing == nil ? "New Quick Action" : "Edit \(existing?.name ?? "")",
+                    subtitle: "Tinycast sends your selected text to the model with these instructions."
+                )
 
-            HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
-                nameField
-                iconField
-            }
-
-            instructionsField
-
-            QuickActionModelPicker(selection: $model)
-
-            if let failure {
-                Text(failure)
-                    .font(.callout)
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-
-            HStack(spacing: Theme.Spacing.md) {
-                if let existing {
-                    Button("Delete", role: .destructive) {
-                        dismiss()
-                        Task { await core.quickActionCoordinator.deleteCustomQuickAction(id: existing.id) }
-                    }
-                    .buttonStyle(.modalAction(.destructive, fillsWidth: false))
+                HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
+                    nameField
+                    iconField
                 }
-                Spacer()
-                Button("Cancel") { dismiss() }
-                    .buttonStyle(.modalAction(.cancel))
-                    .keyboardShortcut(.cancelAction)
-                Button("Save", action: save)
-                    .buttonStyle(.modalAction(.primary))
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!canSave)
+
+                instructionsField
+
+                QuickActionModelPicker(selection: $model)
+
+                if let failure {
+                    Text(failure)
+                        .font(.callout)
+                        .foregroundStyle(Theme.Colors.destructive)
+                }
+
+                HStack(spacing: Theme.Spacing.md) {
+                    if let existing {
+                        Button("Delete", role: .destructive) {
+                            dismiss()
+                            Task { await core.quickActionCoordinator.deleteCustomQuickAction(id: existing.id) }
+                        }
+                        .buttonStyle(.modalAction(.destructive, fillsWidth: false))
+                    }
+                    Spacer()
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(.modalAction(.cancel))
+                        .keyboardShortcut(.cancelAction)
+                    Button("Save", action: save)
+                        .buttonStyle(.modalAction(.primary))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canSave)
+                }
             }
+            .padding(Theme.Spacing.dialogInset)
+            .frame(width: Theme.Size.editorSheetWidth)
+            .settingsEditorPanelSurface()
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: Theme.Size.editorSheetWidth)
-        .settingsEditorPanelSurface()
     }
 
     private var nameField: some View {
@@ -107,11 +110,13 @@ struct CustomQuickActionEditorPanel: View {
                 .frame(width: 120)
             }
             .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                SymbolPicker(
-                    selection: $iconSymbol, fallback: CustomQuickAction.sfSymbol,
-                    symbols: Self.iconSymbols
-                ) {
-                    showingIconPicker = false
+                WithPerceptionTracking {
+                    SymbolPicker(
+                        selection: $iconSymbol, fallback: CustomQuickAction.sfSymbol,
+                        symbols: Self.iconSymbols
+                    ) {
+                        showingIconPicker = false
+                    }
                 }
             }
         }

@@ -1,21 +1,24 @@
 import SwiftUI
+import Perception
 
 struct ApplicationsSettingsView: View {
     var body: some View {
-        Form {
-            LauncherCategorySwitchSection(
-                kind: .application, anchor: .applicationsApplications)
+        WithPerceptionTracking {
+            Form {
+                LauncherCategorySwitchSection(
+                    kind: .application, anchor: .applicationsApplications)
 
-            SearchScopesSection()
+                SearchScopesSection()
 
-            LauncherItemsSection(
-                kind: .application,
-                anchor: .applicationsApplications,
-                searchPrompt: "Search applications…")
+                LauncherItemsSection(
+                    kind: .application,
+                    anchor: .applicationsApplications,
+                    searchPrompt: "Search applications…")
+            }
+            .formStyle(.grouped)
+            .settingsScrollTarget(.applications)
+            .releasesFocusOnOutsideClick()
         }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.applications)
-        .releasesFocusOnOutsideClick()
     }
 
 }

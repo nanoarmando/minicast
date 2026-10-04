@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct ChatCopyButton: View {
 
@@ -12,22 +13,24 @@ struct ChatCopyButton: View {
     private var copied: Bool { copiedAt != nil }
 
     var body: some View {
-        Button {
-            Paster.copyPlainText(text)
-            copiedAt = Date()
-        } label: {
-            Image(systemName: copied ? "checkmark" : "square.on.square")
-                .font(metrics.typography.keyCap)
-                .foregroundStyle(tint)
-                .frame(width: metrics.size.chatMessageAction, height: metrics.size.chatMessageAction)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(copied ? "Copied" : "Copy \(subject)")
-        .task(id: copiedAt) {
-            guard copied else { return }
-            try? await Task.sleep(for: .seconds(Theme.Duration.copyFeedback))
-            copiedAt = nil
+        WithPerceptionTracking {
+            Button {
+                Paster.copyPlainText(text)
+                copiedAt = Date()
+            } label: {
+                Image(systemName: copied ? "checkmark" : "square.on.square")
+                    .font(metrics.typography.keyCap)
+                    .foregroundStyle(tint)
+                    .frame(width: metrics.size.chatMessageAction, height: metrics.size.chatMessageAction)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(copied ? "Copied" : "Copy \(subject)")
+            .task(id: copiedAt) {
+                guard copied else { return }
+                try? await Task.sleep(for: .seconds(Theme.Duration.copyFeedback))
+                copiedAt = nil
+            }
         }
     }
 

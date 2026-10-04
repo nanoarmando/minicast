@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The layout library, inside the Window Management pane: layouts belong to window management.
 struct WindowLayoutsSection: View {
@@ -14,40 +15,42 @@ struct WindowLayoutsSection: View {
     private static let filterThreshold = 6
 
     var body: some View {
-        @Bindable var settings = settings
-        return Section {
-            Toggle(isOn: $settings.windowLayoutsShowInLauncher) {
-                SettingsRowTitle(.windowManagementLayouts, "Show layouts in launcher")
-            }
-
-            if store.layouts.count > Self.filterThreshold {
-                SettingsFilterField(prompt: "Search layouts…", query: $query)
-            }
-
-            if results.isEmpty {
-                Text(emptyMessage)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(results) { layout in
-                    WindowLayoutSettingsRow(
-                        layout: layout,
-                        onEdit: { onEdit(layout) },
-                        onDelete: { onDelete(layout) })
+        WithPerceptionTracking {
+            @Perception.Bindable var settings = settings
+            return Section {
+                Toggle(isOn: $settings.windowLayoutsShowInLauncher) {
+                    SettingsRowTitle(.windowManagementLayouts, "Show layouts in launcher")
                 }
-            }
 
-            Button {
-                onEdit(nil)
-            } label: {
-                SettingsRowTitle(.windowManagementLayouts, "New Layout")
+                if store.layouts.count > Self.filterThreshold {
+                    SettingsFilterField(prompt: "Search layouts…", query: $query)
+                }
+
+                if results.isEmpty {
+                    Text(emptyMessage)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(results) { layout in
+                        WindowLayoutSettingsRow(
+                            layout: layout,
+                            onEdit: { onEdit(layout) },
+                            onDelete: { onDelete(layout) })
+                    }
+                }
+
+                Button {
+                    onEdit(nil)
+                } label: {
+                    SettingsRowTitle(.windowManagementLayouts, "New Layout")
+                }
+                Button {
+                    core.windowLayoutCoordinator.captureWindowLayout()
+                } label: {
+                    SettingsRowTitle(.windowManagementLayouts, "Create Layout from Current Windows")
+                }
+            } header: {
+                SettingsSectionHeader(.windowManagementLayouts)
             }
-            Button {
-                core.windowLayoutCoordinator.captureWindowLayout()
-            } label: {
-                SettingsRowTitle(.windowManagementLayouts, "Create Layout from Current Windows")
-            }
-        } header: {
-            SettingsSectionHeader(.windowManagementLayouts)
         }
     }
 
@@ -73,49 +76,51 @@ private struct WindowLayoutSettingsRow: View {
     @Environment(VisibilityStore.self) private var visibility
 
     var body: some View {
-        SettingsRow(title: layout.name, subtitle: layout.summary) {
-            SymbolImage(name: layout.symbol, size: 13)
-        } trailing: {
-            ShortcutRecorder(action: .windowLayout(id: layout.id))
+        WithPerceptionTracking {
+            SettingsRow(title: layout.name, subtitle: layout.summary) {
+                SymbolImage(name: layout.symbol, size: 13)
+            } trailing: {
+                ShortcutRecorder(action: .windowLayout(id: layout.id))
 
-            Button {
-                core.windowLayoutCoordinator.runWindowLayout(id: layout.id)
-            } label: {
-                Image(systemName: "play")
+                Button {
+                    core.windowLayoutCoordinator.runWindowLayout(id: layout.id)
+                } label: {
+                    Image(systemName: "play")
+                }
+                .buttonStyle(.plain)
+                .help("Run this layout")
+                .accessibilityLabel("Run \(layout.name)")
+
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.plain)
+                .help("Edit")
+                .accessibilityLabel("Edit \(layout.name)")
+
+                Button {
+                    core.windowLayoutCoordinator.duplicateWindowLayout(id: layout.id)
+                } label: {
+                    Image(systemName: "plus.square.on.square")
+                }
+                .buttonStyle(.plain)
+                .help("Duplicate")
+                .accessibilityLabel("Duplicate \(layout.name)")
+
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundStyle(Theme.Colors.destructive)
+                }
+                .buttonStyle(.plain)
+                .help("Delete")
+                .accessibilityLabel("Delete \(layout.name)")
+
+                Toggle("", isOn: visibilityBinding)
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    .launcherVisibilityHelp()
+                    .accessibilityLabel("Show \(layout.name) in launcher")
             }
-            .buttonStyle(.plain)
-            .help("Run this layout")
-            .accessibilityLabel("Run \(layout.name)")
-
-            Button(action: onEdit) {
-                Image(systemName: "pencil")
-            }
-            .buttonStyle(.plain)
-            .help("Edit")
-            .accessibilityLabel("Edit \(layout.name)")
-
-            Button {
-                core.windowLayoutCoordinator.duplicateWindowLayout(id: layout.id)
-            } label: {
-                Image(systemName: "plus.square.on.square")
-            }
-            .buttonStyle(.plain)
-            .help("Duplicate")
-            .accessibilityLabel("Duplicate \(layout.name)")
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-            .buttonStyle(.plain)
-            .help("Delete")
-            .accessibilityLabel("Delete \(layout.name)")
-
-            Toggle("", isOn: visibilityBinding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .launcherVisibilityHelp()
-                .accessibilityLabel("Show \(layout.name) in launcher")
         }
     }
 

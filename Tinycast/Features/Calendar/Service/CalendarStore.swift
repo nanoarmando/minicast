@@ -1,9 +1,10 @@
 import AppKit
 import EventKit
+import Perception
 
 /// The span's meetings, read from EventKit. See docs/features/calendar.md.
 @MainActor
-@Observable
+@Perceptible
 final class CalendarStore {
     /// Flattened occurrences over `span`, newest query wins.
     private(set) var events: [MeetingEvent] = []
@@ -21,7 +22,7 @@ final class CalendarStore {
     }
 
     /// Fired whenever `events` changes, so the launcher's meeting slice is republished.
-    @ObservationIgnored var onChange: (() -> Void)?
+    @PerceptionIgnored var onChange: (() -> Void)?
 
     private let defaults = UserDefaults.standard
     private let hiddenKey = "hiddenMeetingCalendars"
@@ -29,10 +30,10 @@ final class CalendarStore {
     private var hiddenCalendarIDs: Set<String>
 
     /// Built on first use, so a Mac with the feature off never loads EventKit at launch.
-    @ObservationIgnored private var eventStore: EKEventStore?
-    @ObservationIgnored private var changeObserver: NotificationToken?
-    @ObservationIgnored private var wakeObserver: NotificationToken?
-    @ObservationIgnored private var lastReloadAt: Date?
+    @PerceptionIgnored private var eventStore: EKEventStore?
+    @PerceptionIgnored private var changeObserver: NotificationToken?
+    @PerceptionIgnored private var wakeObserver: NotificationToken?
+    @PerceptionIgnored private var lastReloadAt: Date?
 
     /// Covers the day rolling over and a Mac that slept; edits come from EventKit.
     private static let staleAfter: TimeInterval = 10 * 60

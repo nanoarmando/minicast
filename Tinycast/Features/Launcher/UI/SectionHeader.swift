@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Section label above a group of rows, shared by every palette list.
 struct SectionHeader: View {
@@ -11,24 +12,26 @@ struct SectionHeader: View {
     var configureHelp = "Configure…"
 
     var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            Text(title)
-                .lineLimit(1)
-            if let configure {
-                Button(action: configure) {
-                    Image(systemName: "gearshape")
-                        .imageScale(.small)
-                        .contentShape(Rectangle())
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.sm) {
+                Text(title)
+                    .lineLimit(1)
+                if let configure {
+                    Button(action: configure) {
+                        Image(systemName: "gearshape")
+                            .imageScale(.small)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(configureHelp)
                 }
-                .buttonStyle(.plain)
-                .help(configureHelp)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .font(metrics.typography.sectionHeader)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, metrics.spacing.md)
+            .padding(.top, isFirst ? metrics.spacing.xs : metrics.spacing.sectionSpacing)
+            .padding(.bottom, metrics.spacing.sectionHeaderBottom)
         }
-        .font(metrics.typography.sectionHeader)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.top, isFirst ? metrics.spacing.xs : metrics.spacing.sectionSpacing)
-        .padding(.bottom, metrics.spacing.sectionHeaderBottom)
     }
 }

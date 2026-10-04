@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// How a run ended, once it has.
 struct CommandOutcome: Sendable {
@@ -34,18 +35,18 @@ struct CommandRun: Identifiable, Sendable {
 
 /// One window, reused: a second run replaces what it shows and never cancels the first.
 @MainActor
-@Observable
+@Perceptible
 final class CommandOutputPresenter {
     /// Past this the head is dropped: the tail is where a command says how it went.
     private static let logLimit = 256 * 1024
 
     private(set) var run: CommandRun?
 
-    @ObservationIgnored private let activation: ActivationPolicy
-    @ObservationIgnored private let rerun: (UUID) -> Void
-    @ObservationIgnored private let stop: (UUID) -> Void
-    @ObservationIgnored private let openSettings: () -> Void
-    @ObservationIgnored private lazy var window = AppWindowController(
+    @PerceptionIgnored private let activation: ActivationPolicy
+    @PerceptionIgnored private let rerun: (UUID) -> Void
+    @PerceptionIgnored private let stop: (UUID) -> Void
+    @PerceptionIgnored private let openSettings: () -> Void
+    @PerceptionIgnored private lazy var window = AppWindowController(
         title: "Command Output", contentSize: CommandOutputView.initialSize, resizable: true,
         autosaveName: "CommandOutputWindow", activation: activation, closesOnEscape: true)
 

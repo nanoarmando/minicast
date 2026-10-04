@@ -1,6 +1,7 @@
 // Adapted from Rooms (MIT): https://github.com/saragordic/rooms/blob/main/LICENSE
 import AppKit
 import SwiftUI
+import Perception
 
 /// One window-to-be in the preview. The same window keeps the same id, so its card can glide.
 struct RoomPreviewCard: Identifiable, Equatable {
@@ -14,7 +15,7 @@ struct RoomPreviewCard: Identifiable, Equatable {
 
 /// What every display's preview panel draws: the cards back to front, and the palette to avoid.
 @MainActor
-@Observable
+@Perceptible
 final class RoomPreviewModel {
     var cards: [RoomPreviewCard] = []
     /// The palette's frame in AX space, which a card's icon stays out from under.

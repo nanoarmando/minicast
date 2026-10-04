@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Maps Raycast's `Icon` / `Color` / `Image.ImageLike` values onto what the palette can draw.
 extension EnvironmentValues {
@@ -273,8 +274,8 @@ enum ExtensionImage {
         "arrow-up-circle-filled": "arrow.up.circle.fill",
         "arrows-contract": "arrow.down.right.and.arrow.up.left", "band-aid": "bandage.fill",
         "bank-note": "banknote.fill", "bar-code": "barcode", "bath-tub": "bathtub.fill",
-        "battery": "battery.100percent", "battery-charging": "battery.100percent.bolt",
-        "battery-disabled": "battery.0percent", "bike": "bicycle", "blank-document": "doc",
+        "battery": "battery.100", "battery-charging": "battery.100.bolt",
+        "battery-disabled": "battery.0", "bike": "bicycle", "blank-document": "doc",
         "bluetooth": "dot.radiowaves.right", "boat": "sailboat.fill",
         "bolt-disabled": "bolt.slash", "bullet-points": "list.bullet", "bulls-eye": "target",
         "bulls-eye-missed": "scope", "buoy": "lifepreserver",
@@ -283,8 +284,8 @@ enum ExtensionImage {
         "chevron-right-small": "chevron.right", "chevron-up-down": "chevron.up.chevron.down",
         "chevron-up-small": "chevron.up", "circle-disabled": "circle.slash",
         "circle-ellipsis": "ellipsis.circle", "circle-progress": "circle.dotted",
-        "circle-progress-25": "progress.indicator", "circle-progress-50": "progress.indicator",
-        "circle-progress-75": "progress.indicator",
+        "circle-progress-25": "slowmo", "circle-progress-50": "slowmo",
+        "circle-progress-75": "slowmo",
         "clear-formatting": "textformat.abc.dottedunderline", "cloud-lightning": "cloud.bolt.fill",
         "coins": "dollarsign.circle.fill", "command-symbol": "command",
         "compass": "location.north.circle", "computer-chip": "cpu",
@@ -292,7 +293,7 @@ enum ExtensionImage {
         "crypto": "bitcoinsign.circle", "delete-document": "trash",
         "devices": "laptopcomputer.and.iphone", "dna": "atom", "droplets": "drop.fill",
         "edit-shape": "pencil.and.outline", "ellipsis-vertical": "ellipsis",
-        "emoji": "face.smiling", "emoji-sad": "face.dashed", "female": "figure.stand.dress",
+        "emoji": "face.smiling", "emoji-sad": "face.dashed", "female": "person.fill",
         "film-strip": "film", "filter": "line.3.horizontal.decrease.circle",
         "fingerprint": "touchid", "footprints": "shoeprints.fill",
         "forward-filled": "forward.fill", "fountain-tip": "pencil.tip",
@@ -304,15 +305,15 @@ enum ExtensionImage {
         "leaderboard": "list.number", "light-bulb-off": "lightbulb.slash",
         "livestream-01": "dot.radiowaves.left.and.right",
         "livestream-disabled-01": "antenna.radiowaves.left.and.right.slash",
-        "logout": "rectangle.portrait.and.arrow.right", "lorry": "truck.box.fill",
+        "logout": "rectangle.portrait.and.arrow.right", "lorry": "shippingbox.fill",
         "lowercase": "textformat.abc", "male": "figure.stand", "mask": "theatermasks.fill",
         "medical-support": "cross.case.fill", "memory-stick": "memorychip",
         "microphone-disabled": "mic.slash", "minus-circle-filled": "minus.circle.fill",
-        "monitor": "display", "moon-down": "moonset.fill", "moon-up": "moonrise.fill",
+        "monitor": "display", "moon-down": "moon.zzz.fill", "moon-up": "moon.stars.fill",
         "mountain": "mountain.2.fill", "mouse": "computermouse.fill",
         "move": "arrow.up.and.down.and.arrow.left.and.right", "new-document": "doc.badge.plus",
         "new-folder": "folder.badge.plus", "patch": "bandage.fill", "pause-filled": "pause.fill",
-        "phone-ringing": "phone.badge.waveform.fill", "plus-circle-filled": "plus.circle.fill",
+        "phone-ringing": "phone.and.waveform.fill", "plus-circle-filled": "plus.circle.fill",
         "plus-minus-divide-multiply": "plusminus",
         "plus-top-right-square": "plus.square.on.square", "print": "printer",
         "quicklink": "arrow.up.right.square", "quote-block": "text.quote",
@@ -329,7 +330,7 @@ enum ExtensionImage {
         "speech-bubble-important": "exclamationmark.bubble",
         "square-ellipsis": "ellipsis.rectangle", "stacked-bars-1": "chart.bar.fill",
         "stacked-bars-2": "chart.bar.fill", "stacked-bars-3": "chart.bar.fill",
-        "stacked-bars-4": "chart.bar.fill", "stop-filled": "stop.fill", "store": "storefront.fill",
+        "stacked-bars-4": "chart.bar.fill", "stop-filled": "stop.fill", "store": "bag.fill",
         "strike-through": "strikethrough", "swatch": "swatchpalette.fill", "tack": "pin.fill",
         "tack-disabled": "pin.slash", "temperature": "thermometer.medium",
         "tennis-ball": "tennisball.fill", "text-selection": "selection.pin.in.out",
@@ -384,13 +385,15 @@ struct ExtensionIconView: View {
     private var side: CGFloat { size ?? metrics.size.rowIcon }
 
     var body: some View {
-        content
-            .frame(width: side, height: side)
-            .clipShape(shape)
-            // Keyed on appearance too: an inline SVG's palette resolves at decode.
-            .task(id: ExtensionImage.LoadKey(source: resolved?.source, isDark: isDark)) {
-                loaded = await ExtensionImage.load(resolved, isDark: isDark, animates: animates)
-            }
+        WithPerceptionTracking {
+            content
+                .frame(width: side, height: side)
+                .clipShape(shape)
+                // Keyed on appearance too: an inline SVG's palette resolves at decode.
+                .task(id: ExtensionImage.LoadKey(source: resolved?.source, isDark: isDark)) {
+                    loaded = await ExtensionImage.load(resolved, isDark: isDark, animates: animates)
+                }
+        }
     }
 
     @ViewBuilder

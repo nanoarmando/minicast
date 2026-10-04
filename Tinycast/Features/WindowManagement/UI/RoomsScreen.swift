@@ -99,7 +99,7 @@ struct RoomsScreen: PaletteScreen {
         return AnyView(
             content(rows: rows, selectedID: selected?.id, scroll: scroll)
                 // The room's value carries its layout, so Tab's change glides the preview too.
-                .onChange(of: PreviewKey(room: previewed, revision: session.revision), initial: true) {
+                .onValueChange(of: PreviewKey(room: previewed, revision: session.revision), initial: true) {
                     coordinator.preview(previewed)
                 })
     }

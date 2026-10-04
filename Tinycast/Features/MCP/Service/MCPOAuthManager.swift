@@ -1,8 +1,8 @@
 import AppKit
-import Observation
+import Perception
 
 @MainActor
-@Observable
+@Perceptible
 final class MCPOAuthManager {
     enum Status: Equatable {
         case signedOut
@@ -23,11 +23,11 @@ final class MCPOAuthManager {
     }
 
     private(set) var statuses: [UUID: Status] = [:]
-    @ObservationIgnored private let secrets: MCPSecretStore
-    @ObservationIgnored private var revisions: [UUID: UUID] = [:]
-    @ObservationIgnored private var refreshes: [UUID: Task<String, Error>] = [:]
-    @ObservationIgnored private var listener: MCPOAuthListener?
-    @ObservationIgnored private var signingIn: UUID?
+    @PerceptionIgnored private let secrets: MCPSecretStore
+    @PerceptionIgnored private var revisions: [UUID: UUID] = [:]
+    @PerceptionIgnored private var refreshes: [UUID: Task<String, Error>] = [:]
+    @PerceptionIgnored private var listener: MCPOAuthListener?
+    @PerceptionIgnored private var signingIn: UUID?
 
     init(secrets: MCPSecretStore = MCPSecretStore()) { self.secrets = secrets }
 

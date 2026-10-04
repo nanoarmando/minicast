@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The `Detail` screen, and the pane a `List` shows when `isShowingDetail` is on.
 struct ExtensionDetailBody: View {
@@ -13,14 +14,16 @@ struct ExtensionDetailBody: View {
     private static let stackedInset: CGFloat = 16
 
     var body: some View {
-        HStack(spacing: 0) {
-            markdownPane(trailing: stacksMetadata ? metadata : nil)
-            if !stacksMetadata, let metadata {
-                Rectangle().fill(Theme.Colors.separator).frame(width: 1)
-                metadataPane(metadata)
+        WithPerceptionTracking {
+            HStack(spacing: 0) {
+                markdownPane(trailing: stacksMetadata ? metadata : nil)
+                if !stacksMetadata, let metadata {
+                    Rectangle().fill(Theme.Colors.separator).frame(width: 1)
+                    metadataPane(metadata)
+                }
             }
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func markdownPane(trailing metadata: RenderNode?) -> some View {
@@ -84,40 +87,42 @@ struct ExtensionMetadataView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: inline ? 0 : metrics.spacing.lg) {
-            ForEach(Array(visibleChildren.enumerated()), id: \.element.id) { index, child in
-                switch child.type {
-                case "Detail.Metadata.Label":
-                    row(title: child.string("title"), index: index) {
-                        HStack(spacing: metrics.spacing.xs) {
-                            if let icon = child.props["icon"] {
-                                ExtensionIconView(
-                                    resolved: ExtensionImage.resolve(
-                                        icon, assetsPath: assetsPath, isDark: isDark),
-                                    size: 14)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: inline ? 0 : metrics.spacing.lg) {
+                ForEach(Array(visibleChildren.enumerated()), id: \.element.id) { index, child in
+                    switch child.type {
+                    case "Detail.Metadata.Label":
+                        row(title: child.string("title"), index: index) {
+                            HStack(spacing: metrics.spacing.xs) {
+                                if let icon = child.props["icon"] {
+                                    ExtensionIconView(
+                                        resolved: ExtensionImage.resolve(
+                                            icon, assetsPath: assetsPath, isDark: isDark),
+                                        size: 14)
+                                }
+                                Text(labelText(child))
+                                    .font(metrics.typography.rowTitle)
+                                    .textSelection(.enabled)
                             }
-                            Text(labelText(child))
-                                .font(metrics.typography.rowTitle)
-                                .textSelection(.enabled)
                         }
-                    }
-                case "Detail.Metadata.Link":
-                    row(title: child.string("title"), index: index) {
-                        if let target = child.string("target"), let url = URL(string: target) {
-                            Link(child.string("text") ?? target, destination: url)
-                                .font(metrics.typography.rowTitle)
-                        } else {
-                            Text(child.string("text") ?? "").font(metrics.typography.rowTitle)
+                    case "Detail.Metadata.Link":
+                        row(title: child.string("title"), index: index) {
+                            if let target = child.string("target"), let url = URL(string: target) {
+                                Link(child.string("text") ?? target, destination: url)
+                                    .font(metrics.typography.rowTitle)
+                            } else {
+                                Text(child.string("text") ?? "").font(metrics.typography.rowTitle)
+                            }
                         }
+                    case "Detail.Metadata.TagList":
+                        row(title: child.string("title"), index: index) {
+                            ExtensionTagListView(tags: child.children, assetsPath: assetsPath)
+                        }
+                    case "Detail.Metadata.Separator":
+                        Rectangle().fill(Theme.Colors.separator).frame(height: 1)
+                    default:
+                        EmptyView()
                     }
-                case "Detail.Metadata.TagList":
-                    row(title: child.string("title"), index: index) {
-                        ExtensionTagListView(tags: child.children, assetsPath: assetsPath)
-                    }
-                case "Detail.Metadata.Separator":
-                    Rectangle().fill(Theme.Colors.separator).frame(height: 1)
-                default:
-                    EmptyView()
                 }
             }
         }
@@ -172,26 +177,28 @@ private struct ExtensionTagListView: View {
     let assetsPath: String?
 
     var body: some View {
-        // Wrapping matters here: a metadata tag list is frequently longer than the pane is wide.
-        FlowLayout(spacing: metrics.spacing.xs) {
-            ForEach(tags) { tag in
-                let color =
-                    ExtensionImage.color(tag.props["color"], isDark: isDark) ?? Theme.Colors.textSecondary
-                HStack(spacing: 3) {
-                    if let icon = tag.props["icon"] {
-                        ExtensionIconView(
-                            resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                            size: 12)
+        WithPerceptionTracking {
+            // Wrapping matters here: a metadata tag list is frequently longer than the pane is wide.
+            FlowLayout(spacing: metrics.spacing.xs) {
+                ForEach(tags) { tag in
+                    let color =
+                        ExtensionImage.color(tag.props["color"], isDark: isDark) ?? Theme.Colors.textSecondary
+                    HStack(spacing: 3) {
+                        if let icon = tag.props["icon"] {
+                            ExtensionIconView(
+                                resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
+                                size: 12)
+                        }
+                        Text(tag.string("text") ?? "")
+                            .font(metrics.typography.rowTrailing)
                     }
-                    Text(tag.string("text") ?? "")
-                        .font(metrics.typography.rowTrailing)
+                    .foregroundStyle(color)
+                    .padding(.horizontal, metrics.spacing.xs)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16))
+                    )
                 }
-                .foregroundStyle(color)
-                .padding(.horizontal, metrics.spacing.xs)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16))
-                )
             }
         }
     }
@@ -261,71 +268,73 @@ struct ExtensionMarkdownView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            // Positional, so a live image keeps its last frame while the next one decodes.
-            ForEach(Array(Self.parse(markdown).enumerated()), id: \.offset) { _, block in
-                switch block {
-                case .heading(let level, let text):
-                    Text(inline(text))
-                        .font(.system(size: headingSize(level), weight: .semibold))
-                        .padding(.top, metrics.spacing.xs)
-                case .paragraph(let text):
-                    Text(inline(text))
-                        .font(metrics.typography.rowTitle)
-                        .textSelection(.enabled)
-                case .bullet(let text):
-                    HStack(alignment: .top, spacing: metrics.spacing.sm) {
-                        Text("•").foregroundStyle(.secondary)
-                        Text(inline(text)).font(metrics.typography.rowTitle)
-                    }
-                case .numbered(let index, let text):
-                    HStack(alignment: .top, spacing: metrics.spacing.sm) {
-                        Text("\(index).").foregroundStyle(.secondary).monospacedDigit()
-                        Text(inline(text)).font(metrics.typography.rowTitle)
-                    }
-                case .quote(let text):
-                    HStack(spacing: metrics.spacing.sm) {
-                        Rectangle().fill(Theme.Colors.separator).frame(width: 2)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                // Positional, so a live image keeps its last frame while the next one decodes.
+                ForEach(Array(Self.parse(markdown).enumerated()), id: \.offset) { _, block in
+                    switch block {
+                    case .heading(let level, let text):
+                        Text(inline(text))
+                            .font(.system(size: headingSize(level), weight: .semibold))
+                            .padding(.top, metrics.spacing.xs)
+                    case .paragraph(let text):
                         Text(inline(text))
                             .font(metrics.typography.rowTitle)
-                            .foregroundStyle(.secondary)
-                    }
-                case .code(let text):
-                    ScrollView(.horizontal) {
-                        Text(text)
-                            .font(.system(.callout, design: .monospaced))
                             .textSelection(.enabled)
-                            .padding(metrics.spacing.sm)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous)
-                            .fill(ExtensionColors.detailCardFill)
-                    )
-                    .hideNativeScrollers()
-                case .rule:
-                    Rectangle().fill(Theme.Colors.separator).frame(height: 1)
-                case .image(let url):
-                    ExtensionMarkdownImage(url: url)
-                case .table(let rows):
-                    Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                        ForEach(rows.indices, id: \.self) { r in
-                            GridRow {
-                                ForEach(rows[r].indices, id: \.self) { c in
-                                    Text(inline(rows[r][c])).fontWeight(r == 0 ? .semibold : nil)
-                                        .padding(.vertical, metrics.spacing.lg)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .background(r == 0 ? ExtensionColors.detailCardFill : .clear)
-                                        .border(Theme.Colors.separator, width: 0.5)
+                    case .bullet(let text):
+                        HStack(alignment: .top, spacing: metrics.spacing.sm) {
+                            Text("•").foregroundStyle(.secondary)
+                            Text(inline(text)).font(metrics.typography.rowTitle)
+                        }
+                    case .numbered(let index, let text):
+                        HStack(alignment: .top, spacing: metrics.spacing.sm) {
+                            Text("\(index).").foregroundStyle(.secondary).monospacedDigit()
+                            Text(inline(text)).font(metrics.typography.rowTitle)
+                        }
+                    case .quote(let text):
+                        HStack(spacing: metrics.spacing.sm) {
+                            Rectangle().fill(Theme.Colors.separator).frame(width: 2)
+                            Text(inline(text))
+                                .font(metrics.typography.rowTitle)
+                                .foregroundStyle(.secondary)
+                        }
+                    case .code(let text):
+                        ScrollView(.horizontal) {
+                            Text(text)
+                                .font(.system(.callout, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(metrics.spacing.sm)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous)
+                                .fill(ExtensionColors.detailCardFill)
+                        )
+                        .hideNativeScrollers()
+                    case .rule:
+                        Rectangle().fill(Theme.Colors.separator).frame(height: 1)
+                    case .image(let url):
+                        ExtensionMarkdownImage(url: url)
+                    case .table(let rows):
+                        Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                            ForEach(rows.indices, id: \.self) { r in
+                                GridRow {
+                                    ForEach(rows[r].indices, id: \.self) { c in
+                                        Text(inline(rows[r][c])).fontWeight(r == 0 ? .semibold : nil)
+                                            .padding(.vertical, metrics.spacing.lg)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            .background(r == 0 ? ExtensionColors.detailCardFill : .clear)
+                                            .border(Theme.Colors.separator, width: 0.5)
+                                    }
                                 }
                             }
                         }
+                        .font(metrics.typography.rowTitle).monospacedDigit()
                     }
-                    .font(metrics.typography.rowTitle).monospacedDigit()
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func headingSize(_ level: Int) -> CGFloat {
@@ -475,36 +484,38 @@ private struct ExtensionMarkdownImage: View {
     @State private var image: NSImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Group {
-                    if image.isAnimated {
-                        AnimatedImageView(image: image)
-                    } else {
-                        Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    Group {
+                        if image.isAnimated {
+                            AnimatedImageView(image: image)
+                        } else {
+                            Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
+                        }
                     }
+                    .frame(
+                        maxWidth: maxWidth ?? (size == nil ? image.size.width : .infinity), maxHeight: maxHeight
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous))
+                    .frame(maxWidth: .infinity)
+                } else {
+                    RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous)
+                        .fill(ExtensionColors.detailCardFill)
+                        .frame(height: 120)
                 }
-                .frame(
-                    maxWidth: maxWidth ?? (size == nil ? image.size.width : .infinity), maxHeight: maxHeight
-                )
-                .clipShape(RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous))
-                .frame(maxWidth: .infinity)
-            } else {
-                RoundedRectangle(cornerRadius: metrics.radius.menu, style: .continuous)
-                    .fill(ExtensionColors.detailCardFill)
-                    .frame(height: 120)
             }
-        }
-        // Keyed on the appearance too: an inline SVG's palette resolves at decode, not in the URL.
-        .task(id: ExtensionImage.LoadKey(source: source, isDark: isDark)) {
-            // A slow remote load must not show the previous row's image meanwhile.
-            if url.scheme != "data" { image = nil }
-            let loaded =
-                url.scheme == "data"
-                ? await ExtensionIconCache.loadInlineAsync(
-                    url, palette: ExtensionImage.svgPalette(isDark: isDark))
-                : await ExtensionIconCache.loadRemoteAsync(url, asIcon: false)
-            if !Task.isCancelled { image = loaded }
+            // Keyed on the appearance too: an inline SVG's palette resolves at decode, not in the URL.
+            .task(id: ExtensionImage.LoadKey(source: source, isDark: isDark)) {
+                // A slow remote load must not show the previous row's image meanwhile.
+                if url.scheme != "data" { image = nil }
+                let loaded =
+                    url.scheme == "data"
+                    ? await ExtensionIconCache.loadInlineAsync(
+                        url, palette: ExtensionImage.svgPalette(isDark: isDark))
+                    : await ExtensionIconCache.loadRemoteAsync(url, asIcon: false)
+                if !Task.isCancelled { image = loaded }
+            }
         }
     }
 

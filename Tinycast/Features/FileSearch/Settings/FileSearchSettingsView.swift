@@ -1,29 +1,32 @@
 import SwiftUI
+import Perception
 
 struct FileSearchSettingsView: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
-        @Bindable var settings = settings
-        return Form {
-            Section {
-                Toggle(isOn: $settings.fileSearchEnabled) {
-                    SettingsFeatureToggleLabel(
-                        anchor: .fileSearchFileSearch, title: "Enable File Search",
-                        subtitle: "Uses the Spotlight index, only when you search.")
+        WithPerceptionTracking {
+            @Perception.Bindable var settings = settings
+            return Form {
+                Section {
+                    Toggle(isOn: $settings.fileSearchEnabled) {
+                        SettingsFeatureToggleLabel(
+                            anchor: .fileSearchFileSearch, title: "Enable File Search",
+                            subtitle: "Uses the Spotlight index, only when you search.")
+                    }
                 }
-            }
-            .settingsAnchor(.fileSearchFileSearch)
+                .settingsAnchor(.fileSearchFileSearch)
 
-            FeatureCommandsSection(owner: .fileSearch, anchor: .fileSearchCommands)
-                .settingsEnabled(settings.fileSearchEnabled)
-            FileSearchScopesSection()
-                .settingsEnabled(settings.fileSearchEnabled)
-            FileSearchIgnoreSection()
-                .settingsEnabled(settings.fileSearchEnabled)
+                FeatureCommandsSection(owner: .fileSearch, anchor: .fileSearchCommands)
+                    .settingsEnabled(settings.fileSearchEnabled)
+                FileSearchScopesSection()
+                    .settingsEnabled(settings.fileSearchEnabled)
+                FileSearchIgnoreSection()
+                    .settingsEnabled(settings.fileSearchEnabled)
+            }
+            .formStyle(.grouped)
+            .settingsScrollTarget(.fileSearch)
         }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.fileSearch)
     }
 }
 
@@ -37,35 +40,37 @@ private struct FileSearchScopesSection: View {
     private var isDefault: Bool { settings.fileSearchScopes == FileSearchScope.defaultScopes }
 
     var body: some View {
-        Section {
-            ForEach(settings.fileSearchScopes, id: \.self) { scope in
-                SettingsScopeRow(
-                    scope: scope,
-                    path: FileSearchScope.expand(scope, homeDirectory: home).path,
-                    isMissing: missing.contains(scope)
-                ) {
-                    settings.fileSearchScopes.removeAll { $0 == scope }
-                }
-            }
-
-            HStack(spacing: Theme.Spacing.lg) {
-                Button("Add…", action: addScopes)
-                    .help("Add a folder to search.")
-                if !isDefault {
-                    Button("Restore Defaults") {
-                        settings.fileSearchScopes = FileSearchScope.defaultScopes
+        WithPerceptionTracking {
+            Section {
+                ForEach(settings.fileSearchScopes, id: \.self) { scope in
+                    SettingsScopeRow(
+                        scope: scope,
+                        path: FileSearchScope.expand(scope, homeDirectory: home).path,
+                        isMissing: missing.contains(scope)
+                    ) {
+                        settings.fileSearchScopes.removeAll { $0 == scope }
                     }
                 }
+
+                HStack(spacing: Theme.Spacing.lg) {
+                    Button("Add…", action: addScopes)
+                        .help("Add a folder to search.")
+                    if !isDefault {
+                        Button("Restore Defaults") {
+                            settings.fileSearchScopes = FileSearchScope.defaultScopes
+                        }
+                    }
+                }
+            } header: {
+                SettingsSectionHeader(.fileSearchSearchScopes)
+            } footer: {
+                Text("Home covers its visible folders and cloud drives, never Library.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-        } header: {
-            SettingsSectionHeader(.fileSearchSearchScopes)
-        } footer: {
-            Text("Home covers its visible folders and cloud drives, never Library.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .onAppear(perform: refreshMissing)
+            .onValueChange(of: settings.fileSearchScopes) { _, _ in refreshMissing() }
         }
-        .onAppear(perform: refreshMissing)
-        .onChange(of: settings.fileSearchScopes) { _, _ in refreshMissing() }
     }
 
     private func refreshMissing() {
@@ -96,24 +101,26 @@ private struct FileSearchIgnoreSection: View {
     @State private var draft = ""
 
     var body: some View {
-        Section {
-            ForEach(FileSearchIgnoreList.defaults, id: \.self) { pattern in
-                PatternRow(pattern: pattern, onRemove: nil)
-            }
-            ForEach(settings.fileSearchIgnorePatterns, id: \.self) { pattern in
-                PatternRow(pattern: pattern) {
-                    settings.fileSearchIgnorePatterns.removeAll { $0 == pattern }
+        WithPerceptionTracking {
+            Section {
+                ForEach(FileSearchIgnoreList.defaults, id: \.self) { pattern in
+                    PatternRow(pattern: pattern, onRemove: nil)
                 }
-            }
+                ForEach(settings.fileSearchIgnorePatterns, id: \.self) { pattern in
+                    PatternRow(pattern: pattern) {
+                        settings.fileSearchIgnorePatterns.removeAll { $0 == pattern }
+                    }
+                }
 
-            TextField("Add pattern…", text: $draft)
-                .onSubmit(addPattern)
-        } header: {
-            SettingsSectionHeader(.fileSearchIgnorePatterns)
-        } footer: {
-            Text("No slash matches a name, like *.tmp. A slash matches the path, like **/[Cc]ache/**.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                TextField("Add pattern…", text: $draft)
+                    .onSubmit(addPattern)
+            } header: {
+                SettingsSectionHeader(.fileSearchIgnorePatterns)
+            } footer: {
+                Text("No slash matches a name, like *.tmp. A slash matches the path, like **/[Cc]ache/**.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -134,20 +141,22 @@ private struct PatternRow: View {
     let onRemove: (() -> Void)?
 
     var body: some View {
-        LabeledContent {
-            if let onRemove {
-                Button(action: onRemove) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+        WithPerceptionTracking {
+            LabeledContent {
+                if let onRemove {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(pattern)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(pattern)")
+            } label: {
+                Text(pattern)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(onRemove == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
             }
-        } label: {
-            Text(pattern)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(onRemove == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
         }
     }
 }

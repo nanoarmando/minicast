@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// A category that is off runs nothing, so it gates shortcuts as well as the list.
 @MainActor
-@Observable
+@Perceptible
 final class VisibilityStore {
     private let defaults = UserDefaults.standard
     private let itemsKey = "hiddenLauncherItems"
@@ -76,8 +77,8 @@ final class VisibilityStore {
         case .settingsPane: isKindEnabled(.systemSettings)
         case .systemAction: isKindEnabled(.systemAction)
         case .command(let id): id.owner == nil ? isKindEnabled(.command) : true
-        case .togglePalette, .dictation, .quickAction, .customCommand, .windowCommand, .customWindowSize,
-            .windowLayout, .windowRoom, .quicklink, .appleShortcut, .snippet, .extensionCommand:
+        case .togglePalette, .quickAction, .customCommand, .windowCommand, .customWindowSize,
+            .windowLayout, .windowRoom, .appleShortcut, .extensionCommand:
             true
         }
     }

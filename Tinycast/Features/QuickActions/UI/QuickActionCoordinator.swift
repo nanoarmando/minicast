@@ -1,22 +1,10 @@
 import AppKit
-import Observation
+import Perception
 
 /// The single funnel for every Quick Action, however it was started.
 @MainActor
-@Observable
+@Perceptible
 final class QuickActionCoordinator {
-    private struct NoteSelection {
-        let editor: NoteTextView
-        let document: NoteEditorInput
-        let range: NSRange
-        let text: String
-    }
-
-    private enum Target {
-        case external(NSRunningApplication?)
-        case note(NoteSelection)
-    }
-
     private let settings: AppSettings
     private let store: QuickActionSettingsStore
     private let customActions: CustomQuickActionStore
@@ -34,10 +22,10 @@ final class QuickActionCoordinator {
     private static let launcherCommands = Set(BuiltInQuickAction.allCases.map(CommandID.init))
 
     /// One at a time: two runs race for one selection, and the second overwrites the first's work.
-    @ObservationIgnored private var running: Task<Void, Never>?
-    @ObservationIgnored private var generation = 0
+    @PerceptionIgnored private var running: Task<Void, Never>?
+    @PerceptionIgnored private var generation = 0
     /// Cancellation is cooperative, so a cancelled run must not hide the pill a newer run showed.
-    @ObservationIgnored private var progressOwner: Int?
+    @PerceptionIgnored private var progressOwner: Int?
 
     init(
         settings: AppSettings, store: QuickActionSettingsStore,
@@ -70,10 +58,7 @@ final class QuickActionCoordinator {
             return
         }
         core.applyInstalledAILifecycle()
-        store.resolveModel(
-            appleIntelligenceAvailable: core.aiSettings.isAppleIntelligenceAvailable(),
-            fallback: core.aiSettings.defaultModel)
-        loadLanguages()
+        store.resolveModel(fallback: core.aiSettings.defaultModel)
     }
 
     /// Enabling is consent: reading a selection and typing over it both need Accessibility.
@@ -92,7 +77,7 @@ final class QuickActionCoordinator {
                         "Tinycast needs the Accessibility permission to read the text you have "
                         + "selected in other apps and replace it. Nothing is read until you press "
                         + "a shortcut.",
-                    symbol: "wand.and.sparkles", confirmTitle: "Continue", tone: .neutral,
+                    symbol: "wand.and.stars", confirmTitle: "Continue", tone: .neutral,
                     confirmRole: .standard)
             else { return }
             settings.quickActionsEnabled = true
@@ -174,24 +159,9 @@ final class QuickActionCoordinator {
 
     func run(_ action: QuickAction) {
         guard settings.quickActionsEnabled, running == nil else { return }
-        let source =
-            paletteCoordinator.isVisible
-            ? InjectionTarget.behindPalette(
-                ownWindow: paletteCoordinator.previousOwnWindow, app: paletteCoordinator.targetApp)
-            : InjectionTarget.current()
-        let target: Target
-        if let editor = source?.ownEditor as? NoteTextView {
-            target = .note(
-                NoteSelection(
-                    editor: editor, document: core.notesCoordinator.editorInput,
-                    range: editor.selectedRange(), text: editor.injectableSelection))
-        } else {
-            target = .external(paletteCoordinator.targetApp)
-        }
-        if paletteCoordinator.isVisible {
-            paletteCoordinator.hidePalette(restoreFocus: source?.ownEditor is NoteTextView)
-        }
-        start { [weak self] in await self?.begin(action, target: target) }
+        let app = paletteCoordinator.targetApp
+        if paletteCoordinator.isVisible { paletteCoordinator.hidePalette(restoreFocus: false) }
+        start { [weak self] in await self?.begin(action, in: app) }
     }
 
     func cancel() {
@@ -214,15 +184,10 @@ final class QuickActionCoordinator {
         }
     }
 
-    private func begin(_ action: QuickAction, target: Target) async {
+    private func begin(_ action: QuickAction, in app: NSRunningApplication?) async {
         let selection: String
         do {
-            switch target {
-            case .external(let app):
-                selection = try await QuickActionRunner.selection(in: app, using: injector)
-            case .note(let note):
-                selection = try QuickActionRunner.accepted(note.text)
-            }
+            selection = try await QuickActionRunner.selection(in: app, using: injector)
         } catch let failure as QuickActionFailure {
             reportRefusal(failure)
             return
@@ -230,11 +195,10 @@ final class QuickActionCoordinator {
             core.showMessage(error.localizedDescription, tone: .danger)
             return
         }
-        let state = QuickActionPanelState(
-            action: action, original: selection, targetLanguage: targetLanguage)
+        let state = QuickActionPanelState(action: action, original: selection)
         let previews = store.settings.previewsResult(action)
-        if previews { present(state, target: target) }
-        await perform(state, target: target, previewing: previews)
+        if previews { present(state, in: app) }
+        await perform(state, in: app, previewing: previews)
     }
 
     /// A missing permission cannot be fixed from a pill that fades, so it earns a dialog instead.
@@ -252,27 +216,23 @@ final class QuickActionCoordinator {
                         "Tinycast needs the Accessibility permission to read the text you have "
                         + "selected and replace it. If Tinycast is already listed, switch it off "
                         + "and on again — a rebuilt app keeps a stale entry.",
-                    symbol: "wand.and.sparkles", recovery: "Open System Settings")
+                    symbol: "wand.and.stars", recovery: "Open System Settings")
             else { return }
             Permissions.openAccessibilitySettings()
         }
     }
 
     private func perform(
-        _ state: QuickActionPanelState, target: Target, previewing: Bool
+        _ state: QuickActionPanelState, in app: NSRunningApplication?, previewing: Bool
     ) async {
         do {
             let text = try await produce(state, previewing: previewing)
             guard !Task.isCancelled else { return }
             state.finish(text)
             if previewing { return }
-            deliver(text, to: target, action: state.action)
+            deliver(text, in: app, action: state.action)
         } catch is CancellationError {
             return
-        } catch let error as TextTranslator.Failure where error.needsDownload {
-            // A HUD cannot say where the download lives, so this has to become a panel.
-            if !previewing { present(state, target: target) }
-            state.requireLanguageDownload()
         } catch {
             report(error, state: state, previewing: previewing)
         }
@@ -299,9 +259,6 @@ final class QuickActionCoordinator {
     private func generate(
         _ state: QuickActionPanelState, streaming: Bool
     ) async throws -> String {
-        if state.action.usesTranslationFramework {
-            return try await TextTranslator.translate(state.original, to: state.targetLanguage)
-        }
         let provider = try core.quickActionProvider(for: state.action)
         return try await QuickActionRunner.run(
             state.action, selection: state.original, using: provider,
@@ -313,7 +270,7 @@ final class QuickActionCoordinator {
     }
 
     /// A replacement that never lands would otherwise lose the reply, so the clipboard keeps it.
-    private func deliver(_ text: String, to target: Target, action: QuickAction) {
+    private func deliver(_ text: String, in app: NSRunningApplication?, action: QuickAction) {
         let onDelivered: @MainActor @Sendable () -> Void = { [weak self] in
             self?.core.showMessage("\(action.title) applied")
         }
@@ -323,18 +280,7 @@ final class QuickActionCoordinator {
                 "\(action.title) couldn't replace the selection — copied instead",
                 tone: .danger)
         }
-        switch target {
-        case .external(let app):
-            injector.replaceSelection(
-                with: text, in: app, onDelivered: onDelivered, onFailed: onFailed)
-        case .note(let note):
-            guard core.notesCoordinator.editorInput == note.document,
-                note.editor.window?.isVisible == true,
-                note.editor.replaceUnchangedSelection(
-                    with: text, source: note.document.source, range: note.range)
-            else { onFailed(); return }
-            onDelivered()
-        }
+        injector.replaceSelection(with: text, in: app, onDelivered: onDelivered, onFailed: onFailed)
     }
 
     /// A failure the reader cannot see is a hotkey that silently did nothing.
@@ -346,47 +292,13 @@ final class QuickActionCoordinator {
         state.fail(error.localizedDescription)
     }
 
-    private func present(_ state: QuickActionPanelState, target: Target) {
+    private func present(_ state: QuickActionPanelState, in app: NSRunningApplication?) {
         panels.present(
             state,
             metrics: settings.interfaceSize.metrics,
-            languages: offeredLanguages,
-            onRetranslate: { [weak self] language in
-                state.targetLanguage = language
-                self?.rerun(state, target: target)
-            },
             onReplace: { [weak self] text in
-                self?.deliver(text, to: target, action: state.action)
+                self?.deliver(text, in: app, action: state.action)
             })
     }
 
-    private func rerun(_ state: QuickActionPanelState, target: Target) {
-        state.restart()
-        start { [weak self] in await self?.perform(state, target: target, previewing: true) }
-    }
-
-    private var targetLanguage: Locale.Language {
-        let stored = store.settings.targetLanguage
-        guard !stored.isEmpty else { return Locale.current.language }
-        return Locale.Language(identifier: stored)
-    }
-
-    /// Observed, not ignored: it arrives after the pane has painted, and the picker has to notice.
-    private(set) var offeredLanguages: [Locale.Language] = []
-    @ObservationIgnored private var languageLoad: Task<Void, Never>?
-
-    func loadLanguages() {
-        guard offeredLanguages.isEmpty, languageLoad == nil else { return }
-        languageLoad = Task { [weak self] in
-            let languages = await TextTranslator.supportedLanguages()
-            self?.offeredLanguages = languages
-        }
-    }
-}
-
-extension TextTranslator.Failure {
-    var needsDownload: Bool {
-        if case .notInstalled = self { return true }
-        return false
-    }
 }

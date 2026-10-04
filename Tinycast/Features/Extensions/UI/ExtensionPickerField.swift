@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// `Form.Dropdown` and `Form.TagPicker`: one control, typing and caret in the field itself.
 struct ExtensionPickerField: View {
@@ -78,64 +79,67 @@ struct ExtensionPickerField: View {
     }
 
     var body: some View {
-        control
-            .focusable()
-            .focused($focus, equals: index)
-            // The chrome draws the focused edge, so AppKit's blue ring would be a second one.
-            .focusEffectDisabled()
-            .extensionListPanel(
-                open: open, height: listHeight, revision: revision, flipped: $flipped
-            ) {
-                ExtensionPickerList(
-                    items: matches, selection: highlighted, chosen: Set(chosen),
-                    assetsPath: assetsPath, onSelect: { choose(at: $0) },
-                    onHighlight: { highlighted = $0 })
-            }
-            .onKeyPress(phases: [.down, .repeat]) { press in
-                guard !palette.menuOpen, !ExtensionFormKey.enterKeys.contains(press.key)
-                else { return .ignored }
-                switch ExtensionListKey(press: press, listOpen: open) {
-                case .openList: return openList()
-                case .moveUp: return move(-1)
-                case .moveDown: return move(1)
-                case .commit:
-                    choose(at: highlighted)
-                    return .handled
-                case .dismiss:
-                    close()
-                    return .handled
-                case .append(let characters):
-                    query += characters
-                    highlighted = 0
-                    return .handled
-                case .deleteBackward:
-                    guard !query.isEmpty else { return .handled }
-                    query.removeLast()
-                    highlighted = 0
-                    return .handled
-                case .stepValue(let delta): return step(delta)
-                case .ignored: return .ignored
+        WithPerceptionTracking {
+            control
+                .focusable()
+                .focused($focus, equals: index)
+                // The chrome draws the focused edge, so AppKit's blue ring would be a second one.
+                .focusRingHidden()
+                .extensionListPanel(
+                    open: open, height: listHeight, revision: revision, flipped: $flipped
+                ) {
+                    ExtensionPickerList(
+                        items: matches, selection: highlighted, chosen: Set(chosen),
+                        assetsPath: assetsPath, onSelect: { choose(at: $0) },
+                        onHighlight: { highlighted = $0 })
                 }
-            }
-            .modifier(
-                ExtensionFormKeys(
-                    field: allowsMultipleSelection ? .tagPicker : .dropdown,
-                    onActivate: {
-                        if open { choose(at: highlighted) } else { _ = openList() }
-                    },
-                    onSubmit: {
-                        close(); onSubmit()
-                    })
-            )
-            .onChange(of: open) { palette.noteControlListOpen(open) }
-            .onChange(of: query) { typedAt = Date() }
-            .onScrollVisibilityChange { if !$0 { close() } }
-            .onChange(of: palette.controlListDismissToken) { close() }
-            .onDisappear { if open { palette.noteControlListOpen(false) } }
-            .onChange(of: focus) { _, focus in
-                // Focus leaving the field takes its list with it.
-                if focus != index { close() }
-            }
+                .onKeyDown(isEnabled: isFocused) { press in
+                    guard !palette.menuOpen, !ExtensionFormKey.isEnter(press.key)
+                    else { return .ignored }
+                    switch ExtensionListKey(press: press, listOpen: open) {
+                    case .openList: return openList()
+                    case .moveUp: return move(-1)
+                    case .moveDown: return move(1)
+                    case .commit:
+                        choose(at: highlighted)
+                        return .handled
+                    case .dismiss:
+                        close()
+                        return .handled
+                    case .append(let characters):
+                        query += characters
+                        highlighted = 0
+                        return .handled
+                    case .deleteBackward:
+                        guard !query.isEmpty else { return .handled }
+                        query.removeLast()
+                        highlighted = 0
+                        return .handled
+                    case .stepValue(let delta): return step(delta)
+                    case .ignored: return .ignored
+                    }
+                }
+                .modifier(
+                    ExtensionFormKeys(
+                        field: allowsMultipleSelection ? .tagPicker : .dropdown,
+                        isFocused: isFocused,
+                        onActivate: {
+                            if open { choose(at: highlighted) } else { _ = openList() }
+                        },
+                        onSubmit: {
+                            close(); onSubmit()
+                        })
+                )
+                .onValueChange(of: open) { palette.noteControlListOpen(open) }
+                .onValueChange(of: query) { typedAt = Date() }
+                .onScrollVisibilityChanged { if !$0 { close() } }
+                .onValueChange(of: palette.controlListDismissToken) { close() }
+                .onDisappear { if open { palette.noteControlListOpen(false) } }
+                .onValueChange(of: focus) { _, focus in
+                    // Focus leaving the field takes its list with it.
+                    if focus != index { close() }
+                }
+        }
     }
 
     private var control: some View {
@@ -206,7 +210,7 @@ struct ExtensionPickerField: View {
             chosen: chosen, items: matches, assetsPath: assetsPath)
     }
 
-    private func openList() -> KeyPress.Result {
+    private func openList() -> KeyPressEvent.Result {
         guard !open else { return .handled }
         query = ""
         highlighted = items.firstIndex { chosen.contains($0.value) } ?? 0
@@ -220,7 +224,7 @@ struct ExtensionPickerField: View {
         query = ""
     }
 
-    private func move(_ delta: Int) -> KeyPress.Result {
+    private func move(_ delta: Int) -> KeyPressEvent.Result {
         let count = matches.count
         guard count > 0 else { return .handled }
         highlighted = min(max(highlighted + delta, 0), count - 1)
@@ -228,7 +232,7 @@ struct ExtensionPickerField: View {
     }
 
     /// Clamped rather than wrapping, so holding an arrow settles at an end like every other list.
-    private func step(_ delta: Int) -> KeyPress.Result {
+    private func step(_ delta: Int) -> KeyPressEvent.Result {
         guard !allowsMultipleSelection, !items.isEmpty else { return .ignored }
         let current = items.firstIndex { chosen.contains($0.value) } ?? 0
         let next = min(max(current + delta, 0), items.count - 1)

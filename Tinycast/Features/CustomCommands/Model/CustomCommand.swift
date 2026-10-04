@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// Values are passed positionally, so what the user types is never re-parsed by zsh.
 struct CustomCommandArgument: Codable, Hashable, Sendable {
@@ -141,13 +142,13 @@ enum CustomCommandValidationError: LocalizedError {
 }
 
 @MainActor
-@Observable
+@Perceptible
 final class CustomCommandStore {
     private static let defaultsKey = "customCommands"
 
     private let defaults: UserDefaults
     private(set) var commands: [CustomCommand]
-    @ObservationIgnored var onChange: (([CustomCommand]) -> Void)?
+    @PerceptionIgnored var onChange: (([CustomCommand]) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

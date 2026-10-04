@@ -1,6 +1,7 @@
 import AppKit
-import Synchronization
+import os
 import UniformTypeIdentifiers
+import Perception
 
 struct IconCacheGeneration {
     private(set) var value = 0
@@ -15,9 +16,9 @@ struct IconCacheGeneration {
     }
 }
 
-/// SwiftUI tracks any `@Observable` read in `body`, so carrying this in an id is the subscription.
+/// SwiftUI tracks any `@Perceptible` read in `body`, so carrying this in an id is the subscription.
 @MainActor
-@Observable
+@Perceptible
 final class IconStyleSignal {
     private(set) var generation = 0
 
@@ -109,7 +110,7 @@ enum IconCache {
         cache.totalCostLimit = 8 * 1024 * 1024
         return cache
     }()
-    private static let fittedGeneration = Mutex(IconCacheGeneration())
+    private static let fittedGeneration = OSAllocatedUnfairLock(initialState: IconCacheGeneration())
 
     /// Cache-only lookups (never decode) so a row can paint an already-warm icon on the same frame.
     static func cached(forFile path: String, stamp: Int = 0, size: IconSize? = nil) -> NSImage? {
@@ -123,7 +124,7 @@ enum IconCache {
     }
 
     /// Tiles rasterize off-main, where a dynamic `NSColor` resolves wrong, so carry the surface.
-    private static let darkSurface = Mutex(true)
+    private static let darkSurface = OSAllocatedUnfairLock(initialState: true)
 
     /// Only a real change invalidates: most `effectiveAppearance` notifications do not move it.
     @MainActor static func setDarkSurface(_ isDark: Bool) {
@@ -138,7 +139,7 @@ enum IconCache {
     @MainActor static let style = IconStyleSignal()
 
     /// The same count, readable off-main because every cache key carries it.
-    private static let styleGeneration = Mutex(0)
+    private static let styleGeneration = OSAllocatedUnfairLock(initialState: 0)
 
     /// For icons resolved synchronously in `body`: the read *is* the subscription, so not a no-op.
     @MainActor static func observeStyle() { _ = style.generation }
@@ -413,7 +414,8 @@ enum IconCache {
             }
         ).value
         guard let image = decoded.image, !Task.isCancelled else { return nil }
-        return fittedGeneration.withLock { current in
+        // `NSImage` is only `Sendable` from macOS 14; the published image is never mutated.
+        return fittedGeneration.withLockUnchecked { current in
             current.publish(image, capturedAt: generation) { image in
                 fittedCache.setObject(image, forKey: fittedKey(path), cost: decoded.cost)
             }

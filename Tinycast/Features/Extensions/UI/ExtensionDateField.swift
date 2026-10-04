@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// `Form.DatePicker`: presets plus an expression, typed into the control itself.
 struct ExtensionDateField: View {
@@ -46,63 +47,66 @@ struct ExtensionDateField: View {
     }
 
     var body: some View {
-        control
-            .focusable()
-            .focused($focus, equals: index)
-            .focusEffectDisabled()
-            .extensionListPanel(
-                open: open, height: listHeight, revision: revision, flipped: $flipped
-            ) {
-                let rows = suggestions
-                ExtensionPickerList(
-                    items: rows.map {
-                        ExtensionPickerItem(value: $0.title, title: $0.title, detail: $0.detail)
-                    },
-                    selection: highlighted, chosen: [], assetsPath: nil,
-                    onSelect: { choose(rows, at: $0) },
-                    onHighlight: { highlighted = $0 })
-            }
-            .onKeyPress(phases: [.down, .repeat]) { press in
-                guard !palette.menuOpen, !ExtensionFormKey.enterKeys.contains(press.key)
-                else { return .ignored }
-                switch ExtensionListKey(press: press, listOpen: open) {
-                case .openList: return openList()
-                case .moveUp: return move(-1)
-                case .moveDown: return move(1)
-                case .commit:
-                    choose(suggestions, at: highlighted)
-                    return .handled
-                case .dismiss:
-                    close()
-                    return .handled
-                case .append(let characters): return typed(characters)
-                case .deleteBackward:
-                    guard !query.isEmpty else { return .handled }
-                    query.removeLast()
-                    highlighted = 0
-                    return .handled
-                // A date has no value to step: its arrows belong to the list or to nothing.
-                case .stepValue, .ignored: return .ignored
+        WithPerceptionTracking {
+            control
+                .focusable()
+                .focused($focus, equals: index)
+                .focusRingHidden()
+                .extensionListPanel(
+                    open: open, height: listHeight, revision: revision, flipped: $flipped
+                ) {
+                    let rows = suggestions
+                    ExtensionPickerList(
+                        items: rows.map {
+                            ExtensionPickerItem(value: $0.title, title: $0.title, detail: $0.detail)
+                        },
+                        selection: highlighted, chosen: [], assetsPath: nil,
+                        onSelect: { choose(rows, at: $0) },
+                        onHighlight: { highlighted = $0 })
                 }
-            }
-            .modifier(
-                ExtensionFormKeys(
-                    field: .datePicker,
-                    onActivate: {
-                        if open { choose(suggestions, at: highlighted) } else { _ = openList() }
-                    },
-                    onSubmit: {
-                        close(); onSubmit()
-                    })
-            )
-            .onChange(of: open) { palette.noteControlListOpen(open) }
-            .onChange(of: query) { typedAt = Date() }
-            .onScrollVisibilityChange { if !$0 { close() } }
-            .onChange(of: palette.controlListDismissToken) { close() }
-            .onDisappear { if open { palette.noteControlListOpen(false) } }
-            .onChange(of: focus) { _, focus in
-                if focus != index { close() }
-            }
+                .onKeyDown(isEnabled: isFocused) { press in
+                    guard !palette.menuOpen, !ExtensionFormKey.isEnter(press.key)
+                    else { return .ignored }
+                    switch ExtensionListKey(press: press, listOpen: open) {
+                    case .openList: return openList()
+                    case .moveUp: return move(-1)
+                    case .moveDown: return move(1)
+                    case .commit:
+                        choose(suggestions, at: highlighted)
+                        return .handled
+                    case .dismiss:
+                        close()
+                        return .handled
+                    case .append(let characters): return typed(characters)
+                    case .deleteBackward:
+                        guard !query.isEmpty else { return .handled }
+                        query.removeLast()
+                        highlighted = 0
+                        return .handled
+                    // A date has no value to step: its arrows belong to the list or to nothing.
+                    case .stepValue, .ignored: return .ignored
+                    }
+                }
+                .modifier(
+                    ExtensionFormKeys(
+                        field: .datePicker,
+                        isFocused: isFocused,
+                        onActivate: {
+                            if open { choose(suggestions, at: highlighted) } else { _ = openList() }
+                        },
+                        onSubmit: {
+                            close(); onSubmit()
+                        })
+                )
+                .onValueChange(of: open) { palette.noteControlListOpen(open) }
+                .onValueChange(of: query) { typedAt = Date() }
+                .onScrollVisibilityChanged { if !$0 { close() } }
+                .onValueChange(of: palette.controlListDismissToken) { close() }
+                .onDisappear { if open { palette.noteControlListOpen(false) } }
+                .onValueChange(of: focus) { _, focus in
+                    if focus != index { close() }
+                }
+        }
     }
 
     private var control: some View {
@@ -155,13 +159,13 @@ struct ExtensionDateField: View {
         Revision(query: query, highlighted: highlighted, suggestions: suggestions)
     }
 
-    private func typed(_ characters: String) -> KeyPress.Result {
+    private func typed(_ characters: String) -> KeyPressEvent.Result {
         query += characters
         highlighted = 0
         return .handled
     }
 
-    private func openList() -> KeyPress.Result {
+    private func openList() -> KeyPressEvent.Result {
         guard !open else { return .handled }
         query = ""
         highlighted = 0
@@ -175,7 +179,7 @@ struct ExtensionDateField: View {
         query = ""
     }
 
-    private func move(_ delta: Int) -> KeyPress.Result {
+    private func move(_ delta: Int) -> KeyPressEvent.Result {
         let rows = suggestions.count
         guard rows > 0 else { return .handled }
         highlighted = min(max(highlighted + delta, 0), rows - 1)

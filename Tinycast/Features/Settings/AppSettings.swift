@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Delay before a closed palette pops to root; an unset key reads as `.immediately`.
 enum PopToRootTimeout: Int, CaseIterable, Identifiable, Sendable {
@@ -106,9 +107,9 @@ enum HideCurrentEvent: Int, CaseIterable, Identifiable, Sendable {
 }
 
 @MainActor
-@Observable
+@Perceptible
 final class AppSettings {
-    @ObservationIgnored private let defaults = UserDefaults.standard
+    @PerceptionIgnored private let defaults = UserDefaults.standard
     private typealias Key = AppSettingsKey
 
     /// What `AppIndex` scans, in scan order; editing it re-indexes, being observed.
@@ -306,58 +307,6 @@ final class AppSettings {
         }
     }
 
-    var notesEnabled: Bool {
-        didSet { defaults.set(notesEnabled, forKey: Key.notesEnabled.rawValue) }
-    }
-
-    var dictationEnabled: Bool {
-        didSet { defaults.set(dictationEnabled, forKey: Key.dictationEnabled.rawValue) }
-    }
-
-    var dictationMode: DictationMode {
-        didSet { defaults.set(dictationMode.rawValue, forKey: Key.dictationMode.rawValue) }
-    }
-
-    var dictationModel: DictationModel {
-        didSet { defaults.set(dictationModel.rawValue, forKey: Key.dictationModel.rawValue) }
-    }
-
-    /// Nil lets macOS follow the system input device as it changes.
-    var dictationMicrophone: String? {
-        didSet { defaults.set(dictationMicrophone, forKey: Key.dictationMicrophone.rawValue) }
-    }
-
-    var dictationDestination: DictationDestination {
-        didSet { defaults.set(dictationDestination.rawValue, forKey: Key.dictationDestination.rawValue) }
-    }
-
-    var dictationAdaptsCapitalization: Bool {
-        didSet {
-            defaults.set(dictationAdaptsCapitalization, forKey: Key.dictationAdaptsCapitalization.rawValue)
-        }
-    }
-
-    var dictationIdleRelease: DictationIdleRelease {
-        didSet { defaults.set(dictationIdleRelease.rawValue, forKey: Key.dictationIdleRelease.rawValue) }
-    }
-
-    var dictationLanguage: String? {
-        didSet { defaults.set(dictationLanguage, forKey: Key.dictationLanguage.rawValue) }
-    }
-
-    var notesRendersMarkdown: Bool {
-        didSet { defaults.set(notesRendersMarkdown, forKey: Key.notesRendersMarkdown.rawValue) }
-    }
-
-    var notesShowsFormattingBar: Bool {
-        didSet { defaults.set(notesShowsFormattingBar, forKey: Key.notesShowsFormattingBar.rawValue) }
-    }
-
-    /// The notes folder as the user wrote it, `~` allowed; nil keeps it in Application Support.
-    var notesFolder: String? {
-        didSet { defaults.set(notesFolder, forKey: Key.notesFolder.rawValue) }
-    }
-
     /// Off by default: connecting a server is consent to run code Tinycast did not write.
     var mcpEnabled: Bool {
         didSet { defaults.set(mcpEnabled, forKey: Key.mcpEnabled.rawValue) }
@@ -378,39 +327,9 @@ final class AppSettings {
         }
     }
 
-    /// Also keyword-expansion consent, so it confirms first and never rides a backup.
-    var snippetsEnabled: Bool {
-        didSet { defaults.set(snippetsEnabled, forKey: Key.snippetsEnabled.rawValue) }
-    }
-
     /// Off out of the box: on means Tinycast may read a selection anywhere and type over it.
     var quickActionsEnabled: Bool {
         didSet { defaults.set(quickActionsEnabled, forKey: Key.quickActionsEnabled.rawValue) }
-    }
-
-    var snippetsShowInLauncher: Bool {
-        didSet { defaults.set(snippetsShowInLauncher, forKey: Key.snippetsShowInLauncher.rawValue) }
-    }
-
-    /// The snippets folder as the user wrote it, `~` allowed; nil keeps it in Application Support.
-    var snippetsFolder: String? {
-        didSet { defaults.set(snippetsFolder, forKey: Key.snippetsFolder.rawValue) }
-    }
-
-    var navigationEnabled: Bool {
-        didSet { defaults.set(navigationEnabled, forKey: Key.navigationEnabled.rawValue) }
-    }
-
-    /// Bundle IDs whose menu bar Search Menu Bar Items refuses to read at all.
-    var menuSearchDisabledApps: [String] {
-        didSet { defaults.set(menuSearchDisabledApps, forKey: Key.menuSearchDisabledApps.rawValue) }
-    }
-
-    /// Off: the Apple menu is the same on every app, so it would only pad every snapshot.
-    var menuSearchShowsAppleMenu: Bool {
-        didSet {
-            defaults.set(menuSearchShowsAppleMenu, forKey: Key.menuSearchShowsAppleMenu.rawValue)
-        }
     }
 
     /// Consent to run third-party JavaScript: it confirms, defaults off, rides no backup.
@@ -473,11 +392,6 @@ final class AppSettings {
 
     var autoJoinConfirms: Bool {
         didSet { defaults.set(autoJoinConfirms, forKey: Key.autoJoinConfirms.rawValue) }
-    }
-
-    /// Doubles as camera consent, so only the Calendar pane's switch writes it.
-    var cameraPreview: Bool {
-        didSet { defaults.set(cameraPreview, forKey: Key.cameraPreview.rawValue) }
     }
 
     /// Nil opens meeting links in the default browser.
@@ -559,48 +473,9 @@ final class AppSettings {
         didSet { defaults.set(windowCycle.rawValue, forKey: Key.windowCycle.rawValue) }
     }
 
-    /// Off means fully off, down to a still-registered shortcut opening nothing.
-    var quicklinksEnabled: Bool {
-        didSet { defaults.set(quicklinksEnabled, forKey: Key.quicklinksEnabled.rawValue) }
-    }
-
-    var quicklinksShowInLauncher: Bool {
-        didSet {
-            defaults.set(quicklinksShowInLauncher, forKey: Key.quicklinksShowInLauncher.rawValue)
-        }
-    }
-
     /// Off means the Shortcuts tool is never run, down to a bound shortcut running nothing.
     var appleShortcutsEnabled: Bool {
         didSet { defaults.set(appleShortcutsEnabled, forKey: Key.appleShortcutsEnabled.rawValue) }
-    }
-
-    /// Ask for a new window rather than a tab; off is the macOS default.
-    var quicklinkOpensNewWindow: Bool {
-        didSet {
-            defaults.set(quicklinkOpensNewWindow, forKey: Key.quicklinkOpensNewWindow.rawValue)
-        }
-    }
-
-    /// What `{selection}` does when there is no readable selection to pass.
-    var quicklinkSelectionFallback: QuicklinkSelectionFallback {
-        didSet {
-            defaults.set(
-                quicklinkSelectionFallback.rawValue,
-                forKey: Key.quicklinkSelectionFallback.rawValue)
-        }
-    }
-
-    var quicklinkConfirmsBeforeDelete: Bool {
-        didSet {
-            defaults.set(
-                quicklinkConfirmsBeforeDelete, forKey: Key.quicklinkConfirmsBeforeDelete.rawValue)
-        }
-    }
-
-    /// Whether the support window may reopen itself; off means never ask again.
-    var supportRemindersEnabled: Bool {
-        didSet { defaults.set(supportRemindersEnabled, forKey: Key.supportReminders.rawValue) }
     }
 
     /// Whether settings.json mirrors these settings; `AppCore` starts and stops the mirror.
@@ -690,35 +565,6 @@ final class AppSettings {
             ?? FileSearchScope.defaultScopes
         fileSearchIgnorePatterns =
             defaults.stringArray(forKey: Key.fileSearchIgnorePatterns.rawValue) ?? []
-        notesEnabled = defaults.bool(forKey: Key.notesEnabled.rawValue)
-        dictationEnabled = defaults.bool(forKey: Key.dictationEnabled.rawValue)
-        dictationMode =
-            defaults.string(forKey: Key.dictationMode.rawValue)
-            .flatMap(DictationMode.init) ?? .toggle
-        dictationModel =
-            defaults.string(forKey: Key.dictationModel.rawValue)
-            .flatMap(DictationModel.init) ?? .redux
-        dictationMicrophone = defaults.string(forKey: Key.dictationMicrophone.rawValue)
-        dictationDestination =
-            defaults.string(forKey: Key.dictationDestination.rawValue)
-            .flatMap(DictationDestination.init) ?? .paste
-        dictationAdaptsCapitalization =
-            defaults.object(forKey: Key.dictationAdaptsCapitalization.rawValue) == nil
-            || defaults.bool(forKey: Key.dictationAdaptsCapitalization.rawValue)
-        dictationIdleRelease =
-            defaults.object(forKey: Key.dictationIdleRelease.rawValue)
-            .flatMap { $0 as? Int }
-            .flatMap(DictationIdleRelease.init(rawValue:)) ?? .oneMinute
-        dictationLanguage =
-            defaults.string(forKey: Key.dictationLanguage.rawValue)
-            .flatMap(DictationLanguage.init(rawValue:))?.rawValue
-        notesRendersMarkdown =
-            defaults.object(forKey: Key.notesRendersMarkdown.rawValue) == nil
-            || defaults.bool(forKey: Key.notesRendersMarkdown.rawValue)
-        notesShowsFormattingBar =
-            defaults.object(forKey: Key.notesShowsFormattingBar.rawValue) == nil
-            || defaults.bool(forKey: Key.notesShowsFormattingBar.rawValue)
-        notesFolder = defaults.string(forKey: Key.notesFolder.rawValue)
         aiEnabled = defaults.bool(forKey: Key.aiEnabled.rawValue)
         mcpEnabled = defaults.bool(forKey: Key.mcpEnabled.rawValue)
         customCommandsEnabled = defaults.bool(forKey: Key.customCommandsEnabled.rawValue)
@@ -726,12 +572,7 @@ final class AppSettings {
         customCommandsShowInLauncher =
             defaults.object(forKey: Key.customCommandsShowInLauncher.rawValue) == nil
             || defaults.bool(forKey: Key.customCommandsShowInLauncher.rawValue)
-        snippetsEnabled = defaults.bool(forKey: Key.snippetsEnabled.rawValue)
         quickActionsEnabled = defaults.bool(forKey: Key.quickActionsEnabled.rawValue)
-        snippetsShowInLauncher =
-            defaults.object(forKey: Key.snippetsShowInLauncher.rawValue) == nil
-            || defaults.bool(forKey: Key.snippetsShowInLauncher.rawValue)
-        snippetsFolder = defaults.string(forKey: Key.snippetsFolder.rawValue)
         // Opt-in, unlike its siblings: until it is asked for, nothing about extensions is loaded.
         extensionsEnabled = defaults.bool(forKey: Key.extensionsEnabled.rawValue)
         extensionsShowInLauncher =
@@ -761,7 +602,6 @@ final class AppSettings {
         autoJoinConfirms =
             defaults.object(forKey: Key.autoJoinConfirms.rawValue) == nil
             || defaults.bool(forKey: Key.autoJoinConfirms.rawValue)
-        cameraPreview = defaults.bool(forKey: Key.cameraPreview.rawValue)
         meetingBrowserBundleID = defaults.string(forKey: Key.meetingBrowser.rawValue)
         // Both default to their zero case, so an unset key needs no presence check.
         menuBarEvents =
@@ -779,10 +619,6 @@ final class AppSettings {
             defaults.object(forKey: Key.hideCurrentEvent.rawValue)
             .flatMap { $0 as? Int }
             .flatMap(HideCurrentEvent.init(rawValue:)) ?? .dontHide
-        navigationEnabled = defaults.bool(forKey: Key.navigationEnabled.rawValue)
-        menuSearchDisabledApps =
-            defaults.stringArray(forKey: Key.menuSearchDisabledApps.rawValue) ?? []
-        menuSearchShowsAppleMenu = defaults.bool(forKey: Key.menuSearchShowsAppleMenu.rawValue)
         windowManagementEnabled = defaults.bool(forKey: Key.windowManagementEnabled.rawValue)
         windowManagementShowInLauncher =
             defaults.object(forKey: Key.windowManagementShowInLauncher.rawValue) == nil
@@ -797,21 +633,7 @@ final class AppSettings {
         windowRoomsShowInLauncher =
             defaults.object(forKey: Key.windowRoomsShowInLauncher.rawValue) == nil
             || defaults.bool(forKey: Key.windowRoomsShowInLauncher.rawValue)
-        quicklinksEnabled = defaults.bool(forKey: Key.quicklinksEnabled.rawValue)
-        quicklinksShowInLauncher =
-            defaults.object(forKey: Key.quicklinksShowInLauncher.rawValue) == nil
-            || defaults.bool(forKey: Key.quicklinksShowInLauncher.rawValue)
         appleShortcutsEnabled = defaults.bool(forKey: Key.appleShortcutsEnabled.rawValue)
-        quicklinkOpensNewWindow = defaults.bool(forKey: Key.quicklinkOpensNewWindow.rawValue)
-        quicklinkSelectionFallback =
-            defaults.string(forKey: Key.quicklinkSelectionFallback.rawValue)
-            .flatMap(QuicklinkSelectionFallback.init) ?? .ask
-        quicklinkConfirmsBeforeDelete =
-            defaults.object(forKey: Key.quicklinkConfirmsBeforeDelete.rawValue) == nil
-            || defaults.bool(forKey: Key.quicklinkConfirmsBeforeDelete.rawValue)
-        supportRemindersEnabled =
-            defaults.object(forKey: Key.supportReminders.rawValue) == nil
-            || defaults.bool(forKey: Key.supportReminders.rawValue)
         settingsFileEnabled = defaults.bool(forKey: Key.settingsFileEnabled.rawValue)
     }
 }

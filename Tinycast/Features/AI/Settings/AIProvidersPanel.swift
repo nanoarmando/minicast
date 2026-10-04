@@ -1,15 +1,14 @@
 import AppKit
 import SwiftUI
+import Perception
 
-/// One entry of the Providers list: the on-device model, an installed command, or an API connection.
+/// One entry of the Providers list: an installed command or an API connection.
 enum AIProviderRoute: Hashable {
-    case appleIntelligence
     case installed(InstalledAIKind)
     case api(UUID)
 
     var source: AIModelSource {
         switch self {
-        case .appleIntelligence: return .appleIntelligence
         case .installed(let kind): return kind.source
         case .api(let id): return .api(id)
         }
@@ -34,7 +33,6 @@ enum AIProviderTab: String, CaseIterable, Identifiable {
 
     static func tabs(for route: AIProviderRoute) -> [AIProviderTab] {
         switch route {
-        case .appleIntelligence: return [.overview]
         case .installed: return [.overview, .models, .advanced]
         case .api: return [.overview, .models]
         }
@@ -62,64 +60,66 @@ struct AIProvidersPanel: View {
     private let keyStore = KeychainSecretStore.aiAPIKeys
 
     var body: some View {
-        VStack(spacing: 0) {
-            SettingsEditorHeader(
-                title: "AI Providers",
-                subtitle: "Installed tools, API connections, and the models each one offers."
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Theme.Spacing.dialogInset)
-            .padding(.top, Theme.Spacing.dialogInset)
-            .padding(.bottom, Theme.Spacing.xl)
-            Divider()
-            HStack(spacing: 0) {
-                list
-                    .frame(width: Theme.Size.aiProvidersList)
+        WithPerceptionTracking {
+            VStack(spacing: 0) {
+                SettingsEditorHeader(
+                    title: "AI Providers",
+                    subtitle: "Installed tools, API connections, and the models each one offers."
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Theme.Spacing.dialogInset)
+                .padding(.top, Theme.Spacing.dialogInset)
+                .padding(.bottom, Theme.Spacing.xl)
                 Divider()
-                detail
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 0) {
+                    list
+                        .frame(width: Theme.Size.aiProvidersList)
+                    Divider()
+                    detail
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                // Stated, never intrinsic: selecting a longer provider must not resize the panel.
+                .frame(height: Theme.Size.aiProvidersPanel.height)
+                Divider()
+                HStack {
+                    Spacer(minLength: 0)
+                    Button("Done", action: onDone)
+                        .buttonStyle(.modalAction(.primary, fillsWidth: false))
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, Theme.Spacing.xxl)
+                .padding(.vertical, Theme.Spacing.xl)
             }
-            // Stated, never intrinsic: selecting a longer provider must not resize the panel.
-            .frame(height: Theme.Size.aiProvidersPanel.height)
-            Divider()
-            HStack {
-                Spacer(minLength: 0)
-                Button("Done", action: onDone)
-                    .buttonStyle(.modalAction(.primary, fillsWidth: false))
-                    .keyboardShortcut(.defaultAction)
+            .frame(width: Theme.Size.aiProvidersPanel.width)
+            .settingsEditorPanelSurface(controlsOnGlass: false)
+            .releasesFocusOnOutsideClick()
+            .settingsEditorPanel(item: $editor) { target in
+                AIConnectionEditorPanel(
+                    target: target,
+                    onSave: saveConnection,
+                    onCancel: { editor = nil })
             }
-            .padding(.horizontal, Theme.Spacing.xxl)
-            .padding(.vertical, Theme.Spacing.xl)
-        }
-        .frame(width: Theme.Size.aiProvidersPanel.width)
-        .settingsEditorPanelSurface(controlsOnGlass: false)
-        .releasesFocusOnOutsideClick()
-        .settingsEditorPanel(item: $editor) { target in
-            AIConnectionEditorPanel(
-                target: target,
-                onSave: saveConnection,
-                onCancel: { editor = nil })
-        }
-        .confirmationDialog(
-            pendingRemoval.map { "Remove “\($0.title)”?" } ?? "Remove connection?",
-            isPresented: removalPresented,
-            titleVisibility: .visible
-        ) {
-            Button("Remove Connection", role: .destructive) {
-                if let pendingRemoval { removeConnection(pendingRemoval) }
+            .confirmationDialog(
+                pendingRemoval.map { "Remove “\($0.title)”?" } ?? "Remove connection?",
+                isPresented: removalPresented,
+                titleVisibility: .visible
+            ) {
+                Button("Remove Connection", role: .destructive) {
+                    if let pendingRemoval { removeConnection(pendingRemoval) }
+                }
+                Button("Cancel", role: .cancel) { pendingRemoval = nil }
+            } message: {
+                Text("Its saved API key will also be deleted from Keychain.")
             }
-            Button("Cancel", role: .cancel) { pendingRemoval = nil }
-        } message: {
-            Text("Its saved API key will also be deleted from Keychain.")
-        }
-        .onAppear {
-            selection = selection ?? initialSelection
-            loadKeyStatuses()
-            core.applyInstalledAILifecycle()
-        }
-        .onChange(of: selection) { modelQuery = "" }
-        .onChange(of: settings.connections.map(\.id)) { _, ids in
-            if case .api(let id) = selection, !ids.contains(id) { selection = .installed(.codex) }
+            .onAppear {
+                selection = selection ?? initialSelection
+                loadKeyStatuses()
+                core.applyInstalledAILifecycle()
+            }
+            .onValueChange(of: selection) { modelQuery = "" }
+            .onValueChange(of: settings.connections.map(\.id)) { _, ids in
+                if case .api(let id) = selection, !ids.contains(id) { selection = .installed(.codex) }
+            }
         }
     }
 
@@ -128,19 +128,17 @@ struct AIProvidersPanel: View {
     private var list: some View {
         VStack(spacing: 0) {
             List(selection: $selection) {
-                Section("On This Mac") {
-                    listRow(.appleIntelligence)
-                }
-                Section("Installed") {
-                    ForEach(InstalledAIKind.allCases) { listRow(.installed($0)) }
-                }
-                Section("API Connections") {
-                    if settings.connections.isEmpty {
-                        Text("None yet")
-                            .foregroundStyle(.secondary)
-                            .selectionDisabled()
+                WithPerceptionTracking {
+                    Section("Installed") {
+                        ForEach(InstalledAIKind.allCases) { listRow(.installed($0)) }
                     }
-                    ForEach(settings.connections) { listRow(.api($0.id)) }
+                    Section("API Connections") {
+                        if settings.connections.isEmpty {
+                            Text("None yet")
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(settings.connections) { listRow(.api($0.id)) }
+                    }
                 }
             }
             .listStyle(.sidebar)
@@ -206,8 +204,6 @@ struct AIProvidersPanel: View {
     @ViewBuilder
     private var detail: some View {
         switch selection {
-        case .appleIntelligence?:
-            detailForm(.appleIntelligence) { _ in appleIntelligenceSections }
         case .installed(let kind)?:
             detailForm(.installed(kind)) { installedSections(kind, tab: $0) }
         case .api(let id)?:
@@ -215,7 +211,7 @@ struct AIProvidersPanel: View {
                 detailForm(.api(id)) { connectionSections(connection, tab: $0) }
             }
         case nil:
-            ContentUnavailableView("Select a provider", systemImage: "sparkles")
+            EmptyStateView(title: "Select a provider", systemImage: "sparkles")
         }
     }
 
@@ -271,36 +267,8 @@ struct AIProvidersPanel: View {
                 if let connection = settings.connection(id: id) {
                     Button("Edit…") { edit(connection) }
                 }
-            case .appleIntelligence:
-                EmptyView()
             }
             routeToggle(route)
-        }
-    }
-
-    // MARK: On this Mac
-
-    @ViewBuilder
-    private var appleIntelligenceSections: some View {
-        let available = settings.isAppleIntelligenceAvailable()
-        if !settings.isRouteEnabled(.appleIntelligence) { turnedOffSection() }
-        Section {
-            LabeledContent {
-                Text(available ? "Ready" : "Unavailable")
-                    .foregroundStyle(.secondary)
-            } label: {
-                Text(AppleIntelligence.title)
-                Text(
-                    available
-                        ? "Runs on this Mac. Nothing leaves it."
-                        : AppleIntelligenceProvider.status().message ?? "Not available on this Mac.")
-            }
-        } header: {
-            Text("Status")
-        } footer: {
-            Text("Choose the default model on the AI pane.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -652,7 +620,6 @@ struct AIProvidersPanel: View {
 
     private func title(for route: AIProviderRoute) -> String {
         switch route {
-        case .appleIntelligence: return AppleIntelligence.title
         case .installed(let kind): return kind.title
         case .api(let id): return settings.connection(id: id)?.title ?? "API Connection"
         }
@@ -660,7 +627,6 @@ struct AIProvidersPanel: View {
 
     private func kindCaption(for route: AIProviderRoute) -> String {
         switch route {
-        case .appleIntelligence: return "On this Mac · No account needed"
         case .installed(let kind): return "Installed command · \(kind.command)"
         case .api(let id):
             return "API connection · " + (settings.connection(id: id)?.provider.title ?? "")
@@ -670,9 +636,6 @@ struct AIProvidersPanel: View {
     /// The one line a reader scans the list for: is it usable, and if not, why.
     private func caption(for route: AIProviderRoute) -> String {
         switch route {
-        case .appleIntelligence:
-            guard settings.isRouteEnabled(.appleIntelligence) else { return "Off" }
-            return settings.isAppleIntelligenceAvailable() ? "Ready · Runs on this Mac" : "Unavailable"
         case .installed(let kind):
             guard settings.enabledInstalledProviders.contains(kind) else { return "Off" }
             return kind == .codex ? codexCaption : installedCaption(kind)
@@ -712,7 +675,6 @@ struct AIProvidersPanel: View {
 
     private func icon(for route: AIProviderRoute) -> PopoverMenuIcon {
         switch route {
-        case .appleIntelligence: return AIModelOption.appleIntelligenceIcon
         case .installed(.codex): return .asset(AIBrand.openAI.assetName)
         case .installed(.claude): return .asset(AIBrand.claude.assetName)
         case .installed(.grok): return .asset(AIBrand.grok.assetName)
@@ -736,7 +698,6 @@ struct AIProvidersPanel: View {
     /// Opens on whichever route the default model uses, since that is the one most often checked.
     private var initialSelection: AIProviderRoute {
         switch settings.defaultModel?.source {
-        case .appleIntelligence?: return .appleIntelligence
         case .api(let id)?: return .api(id)
         case let source?:
             return source.installedKind.map(AIProviderRoute.installed) ?? .installed(.codex)
@@ -861,20 +822,22 @@ private struct AIProviderTile: View {
     var size = Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2
 
     var body: some View {
-        let scale = size / (Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2)
-        glyph
-            .frame(
-                width: Theme.Size.settingsSidebarGlyph * scale,
-                height: Theme.Size.settingsSidebarGlyph * scale
-            )
-            .foregroundStyle(.primary)
-            .padding(Theme.Spacing.xs * scale)
-            .background(
-                Theme.Colors.controlSurface,
-                in: RoundedRectangle(
-                    cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous)
-            )
-            .accessibilityHidden(true)
+        WithPerceptionTracking {
+            let scale = size / (Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2)
+            glyph
+                .frame(
+                    width: Theme.Size.settingsSidebarGlyph * scale,
+                    height: Theme.Size.settingsSidebarGlyph * scale
+                )
+                .foregroundStyle(.primary)
+                .padding(Theme.Spacing.xs * scale)
+                .background(
+                    Theme.Colors.controlSurface,
+                    in: RoundedRectangle(
+                        cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous)
+                )
+                .accessibilityHidden(true)
+        }
     }
 
     @ViewBuilder

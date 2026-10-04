@@ -1,30 +1,33 @@
 import SwiftUI
+import Perception
 
 /// The draft the New Event dialog edits; reference semantics are what let the caller read it back.
 @MainActor
-@Observable
+@Perceptible
 final class EventDraftState {
     var draft = EventDraft()
 }
 
 struct EventDraftFields: View {
     @Environment(\.metrics) private var metrics
-    @Bindable var state: EventDraftState
+    @Perception.Bindable var state: EventDraftState
     @FocusState private var focused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.xl) {
-            TextField("", text: $state.draft.title, prompt: Text("Event title"))
-                .focused($focused)
-                .dialogTextField()
-            ChoiceRow(
-                label: "Starts", values: EventDraft.startOffsets,
-                title: EventDraft.label(startOffset:), selection: $state.draft.startOffsetMinutes)
-            ChoiceRow(
-                label: "For", values: EventDraft.durations, title: EventDraft.label(duration:),
-                selection: $state.draft.durationMinutes)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.xl) {
+                TextField("", text: $state.draft.title, prompt: Text("Event title"))
+                    .focused($focused)
+                    .dialogTextField()
+                ChoiceRow(
+                    label: "Starts", values: EventDraft.startOffsets,
+                    title: EventDraft.label(startOffset:), selection: $state.draft.startOffsetMinutes)
+                ChoiceRow(
+                    label: "For", values: EventDraft.durations, title: EventDraft.label(duration:),
+                    selection: $state.draft.durationMinutes)
+            }
+            .onAppear { focused = true }
         }
-        .onAppear { focused = true }
     }
 }
 
@@ -37,42 +40,44 @@ private struct ChoiceRow: View {
     @State private var hoveredValue: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            Text(label)
-                .font(metrics.typography.rowTrailing)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .fixedSize()
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                Text(label)
+                    .font(metrics.typography.rowTrailing)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .fixedSize()
 
-            HStack(spacing: 0) {
-                ForEach(values, id: \.self) { value in
-                    Button {
-                        selection = value
-                    } label: {
-                        Text(title(value))
-                            .font(metrics.typography.rowTrailing)
-                            .foregroundStyle(
-                                selection == value
-                                    ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
-                            )
-                            .frame(maxWidth: .infinity)
-                            .frame(height: metrics.size.dialogButtonHeight)
-                            .contentShape(Rectangle())
-                            .background(
-                                RoundedRectangle(
-                                    cornerRadius: metrics.radius.row, style: .continuous
+                HStack(spacing: 0) {
+                    ForEach(values, id: \.self) { value in
+                        Button {
+                            selection = value
+                        } label: {
+                            Text(title(value))
+                                .font(metrics.typography.rowTrailing)
+                                .foregroundStyle(
+                                    selection == value
+                                        ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
                                 )
-                                .fill(fill(for: value)))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: metrics.size.dialogButtonHeight)
+                                .contentShape(Rectangle())
+                                .background(
+                                    RoundedRectangle(
+                                        cornerRadius: metrics.radius.row, style: .continuous
+                                    )
+                                    .fill(fill(for: value)))
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hoveredValue = $0 ? value : nil }
+                        .accessibilityLabel(title(value))
+                        .accessibilityAddTraits(
+                            selection == value ? [.isButton, .isSelected] : .isButton)
                     }
-                    .buttonStyle(.plain)
-                    .onHover { hoveredValue = $0 ? value : nil }
-                    .accessibilityLabel(title(value))
-                    .accessibilityAddTraits(
-                        selection == value ? [.isButton, .isSelected] : .isButton)
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
+                        .fill(Theme.Colors.controlSurface))
             }
-            .background(
-                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
-                    .fill(Theme.Colors.controlSurface))
         }
     }
 

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// Launcher items as a table in one `Form` row, reusing a screenful of hosted rows as it scrolls.
 struct LauncherItemsTable: NSViewRepresentable {
@@ -234,26 +235,30 @@ private struct LauncherItemCell: View {
     var onTab: @MainActor () -> Bool = { false }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Divider().opacity(showsDivider ? 1 : 0)
-            LauncherItemRow(entry: entry)
-                // Rows are separate hosting views; the key view loop doesn't run from one to the next.
-                .onKeyPress(.tab, phases: .down) { press in
-                    !press.modifiers.contains(.shift) && onTab() ? .handled : .ignored
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .disabled(!isEnabled)
-        // The recorder's anchor can't leave this hosting view; its bounds go out by hand.
-        .overlayPreferenceValue(ShortcutRecorderAnchorKey.self) { anchor in
-            GeometryReader { proxy in
-                Color.clear.onChange(of: anchor.map { proxy[$0] }, initial: true) { _, frame in
-                    onRecorderFrame(frame)
+        WithPerceptionTracking {
+            VStack(spacing: 0) {
+                Divider().opacity(showsDivider ? 1 : 0)
+                LauncherItemRow(entry: entry)
+                    // Rows are separate hosting views; the key view loop doesn't run from one to the next.
+                    .onKeyDown(keys: [.tab], phases: .down) { press in
+                        !press.modifiers.contains(.shift) && onTab() ? .handled : .ignored
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .disabled(!isEnabled)
+            // The recorder's anchor can't leave this hosting view; its bounds go out by hand.
+            .overlayPreferenceValue(ShortcutRecorderAnchorKey.self) { anchor in
+                GeometryReader { proxy in
+                    WithPerceptionTracking {
+                        Color.clear.onValueChange(of: anchor.map { proxy[$0] }, initial: true) { _, frame in
+                            onRecorderFrame(frame)
+                        }
+                    }
                 }
             }
+            .environment(visibility)
+            .environment(aliases)
+            .environment(hotKeys)
         }
-        .environment(visibility)
-        .environment(aliases)
-        .environment(hotKeys)
     }
 }

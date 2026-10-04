@@ -1,7 +1,8 @@
 import Foundation
+import Perception
 
 @MainActor
-@Observable
+@Perceptible
 final class FileSearchSession {
     typealias SearchOperation =
         @Sendable (String, FileSearchFilter, FileSearchPolicy) async throws -> [FileSearchResult]
@@ -18,12 +19,12 @@ final class FileSearchSession {
     /// The published search: the filter belongs to it, so narrowing re-runs the same words.
     private var request: Request?
     private var revision = 0
-    @ObservationIgnored private var pendingSearch: PendingSearch?
-    @ObservationIgnored private var workerTask: Task<Void, Never>?
-    @ObservationIgnored private let homeDirectory: URL
-    @ObservationIgnored private var policy: FileSearchPolicy
-    @ObservationIgnored private let debounce: Duration
-    @ObservationIgnored private let searchOperation: SearchOperation
+    @PerceptionIgnored private var pendingSearch: PendingSearch?
+    @PerceptionIgnored private var workerTask: Task<Void, Never>?
+    @PerceptionIgnored private let homeDirectory: URL
+    @PerceptionIgnored private var policy: FileSearchPolicy
+    @PerceptionIgnored private let debounce: Duration
+    @PerceptionIgnored private let searchOperation: SearchOperation
 
     private struct Request: Equatable {
         let query: String

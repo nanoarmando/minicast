@@ -1,8 +1,8 @@
-import Observation
+import Perception
 
 /// Not on `AppCore`: one window's session, released in `windowWillClose` so history never survives.
 @MainActor
-@Observable
+@Perceptible
 final class SettingsNavigationState {
     private var history: SettingsHistory
     private var requests = 0

@@ -1,9 +1,10 @@
 import CoreGraphics
 import Foundation
+import Perception
 
 /// One in-flight edit of a layout. Owned by the editor sheet and gone when it closes.
 @MainActor
-@Observable
+@Perceptible
 final class WindowLayoutDraft {
     /// What the editor's steppers allow; the model itself accepts any fraction in 0…1.
     static let percentRange: ClosedRange<Int> = 5...100

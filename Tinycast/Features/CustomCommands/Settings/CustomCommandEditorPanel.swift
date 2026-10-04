@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// Add / edit panel for a single custom command, presented from the Commands pane.
 struct CustomCommandEditorPanel: View {
@@ -43,72 +44,74 @@ struct CustomCommandEditorPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-            SettingsEditorHeader(
-                title: command == nil ? "Add Custom Command" : "Edit Custom Command")
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                SettingsEditorHeader(
+                    title: command == nil ? "Add Custom Command" : "Edit Custom Command")
 
-            HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Text("Name")
-                        .font(.callout.weight(.medium))
-                    TextField("Sleep Displays", text: $name)
-                        .settingsEditorTextField()
+                HStack(alignment: .bottom, spacing: Theme.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Name")
+                            .font(.callout.weight(.medium))
+                        TextField("Sleep Displays", text: $name)
+                            .settingsEditorTextField()
+                    }
+                    iconField
                 }
-                iconField
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text("Command")
+                        .font(.callout.weight(.medium))
+                    TextEditor(text: $shellCommand)
+                        .font(.body.monospaced())
+                        .settingsEditorTextArea(height: Theme.Size.editorTextHeight)
+                }
+
+                Text("Example: /usr/bin/pmset displaysleepnow")
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+
+                workingDirectoryField
+
+                argumentsSection
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                    optionToggle(
+                        "Load shell environment", isOn: $loadsShellEnvironment,
+                        detail: "Resolves aliases, functions and PATH. Slower to start.")
+                    optionToggle(
+                        "Needs confirmation", isOn: $requiresConfirmation,
+                        detail: "Ask before running this command.")
+                    optionToggle(
+                        "Show confirmation", isOn: $showsConfirmation,
+                        detail: "Confirm on screen after the command succeeds.")
+                    optionToggle(
+                        "Show output", isOn: $showsOutput,
+                        detail: "Open a window with everything the command printed when it finishes.")
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                HStack(spacing: Theme.Spacing.md) {
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(.modalAction(.cancel))
+                        .keyboardShortcut(.cancelAction)
+                    Button("Save", action: save)
+                        .buttonStyle(.modalAction(.primary))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(
+                            name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                || shellCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("Command")
-                    .font(.callout.weight(.medium))
-                TextEditor(text: $shellCommand)
-                    .font(.body.monospaced())
-                    .settingsEditorTextArea(height: Theme.Size.editorTextHeight)
-            }
-
-            Text("Example: /usr/bin/pmset displaysleepnow")
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-
-            workingDirectoryField
-
-            argumentsSection
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                optionToggle(
-                    "Load shell environment", isOn: $loadsShellEnvironment,
-                    detail: "Resolves aliases, functions and PATH. Slower to start.")
-                optionToggle(
-                    "Needs confirmation", isOn: $requiresConfirmation,
-                    detail: "Ask before running this command.")
-                optionToggle(
-                    "Show confirmation", isOn: $showsConfirmation,
-                    detail: "Confirm on screen after the command succeeds.")
-                optionToggle(
-                    "Show output", isOn: $showsOutput,
-                    detail: "Open a window with everything the command printed when it finishes.")
-            }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-
-            HStack(spacing: Theme.Spacing.md) {
-                Button("Cancel") { dismiss() }
-                    .buttonStyle(.modalAction(.cancel))
-                    .keyboardShortcut(.cancelAction)
-                Button("Save", action: save)
-                    .buttonStyle(.modalAction(.primary))
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(
-                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || shellCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            .padding(Theme.Spacing.dialogInset)
+            .frame(width: Theme.Size.editorSheetWidth)
+            .settingsEditorPanelSurface()
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: Theme.Size.editorSheetWidth)
-        .settingsEditorPanelSurface()
     }
 
     private static let iconSymbols = [
@@ -136,11 +139,13 @@ struct CustomCommandEditorPanel: View {
                 .frame(width: Self.iconFieldWidth)
             }
             .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
-                SymbolPicker(
-                    selection: $iconSymbol, fallback: CustomCommand.sfSymbol,
-                    symbols: Self.iconSymbols
-                ) {
-                    showingIconPicker = false
+                WithPerceptionTracking {
+                    SymbolPicker(
+                        selection: $iconSymbol, fallback: CustomCommand.sfSymbol,
+                        symbols: Self.iconSymbols
+                    ) {
+                        showingIconPicker = false
+                    }
                 }
             }
         }

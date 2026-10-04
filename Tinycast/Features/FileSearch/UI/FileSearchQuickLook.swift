@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Quick Look inside the panel: a system preview window would take key and close the palette.
 struct FileSearchQuickLook: View {
@@ -12,12 +13,14 @@ struct FileSearchQuickLook: View {
     private var surfaceRadius: CGFloat { cardRadius - metrics.spacing.md }
 
     var body: some View {
-        ZStack {
-            // Only the margin dismisses: a tap over the preview belongs to its own transport.
-            Color.black.opacity(0.001)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onClose)
-            card
+        WithPerceptionTracking {
+            ZStack {
+                // Only the margin dismisses: a tap over the preview belongs to its own transport.
+                Color.black.opacity(0.001)
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onClose)
+                card
+            }
         }
     }
 

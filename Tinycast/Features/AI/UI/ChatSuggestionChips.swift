@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// A reply's choices as the next thing to say: glass capsules that send themselves.
 struct ChatSuggestionChips: View {
@@ -7,31 +8,32 @@ struct ChatSuggestionChips: View {
     let onChoose: (String) -> Void
 
     var body: some View {
-        ChatFlowLayout(spacing: metrics.spacing.sm) {
-            ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
-                Button {
-                    onChoose(choice)
-                } label: {
-                    HStack(spacing: metrics.spacing.sm) {
-                        Image(systemName: "arrow.turn.down.right")
-                            .font(metrics.typography.keyCap)
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                        Text(choice)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+        WithPerceptionTracking {
+            ChatFlowLayout(spacing: metrics.spacing.sm) {
+                ForEach(Array(choices.enumerated()), id: \.offset) { _, choice in
+                    Button {
+                        onChoose(choice)
+                    } label: {
+                        HStack(spacing: metrics.spacing.sm) {
+                            Image(systemName: "arrow.turn.down.right")
+                                .font(metrics.typography.keyCap)
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                            Text(choice)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                        .font(metrics.typography.rowTrailing)
+                        .padding(.horizontal, metrics.spacing.xs)
+                        .padding(.vertical, metrics.spacing.xxs)
                     }
-                    .font(metrics.typography.rowTrailing)
-                    .padding(.horizontal, metrics.spacing.xs)
-                    .padding(.vertical, metrics.spacing.xxs)
+                    .buttonStyle(.bordered)
+                    .help("Reply “\(choice)”")
+                    .accessibilityLabel("Reply: \(choice)")
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.capsule)
-                .help("Reply “\(choice)”")
-                .accessibilityLabel("Reply: \(choice)")
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Suggested replies")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Suggested replies")
     }
 }
 

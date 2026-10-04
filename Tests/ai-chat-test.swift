@@ -1607,7 +1607,7 @@ extension AIChatTests {
         let inline = ChatChoices.split("Say ```choices``` to me")
         expect(inline.choices.isEmpty, "a fence mid-line is prose, not choices")
 
-        // What Apple Intelligence wrote: no fence, a `choices` line over a list.
+        // What a model wrote without a fence, a `choices` line over a list.
         let unfenced = ChatChoices.split(
             "Here are a few ways I can help:\n\n* Open it\n\nchoices\n\n- Open Quick AI\n- Open AI Chat\n")
         expect(

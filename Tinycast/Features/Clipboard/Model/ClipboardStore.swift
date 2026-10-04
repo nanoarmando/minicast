@@ -1,5 +1,6 @@
 import Foundation
 import SQLite3
+import Perception
 
 // Spelled as the C macro in sqlite3.h, which isn't imported into Swift.
 private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
@@ -169,7 +170,7 @@ enum ClipboardChord: CaseIterable, Sendable {
 
 /// SQLite-backed clipboard history. See docs/features/clipboard.md#store.
 @MainActor
-@Observable
+@Perceptible
 final class ClipboardStore {
     /// Newest-first with pins in place, every pin resident. docs/features/clipboard.md
     private(set) var items: [ClipboardItem] = [] {
@@ -182,28 +183,28 @@ final class ClipboardStore {
             onItemsChanged?()
         }
     }
-    @ObservationIgnored var onItemsChanged: (() -> Void)?
-    @ObservationIgnored var onSearchResultsChanged: ((String, [ClipboardItem], [ClipboardItem]) -> Void)?
+    @PerceptionIgnored var onItemsChanged: (() -> Void)?
+    @PerceptionIgnored var onSearchResultsChanged: ((String, [ClipboardItem], [ClipboardItem]) -> Void)?
     /// Rotated whenever the history is replaced, so a helper's late answer lands on nothing.
-    @ObservationIgnored private(set) var extractionGeneration = UUID()
+    @PerceptionIgnored private(set) var extractionGeneration = UUID()
     /// The only thing a view observes for search freshness; `items` cannot speak for OCR.
     private var searchRevision = 0
-    @ObservationIgnored private(set) var textSearchEnabled = false
-    @ObservationIgnored private var textSearchActive = true
-    @ObservationIgnored private var textSearchTask: Task<Void, Never>?
-    @ObservationIgnored private var textSearchNeedsRefresh = false
-    @ObservationIgnored private var textSearchQuery: String?
-    @ObservationIgnored private var textSearchFilter: ClipboardFilter?
-    @ObservationIgnored private var textSearchRequest: UUID?
-    @ObservationIgnored private var textSearchMatches: [ClipboardItem] = []
+    @PerceptionIgnored private(set) var textSearchEnabled = false
+    @PerceptionIgnored private var textSearchActive = true
+    @PerceptionIgnored private var textSearchTask: Task<Void, Never>?
+    @PerceptionIgnored private var textSearchNeedsRefresh = false
+    @PerceptionIgnored private var textSearchQuery: String?
+    @PerceptionIgnored private var textSearchFilter: ClipboardFilter?
+    @PerceptionIgnored private var textSearchRequest: UUID?
+    @PerceptionIgnored private var textSearchMatches: [ClipboardItem] = []
 
     var maxAge: TimeInterval = ClipboardRetention.threeMonths.maxAge
 
     /// One-entry memo so repeated renders reuse the FTS result; cleared when `items` changes.
-    @ObservationIgnored private var searchCache:
+    @PerceptionIgnored private var searchCache:
         (query: String, filter: ClipboardFilter, result: [ClipboardItem])?
     /// Same memo for the empty query, so the pinned split runs once per mutation.
-    @ObservationIgnored private var orderedCache: [ClipboardItem]?
+    @PerceptionIgnored private var orderedCache: [ClipboardItem]?
 
     nonisolated private static let memoryWindow = 1000
     /// The most unpinned rows any one query answers with, ordinary and OCR-only alike.
@@ -271,15 +272,15 @@ final class ClipboardStore {
     /// Internal, not private: a backup names both to stream the table and adopt its blobs.
     let imagesDir: URL
     let dbURL: URL
-    @ObservationIgnored private var db: OpaquePointer?
-    @ObservationIgnored private var insertStmt: OpaquePointer?
-    @ObservationIgnored private var loadStmt: OpaquePointer?
-    @ObservationIgnored private var windowFloorStmt: OpaquePointer?
-    @ObservationIgnored private var searchStmt: OpaquePointer?
-    @ObservationIgnored private var deleteByIDStmt: OpaquePointer?
-    @ObservationIgnored private var pinStmt: OpaquePointer?
-    @ObservationIgnored private var staleImagesStmt: OpaquePointer?
-    @ObservationIgnored private var deleteStaleStmt: OpaquePointer?
+    @PerceptionIgnored private var db: OpaquePointer?
+    @PerceptionIgnored private var insertStmt: OpaquePointer?
+    @PerceptionIgnored private var loadStmt: OpaquePointer?
+    @PerceptionIgnored private var windowFloorStmt: OpaquePointer?
+    @PerceptionIgnored private var searchStmt: OpaquePointer?
+    @PerceptionIgnored private var deleteByIDStmt: OpaquePointer?
+    @PerceptionIgnored private var pinStmt: OpaquePointer?
+    @PerceptionIgnored private var staleImagesStmt: OpaquePointer?
+    @PerceptionIgnored private var deleteStaleStmt: OpaquePointer?
 
     /// `directory` defaults to the per-channel store; the harness passes a throwaway one.
     init(directory: URL? = nil) {

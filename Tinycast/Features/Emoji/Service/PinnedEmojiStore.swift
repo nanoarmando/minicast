@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// Ordered user favorites, persisted separately from learned usage so neither can rewrite the other.
 @MainActor
-@Observable
+@Perceptible
 final class PinnedEmojiStore {
     /// The catalog is currently smaller; this only bounds a malformed or hand-edited file.
     private static let cap = 3_000
@@ -10,7 +11,7 @@ final class PinnedEmojiStore {
     private let fileURL: URL
     private(set) var glyphs: [String]
     private(set) var revision = 0
-    @ObservationIgnored var onPersistenceFailure: (() -> Void)?
+    @PerceptionIgnored var onPersistenceFailure: (() -> Void)?
 
     init(fileURL: URL = AppPaths.applicationSupport().appendingPathComponent("emoji-pinned.json")) {
         self.fileURL = fileURL

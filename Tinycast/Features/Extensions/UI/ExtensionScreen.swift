@@ -319,7 +319,7 @@ struct ExtensionAction: Equatable, Identifiable {
         }
         .reduce(into: EventModifiers()) { $0.insert($1) }
         guard pressed == expected else { return false }
-        return ExtensionAction.keyEquivalent(declared) == key
+        return ExtensionAction.keyEquivalent(declared).isSameKey(as: key)
     }
 
     /// Raycast's `KeyEquivalent` names → SwiftUI's.

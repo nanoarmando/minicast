@@ -108,10 +108,9 @@ enum SettingsSearchCatalog {
     // Pane order, then section order within a pane, so this reads as a table of contents.
 
     static let entries: [SettingsSearchEntry] =
-        general + applications + systemSettings + systemActions + commands + quicklinks
-        + appleShortcuts + fallbacks + clipboard + snippets + fileSearch + windowManagement
-        + navigation + notes + calendar + emoji + ai + quickActions + dictation + extensions + permissions
-        + backup + about
+        general + applications + systemSettings + systemActions + commands
+        + appleShortcuts + fallbacks + clipboard + fileSearch + windowManagement + calendar + emoji
+        + ai + quickActions + extensions + permissions + backup + about
 
     private static let general: [SettingsSearchEntry] = [
         .init(pane: .general, keywords: ["preferences", "settings"]),
@@ -223,34 +222,6 @@ enum SettingsSearchCatalog {
             keywords: ["raycast", "script", "folder", "directory", "migrate"])
     ]
 
-    private static let quicklinks: [SettingsSearchEntry] = [
-        .init(pane: .quicklinks, keywords: ["url", "bookmark", "link"]),
-        .init(
-            .quicklinksQuicklinks, "Enable quicklinks",
-            keywords: ["url", "bookmark"]),
-        .init(
-            .quicklinksQuicklinks, "Add Quicklink",
-            keywords: ["new", "url", "bookmark", "alias"]),
-        .init(
-            group: .quicklinksCommands, "Quicklink commands",
-            keywords: ["shortcut", "launcher", "search", "import", "export"]),
-        .init(
-            .quicklinksBehaviour, "Open in a new window",
-            keywords: ["browser", "tab"]),
-        .init(
-            .quicklinksBehaviour, "When there's no selected text",
-            keywords: ["selection", "fallback", "placeholder"]),
-        .init(
-            .quicklinksBehaviour, "Confirm before deleting",
-            keywords: ["ask", "delete", "prompt"]),
-        .init(
-            .quicklinksImportExport, "Import quicklinks",
-            keywords: ["json", "restore"]),
-        .init(
-            .quicklinksImportExport, "Export quicklinks",
-            keywords: ["json", "backup"])
-    ]
-
     private static let appleShortcuts: [SettingsSearchEntry] = [
         .init(pane: .appleShortcuts, keywords: ["shortcuts app", "automation", "workflow"]),
         .init(
@@ -308,7 +279,7 @@ enum SettingsSearchCatalog {
     private static let quickActions: [SettingsSearchEntry] = [
         .init(
             pane: .quickActions,
-            keywords: ["selected text", "rewrite", "translate", "summarize"]),
+            keywords: ["selected text", "rewrite", "summarize"]),
         .init(
             .quickActionsQuickActions, "Enable Quick Actions",
             keywords: ["selected text", "accessibility"]),
@@ -320,24 +291,7 @@ enum SettingsSearchCatalog {
             keywords: ["new", "custom", "prompt", "instructions", "alias"]),
         .init(
             .quickActionsModel, "Model",
-            keywords: ["llm", "ai", "default"]),
-        .init(
-            .quickActionsTranslate, "Translate to",
-            keywords: ["language", "locale"])
-    ]
-
-    private static let dictation: [SettingsSearchEntry] = [
-        .init(pane: .dictation, keywords: ["speech", "voice", "transcription", "microphone"]),
-        .init(.dictationDictation, "Enable Dictation"),
-        .init(.dictationCommands, "Shortcut behavior"),
-        .init(.dictationCommands, "Shortcut"),
-        .init(.dictationModel, "Model"),
-        .init(.dictationModel, "Engine", keywords: ["parakeet", "redux", "ultra", "qwen"]),
-        .init(.dictationModel, "Language"),
-        .init(.dictationMemory, "Release model from memory"),
-        .init(.dictationOutput, "Microphone"),
-        .init(.dictationOutput, "When finished"),
-        .init(.dictationOutput, "Adapt capitalization", keywords: ["uppercase", "lowercase", "sentence"])
+            keywords: ["llm", "ai", "default"])
     ]
 
     private static let fileSearch: [SettingsSearchEntry] = [
@@ -356,61 +310,6 @@ enum SettingsSearchCatalog {
         .init(
             group: .fileSearchIgnorePatterns, "Ignore Patterns",
             keywords: ["exclude", "glob", "node_modules", "skip"])
-    ]
-
-    private static let notes: [SettingsSearchEntry] = [
-        .init(pane: .notes, keywords: ["markdown", "scratchpad", "floating"]),
-        .init(
-            .notesNotes, "Enable Notes",
-            keywords: ["markdown", "scratchpad"]),
-        .init(
-            .notesOptions, "Render Markdown",
-            keywords: ["markdown", "formatting", "preview", "raw", "source"]),
-        .init(
-            .notesOptions, "Show Formatting Bar",
-            keywords: ["toolbar", "format bar", "buttons", "bold", "heading", "markdown"]),
-        .init(
-            .notesOptions, "Notes Folder",
-            keywords: ["location", "path", "dotfiles", "files", "markdown"]),
-        .init(
-            group: .notesCommands, "Notes commands",
-            keywords: ["shortcut", "new note", "search notes"])
-    ]
-
-    private static let snippets: [SettingsSearchEntry] = [
-        .init(
-            pane: .snippets,
-            keywords: ["expansion", "keyword", "text replacement", "template"]),
-        .init(
-            .snippetsSnippets, "Enable snippets",
-            keywords: ["expansion", "keystrokes", "accessibility"]),
-        .init(
-            group: .snippetsCommands, "Snippet commands",
-            keywords: ["shortcut", "hotkey", "launcher", "browser"]),
-        .init(
-            .snippetsLibrary, "New Snippet",
-            keywords: ["add", "keyword", "expansion"]),
-        .init(
-            .snippetsLibrary, "Snippets Folder",
-            keywords: ["reveal", "finder", "markdown", "files", "location", "path", "dotfiles"])
-    ]
-
-    private static let navigation: [SettingsSearchEntry] = [
-        .init(
-            pane: .navigation,
-            keywords: ["window", "switch", "menu bar", "focus", "raise"]),
-        .init(
-            .navigationNavigation, "Enable navigation",
-            keywords: ["window switcher", "menu bar", "accessibility"]),
-        .init(
-            group: .navigationCommands, "Navigation commands",
-            keywords: ["shortcut", "hotkey", "alias", "launcher"]),
-        .init(
-            .navigationMenuSearch, "Show Apple menu items",
-            keywords: ["apple menu", "about this mac", "recent items", "sleep", "logo"]),
-        .init(
-            .navigationMenuSearch, "Disabled Applications",
-            keywords: ["exclude", "password manager", "ignore", "privacy", "menu bar"])
     ]
 
     private static let windowManagement: [SettingsSearchEntry] = [
@@ -534,9 +433,6 @@ enum SettingsSearchCatalog {
             .calendarJoining, "Confirm before joining",
             keywords: ["ask", "prompt"]),
         .init(
-            .calendarJoining, "Camera Preview",
-            keywords: ["webcam", "mirror", "video", "check"]),
-        .init(
             .calendarJoining, "Open Meeting Links In",
             keywords: ["browser", "chrome", "safari", "firefox", "meet", "web"]),
         .init(
@@ -606,10 +502,7 @@ enum SettingsSearchCatalog {
             keywords: ["paste", "keystrokes", "privacy", "grant"]),
         .init(
             .permissionsCalendars, "Calendars",
-            keywords: ["events", "privacy", "grant", "eventkit"]),
-        .init(
-            .permissionsMicrophone, "Microphone",
-            keywords: ["dictation", "recording", "privacy", "grant"])
+            keywords: ["events", "privacy", "grant", "eventkit"])
     ]
 
     private static let backup: [SettingsSearchEntry] = [
@@ -635,13 +528,7 @@ enum SettingsSearchCatalog {
             pane: .about,
             keywords: ["version", "licence", "license", "credits"]),
         .init(
-            .aboutAbout, "Check for Updates",
-            keywords: ["version", "upgrade", "release"]),
-        .init(
             group: .aboutLinks, "Links",
-            keywords: ["github", "source", "issues", "website"]),
-        .init(
-            .aboutLinks, "Support",
-            keywords: ["donate", "sponsor", "funding"])
+            keywords: ["github", "source", "issues", "website"])
     ]
 }

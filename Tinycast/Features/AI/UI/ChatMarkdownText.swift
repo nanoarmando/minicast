@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// One AppKit text view per segment, since SwiftUI's `Text` selects only within one paragraph.
 struct ChatMarkdownText: View {
@@ -19,19 +20,21 @@ struct ChatMarkdownText: View {
     }
 
     var body: some View {
-        ChatTextRepresentable(
-            source: ChatMarkdownSource(
-                blocks: blocks, highlight: highlight, citations: citations, prefix: path,
-                failed: failed, metrics: metrics)
-        ) { rect in
-            if rect != currentMatch { currentMatch = rect }
-        }
-        .overlay(alignment: .topLeading) {
-            if holdsCurrentMatch, let rect = currentMatch {
-                Color.clear
-                    .frame(width: max(rect.width, 1), height: max(rect.height, 1))
-                    .offset(x: rect.minX, y: rect.minY)
-                    .id(ChatTextHighlight.currentAnchor)
+        WithPerceptionTracking {
+            ChatTextRepresentable(
+                source: ChatMarkdownSource(
+                    blocks: blocks, highlight: highlight, citations: citations, prefix: path,
+                    failed: failed, metrics: metrics)
+            ) { rect in
+                if rect != currentMatch { currentMatch = rect }
+            }
+            .overlay(alignment: .topLeading) {
+                if holdsCurrentMatch, let rect = currentMatch {
+                    Color.clear
+                        .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+                        .offset(x: rect.minX, y: rect.minY)
+                        .id(ChatTextHighlight.currentAnchor)
+                }
             }
         }
     }

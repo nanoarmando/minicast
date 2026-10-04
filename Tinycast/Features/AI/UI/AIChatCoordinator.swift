@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// Chat actions for both surfaces, plus the AI Chat window's own; views route every mutation here.
 @MainActor
-@Observable
+@Perceptible
 final class AIChatCoordinator {
     let chats: AIChatSurfacesState
     private let settings: AppSettings
@@ -13,7 +14,7 @@ final class AIChatCoordinator {
     private unowned let core: AppCore
     private let window: AppWindowController
     /// Chats with a title request in flight, so a quick second reply never asks twice.
-    @ObservationIgnored private var naming: [UUID: Task<Void, Never>] = [:]
+    @PerceptionIgnored private var naming: [UUID: Task<Void, Never>] = [:]
 
     init(
         chats: AIChatSurfacesState, settings: AppSettings, appIndex: AppIndex,
@@ -147,7 +148,7 @@ final class AIChatCoordinator {
         let panel = NSSavePanel()
         // A title may hold a slash or a colon, neither of which a file name can.
         panel.nameFieldStringValue = markdown.title.replacing(/[\/:]/, with: "-") + ".md"
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try Data(markdown.text.utf8).write(to: url, options: .atomic)
@@ -370,7 +371,6 @@ final class AIChatCoordinator {
     /// What the chat's model can take; the composer offers only what applies.
     func capabilities(for chat: AIChatState) -> AIModelCapabilities {
         switch model(for: chat) {
-        case .appleIntelligence?: return .appleIntelligence
         case .codex?: return .codex
         case .claude?: return .claudeCommand
         case .grok?, .openCode?, .cursor?:
@@ -383,10 +383,8 @@ final class AIChatCoordinator {
         }
     }
 
-    /// How much history the chat's route can hold; the on-device window is far smaller.
     func contextBudget(for chat: AIChatState) -> Int {
-        model(for: chat)?.isOnDevice == true
-            ? AppleIntelligence.contextBudget : ChatSession.defaultTextBudget
+        ChatSession.defaultTextBudget
     }
 
     /// The context card's facts; the gauge redraws per flush, so it skips the card's model title.
@@ -545,8 +543,6 @@ final class AIChatCoordinator {
     /// A route removed in Settings falls back to the default rather than failing the chat.
     private func isReachable(_ selection: AIModelSelection) -> Bool {
         switch selection {
-        case .appleIntelligence:
-            return true
         case .api(let connection, let model, _):
             return core.aiSettings.connection(id: connection)?.models.contains(model) == true
         case .codex, .claude, .grok, .openCode, .cursor:
@@ -595,7 +591,6 @@ final class AIChatCoordinator {
     /// From the selection, not the loaded list: the list arrives after the picker first paints.
     func modelIcon(of selected: AIModelSelection?) -> PopoverMenuIcon {
         switch selected {
-        case .appleIntelligence?: return AIModelOption.appleIntelligenceIcon
         case .codex?: return .asset(AIBrand.openAI.assetName)
         case .claude?: return .asset(AIBrand.claude.assetName)
         case .grok?: return .asset(AIBrand.grok.assetName)

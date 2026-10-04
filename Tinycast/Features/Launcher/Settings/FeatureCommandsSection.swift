@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct FeatureCommandsSection: View {
     let owner: SettingsTab
@@ -8,14 +9,16 @@ struct FeatureCommandsSection: View {
     var excluding: Set<CommandID> = []
 
     var body: some View {
-        Section {
-            ForEach(CommandCatalog.entries(ownedBy: owner)) { entry in
-                if !excluding.contains(where: { $0.rawValue == entry.id }) {
-                    FeatureCommandRow(entry: entry)
+        WithPerceptionTracking {
+            Section {
+                ForEach(CommandCatalog.entries(ownedBy: owner)) { entry in
+                    if !excluding.contains(where: { $0.rawValue == entry.id }) {
+                        FeatureCommandRow(entry: entry)
+                    }
                 }
+            } header: {
+                SettingsSectionHeader(anchor)
             }
-        } header: {
-            SettingsSectionHeader(anchor)
         }
     }
 }
@@ -26,22 +29,24 @@ struct FeatureCommandRow: View {
     @Environment(VisibilityStore.self) private var visibility
 
     var body: some View {
-        SettingsRow(
-            title: entry.name,
-            labelOpacity: visibility.isItemVisible(entry) ? 1 : 0.45
-        ) {
-            AppIconView(app: entry)
-                .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
-        } trailing: {
-            AliasField(entry: entry)
-            if let action = entry.hotKeyAction {
-                ShortcutRecorder(action: action)
+        WithPerceptionTracking {
+            SettingsRow(
+                title: entry.name,
+                labelOpacity: visibility.isItemVisible(entry) ? 1 : 0.45
+            ) {
+                AppIconView(app: entry)
+                    .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
+            } trailing: {
+                AliasField(entry: entry)
+                if let action = entry.hotKeyAction {
+                    ShortcutRecorder(action: action)
+                }
+                Toggle("", isOn: visibilityBinding)
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    .launcherVisibilityHelp()
+                    .accessibilityLabel("Show \(entry.name) in launcher")
             }
-            Toggle("", isOn: visibilityBinding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .launcherVisibilityHelp()
-                .accessibilityLabel("Show \(entry.name) in launcher")
         }
     }
 

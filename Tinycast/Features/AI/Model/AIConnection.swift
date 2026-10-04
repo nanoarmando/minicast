@@ -108,7 +108,7 @@ struct AIModelCapabilities: Equatable, Sendable {
     /// A PDF as a native block; four routes have no field for one, so it is refused, never dropped.
     let documents: Bool
     let webSearch: Bool
-    /// Every route but the on-device one and the three CLIs with no MCP switch of their own.
+    /// Every route but the three CLIs with no MCP switch of their own.
     let tools: Bool
 
     static let none = AIModelCapabilities(
@@ -120,12 +120,9 @@ struct AIModelCapabilities: Equatable, Sendable {
     /// Pictures ride in its stream-json input; its own client runs Tinycast's MCP servers.
     static let claudeCommand = AIModelCapabilities(
         images: true, documents: false, webSearch: false, tools: true)
-    /// The on-device model is text-only and reaches nothing, so it offers none of the three.
-    static let appleIntelligence = AIModelCapabilities.none
 }
 
 enum AIModelSource: Codable, Equatable, Hashable, Sendable {
-    case appleIntelligence
     case codex
     case claude
     case grok
@@ -138,7 +135,6 @@ extension AIModelSource {
     /// A stable name for settings keyed by route, since a connection is only known by its id.
     var storageKey: String {
         switch self {
-        case .appleIntelligence: return "appleIntelligence"
         case .codex: return "codex"
         case .claude: return "claude"
         case .grok: return "grok"
@@ -150,7 +146,6 @@ extension AIModelSource {
 }
 
 enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
-    case appleIntelligence
     case codex(model: String, effort: String?)
     case claude(model: String, effort: String?)
     case grok(model: String, effort: String?)
@@ -162,13 +157,12 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
     var runsItsOwnTools: Bool {
         switch self {
         case .codex, .claude: return true
-        case .appleIntelligence, .grok, .openCode, .cursor, .api: return false
+        case .grok, .openCode, .cursor, .api: return false
         }
     }
 
     var source: AIModelSource {
         switch self {
-        case .appleIntelligence: return .appleIntelligence
         case .codex: return .codex
         case .claude: return .claude
         case .grok: return .grok
@@ -180,7 +174,6 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
 
     var model: String {
         switch self {
-        case .appleIntelligence: return AppleIntelligence.modelID
         case .codex(let model, _), .claude(let model, _), .grok(let model, _),
             .openCode(let model, _), .cursor(let model, _), .api(_, let model, _):
             return model
@@ -192,8 +185,6 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
         case .codex(_, let effort), .claude(_, let effort), .grok(_, let effort),
             .openCode(_, let effort), .cursor(_, let effort), .api(_, _, let effort):
             return effort
-        case .appleIntelligence:
-            return nil
         }
     }
 
@@ -206,15 +197,10 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
         case .cursor(let model, _): return .cursor(model: model, effort: effort)
         case .api(let connection, let model, _):
             return .api(connection: connection, model: model, effort: effort)
-        case .appleIntelligence: return self
         }
     }
 
-    /// The one route with nothing to bill and nothing to configure, so it needs no capability gate.
-    var isOnDevice: Bool { self == .appleIntelligence }
-
     private enum CodingKeys: String, CodingKey {
-        case appleIntelligence
         case codex
         case chatGPT
         case claude
@@ -232,10 +218,6 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        if container.contains(.appleIntelligence) {
-            self = .appleIntelligence
-            return
-        }
         if container.contains(.codex) || container.contains(.chatGPT) {
             let key: CodingKeys = container.contains(.codex) ? .codex : .chatGPT
             let value = try container.nestedContainer(keyedBy: ValueKeys.self, forKey: key)
@@ -282,8 +264,6 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .appleIntelligence:
-            _ = container.nestedContainer(keyedBy: ValueKeys.self, forKey: .appleIntelligence)
         case .codex(let model, let effort):
             var value = container.nestedContainer(keyedBy: ValueKeys.self, forKey: .codex)
             try value.encode(model, forKey: .model)

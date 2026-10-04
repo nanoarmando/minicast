@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The cacheless exchange-rate fetcher. See docs/features/calculator.md#exchange-rates.
 @MainActor
-@Observable
+@Perceptible
 final class CurrencyRateStore {
     private nonisolated static let fiatEndpoint = URL(
         string: "https://backend.raycast.com/api/v1/currencies")!
@@ -19,9 +20,9 @@ final class CurrencyRateStore {
     private(set) var rates: CurrencyRates?
 
     private let fileURL: URL
-    @ObservationIgnored private var pump: Task<Void, Never>?
+    @PerceptionIgnored private var pump: Task<Void, Never>?
     /// Drives the schedule: a partial snapshot answers, but only a whole one resets the clock.
-    @ObservationIgnored private var completedAt: Date?
+    @PerceptionIgnored private var completedAt: Date?
 
     init() {
         fileURL = AppPaths.caches().appendingPathComponent("currency-rates.json")

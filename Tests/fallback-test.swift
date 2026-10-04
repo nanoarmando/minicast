@@ -40,14 +40,6 @@ struct FallbackTests {
                 "got \(String(describing: Fallback(id: fallback.id)))")
         }
 
-        let quicklinkID = UUID()
-        let quicklink = Fallback.quicklink(quicklinkID)
-        check(
-            "a quicklink's id is its entry id",
-            quicklink.id == Quicklink.entryIDPrefix + quicklinkID.uuidString.lowercased(),
-            "got \(quicklink.id)")
-        check("a quicklink round-trips", Fallback(id: quicklink.id) == quicklink)
-
         // Every built-in's id must be distinct, or one would silently take another's stored slot.
         let ids = Set(Fallback.Builtin.allCases.map { Fallback.builtin($0).id })
         check("built-in ids are distinct", ids.count == Fallback.Builtin.allCases.count)
@@ -64,7 +56,8 @@ struct FallbackTests {
         let ai = Fallback.builtin(.quickAI)
         let files = Fallback.builtin(.searchFiles)
         let shell = Fallback.builtin(.runShellCommand)
-        let link = Fallback.quicklink(UUID())
+        let define = Fallback.builtin(.define)
+        let removed = "command:removed"
 
         check(
             "no stored order keeps the offered order",
@@ -75,15 +68,15 @@ struct FallbackTests {
             Fallback.ordered([ai, files, shell], by: [shell.id, ai.id, files.id])
                 == [shell, ai, files])
 
-        // A quicklink created after the last reorder must land at the end, not vanish.
+        // A destination enabled after the last reorder must land at the end, not vanish.
         check(
             "an unseen fallback lands last",
-            Fallback.ordered([ai, link, files], by: [files.id, ai.id]) == [files, ai, link])
+            Fallback.ordered([ai, define, files], by: [files.id, ai.id]) == [files, ai, define])
 
-        // A deleted quicklink's id is still stored; it must not resurrect or shift its neighbours.
+        // A removed destination's id is still stored; it must not resurrect or shift its neighbours.
         check(
             "a stored id with nothing behind it is skipped",
-            Fallback.ordered([ai, files], by: [link.id, files.id, ai.id]) == [files, ai])
+            Fallback.ordered([ai, files], by: [removed, files.id, ai.id]) == [files, ai])
 
         check("nothing available is nothing offered", Fallback.ordered([], by: [ai.id]).isEmpty)
     }
@@ -120,8 +113,7 @@ struct FallbackTests {
     // MARK: - Verbs
 
     static func verbs() {
-        var verbs = Fallback.Builtin.allCases.map { Fallback.builtin($0).openVerb }
-        verbs.append(Fallback.quicklink(UUID()).openVerb)
+        let verbs = Fallback.Builtin.allCases.map { Fallback.builtin($0).openVerb }
         check("every fallback names its own action", verbs.allSatisfy { !$0.isEmpty })
         check("the verbs are distinct", Set(verbs).count == verbs.count, "got \(verbs)")
     }

@@ -78,7 +78,7 @@ struct RoomPickerScreen: PaletteScreen {
                         scroll: scroll, onActivate: { coordinator.togglePick($0.pick) })
                 }
             }
-            .onChange(of: session.revision, initial: true) { coordinator.previewPicked() })
+            .onValueChange(of: session.revision, initial: true) { coordinator.previewPicked() })
     }
 
     private var emptyText: String {

@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 /// Bodies cross the bridge base64-encoded, so binary responses survive.
 final class ExtensionFetcher: Sendable {
@@ -105,7 +105,9 @@ enum ExtensionAsyncProcess {
     }
 
     /// Started by `enqueue` and not yet claimed by `wait`, keyed by pid.
-    private static let uncollected = Mutex<[Int32: (child: Child, watchdog: DispatchSourceTimer?)]>([:])
+    private static let uncollected =
+        OSAllocatedUnfairLock<[Int32: (child: Child, watchdog: DispatchSourceTimer?)]>(
+            uncheckedState: [:])
 
     /// An app bundle inherits no login shell, so a bare `brew` would otherwise fail.
     static func resolveExecutable(_ command: String) -> URL? {
@@ -133,13 +135,13 @@ enum ExtensionAsyncProcess {
     static func enqueue(_ child: Child, timeout: Double?) {
         // Armed at launch: `wait` only starts once streaming output has ended.
         let watchdog = timeout.flatMap { $0 > 0 ? child.terminationWatchdog(after: $0 / 1000) : nil }
-        uncollected.withLock { $0[child.task.processIdentifier] = (child, watchdog) }
+        uncollected.withLockUnchecked { $0[child.task.processIdentifier] = (child, watchdog) }
     }
 
     /// Next chunk of fd 1 or 2, nil at EOF; `wait` then finds both pipes drained.
     static func read(_ arguments: [RenderValue]) async throws -> String? {
         guard let pid = arguments.first?.doubleValue.flatMap({ Int32(exactly: $0) }),
-            let child = uncollected.withLock({ $0[pid]?.child })
+            let child = uncollected.withLockUnchecked({ $0[pid]?.child })
         else { throw ProcessError.notStarted }
         let pipe = arguments[safe: 1]?.doubleValue == 2 ? child.stderr : child.stdout
         return await withCheckedContinuation { continuation in
@@ -152,7 +154,7 @@ enum ExtensionAsyncProcess {
 
     static func wait(_ pid: RenderValue?) async throws -> [String: Any] {
         guard let pid = pid?.doubleValue.flatMap({ Int32(exactly: $0) }),
-            let entry = uncollected.withLock({ $0.removeValue(forKey: pid) })
+            let entry = uncollected.withLockUnchecked({ $0.removeValue(forKey: pid) })
         else { throw ProcessError.notStarted }
 
         let child = entry.child

@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 /// One `URLSessionWebSocketTask` per socket, read by the single `receive` JS keeps in flight.
 final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDelegate {
@@ -8,8 +8,8 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
         var opening: CheckedContinuation<String, Error>?
     }
 
-    private let connections = Mutex<[Int: Connection]>([:])
-    private let sessionBox = Mutex<URLSession?>(nil)
+    private let connections = OSAllocatedUnfairLock<[Int: Connection]>(uncheckedState: [:])
+    private let sessionBox = OSAllocatedUnfairLock<URLSession?>(uncheckedState: nil)
 
     enum SocketError: LocalizedError {
         case badURL(String)
@@ -47,7 +47,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
 
     /// The context is thrown away between commands, so nothing would read these again.
     func closeAll() {
-        let open = connections.withLock { state -> [Connection] in
+        let open = connections.withLockUnchecked { state -> [Connection] in
             let all = Array(state.values)
             state.removeAll()
             return all
@@ -77,14 +77,14 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
         let task = session().webSocketTask(with: request)
         let id = task.taskIdentifier
         let negotiated = try await withCheckedThrowingContinuation { continuation in
-            connections.withLock { $0[id] = Connection(task: task, opening: continuation) }
+            connections.withLockUnchecked { $0[id] = Connection(task: task, opening: continuation) }
             task.resume()
         }
         return ["id": id, "protocol": negotiated]
     }
 
     private func receive(id: Int) async throws -> [String: Any] {
-        guard let task = connections.withLock({ $0[id]?.task }) else { throw SocketError.closed }
+        guard let task = connections.withLockUnchecked({ $0[id]?.task }) else { throw SocketError.closed }
         do {
             switch try await task.receive() {
             case .string(let text): return ["type": "text", "text": text]
@@ -92,7 +92,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
             @unknown default: return ["type": "text", "text": ""]
             }
         } catch {
-            connections.withLock { $0[id] = nil }
+            connections.withLockUnchecked { $0[id] = nil }
             let code = task.closeCode
             let clean = code != .invalid
             return [
@@ -106,7 +106,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
 
     private func send(_ fields: [String: RenderValue]) async throws -> Any? {
         let id = whole(fields["id"])
-        guard let task = connections.withLock({ $0[id]?.task }) else { throw SocketError.closed }
+        guard let task = connections.withLockUnchecked({ $0[id]?.task }) else { throw SocketError.closed }
         if let base64 = fields["base64"]?.stringValue, let data = Data(base64Encoded: base64) {
             try await task.send(.data(data))
         } else {
@@ -116,7 +116,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
     }
 
     private func ping(_ id: Int) async throws -> Any? {
-        guard let task = connections.withLock({ $0[id]?.task }) else { throw SocketError.closed }
+        guard let task = connections.withLockUnchecked({ $0[id]?.task }) else { throw SocketError.closed }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             task.sendPing { error in
                 if let error { continuation.resume(throwing: error) } else { continuation.resume() }
@@ -126,7 +126,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
     }
 
     private func close(id: Int, code: Int, reason: String) {
-        guard let connection = connections.withLock({ $0.removeValue(forKey: id) }) else { return }
+        guard let connection = connections.withLockUnchecked({ $0.removeValue(forKey: id) }) else { return }
         let closeCode = URLSessionWebSocketTask.CloseCode(rawValue: code) ?? .normalClosure
         connection.task.cancel(with: closeCode, reason: reason.data(using: .utf8))
     }
@@ -135,7 +135,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
 
     /// Private and ephemeral, like every other networked surface: no cookie jar, no shared cache.
     private func session() -> URLSession {
-        sessionBox.withLock { box in
+        sessionBox.withLockUnchecked { box in
             if let existing = box { return existing }
             let configuration = URLSessionConfiguration.ephemeral
             configuration.httpCookieStorage = nil
@@ -163,7 +163,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
     }
 
     private func finishOpening(id: Int, result: Result<String, Error>) {
-        let continuation = connections.withLock { state -> CheckedContinuation<String, Error>? in
+        let continuation = connections.withLockUnchecked { state -> CheckedContinuation<String, Error>? in
             guard let opening = state[id]?.opening else { return nil }
             state[id]?.opening = nil
             if case .failure = result { state[id] = nil }

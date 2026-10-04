@@ -29,26 +29,14 @@ enum SettingsBackupCoverage {
         "fileSearchEnabled": .fileSearchEnabled,
         "fileSearchScopes": .fileSearchScopes,
         "fileSearchIgnorePatterns": .fileSearchIgnorePatterns,
-        "notesEnabled": .notesEnabled,
-        "notesRendersMarkdown": .notesRendersMarkdown,
-        "notesShowsFormattingBar": .notesShowsFormattingBar,
         "customCommandsEnabled": .customCommandsEnabled,
         "customCommandsShowInLauncher": .customCommandsShowInLauncher,
-        "snippetsShowInLauncher": .snippetsShowInLauncher,
-        "navigationEnabled": .navigationEnabled,
-        "menuSearchDisabledApps": .menuSearchDisabledApps,
-        "menuSearchShowsAppleMenu": .menuSearchShowsAppleMenu,
         "windowManagementEnabled": .windowManagementEnabled,
         "windowManagementShowInLauncher": .windowManagementShowInLauncher,
         "windowGap": .windowGap,
         "windowCycle": .windowCycle,
         "windowLayoutsShowInLauncher": .windowLayoutsShowInLauncher,
         "windowRoomsShowInLauncher": .windowRoomsShowInLauncher,
-        "quicklinksEnabled": .quicklinksEnabled,
-        "quicklinksShowInLauncher": .quicklinksShowInLauncher,
-        "quicklinkOpensNewWindow": .quicklinkOpensNewWindow,
-        "quicklinkSelectionFallback": .quicklinkSelectionFallback,
-        "quicklinkConfirmsBeforeDelete": .quicklinkConfirmsBeforeDelete,
         "appleShortcutsEnabled": .appleShortcutsEnabled,
         "extensionsShowInLauncher": .extensionsShowInLauncher,
         "calendarShowInLauncher": .calendarShowInLauncher,
@@ -60,8 +48,7 @@ enum SettingsBackupCoverage {
         "calendarMenuBarDisplay": .calendarMenuBarDisplay,
         "menuBarLinkedEventsOnly": .menuBarLinkedEventsOnly,
         "calendarMenuBarHidesWhenEmpty": .calendarMenuBarHidesWhenEmpty,
-        "hideCurrentEvent": .hideCurrentEvent,
-        "supportReminders": .supportReminders
+        "hideCurrentEvent": .hideCurrentEvent
     ]
 
     /// The `SettingsData` fields no `AppSettings` key stands behind, and what they read instead.
@@ -71,23 +58,8 @@ enum SettingsBackupCoverage {
 
     /// Keys kept out of a backup on purpose, each with the reason it has to stay out.
     static let deliberatelyExcluded: [String: String] = [
-        AppSettingsKey.dictationEnabled.rawValue:
-            "Microphone capture is an opt-in capability on this Mac; a backup must not enable it.",
-        AppSettingsKey.dictationMode.rawValue: "Dictation preferences stay local until backup supports them.",
-        AppSettingsKey.dictationModel.rawValue: "Downloaded models are local to this Mac.",
-        AppSettingsKey.dictationLanguage.rawValue:
-            "Dictation preferences stay local until backup supports them.",
-        AppSettingsKey.dictationMicrophone.rawValue: "Names a microphone attached to this Mac.",
-        AppSettingsKey.dictationDestination.rawValue:
-            "An import must not change where dictated text is sent.",
-        AppSettingsKey.dictationAdaptsCapitalization.rawValue:
-            "Dictation preferences stay local until backup supports them.",
-        AppSettingsKey.dictationIdleRelease.rawValue:
-            "Dictation memory use stays a device-local preference.",
         AppSettingsKey.clipboardTextSearchEnabled.rawValue:
             "Background OCR is an opt-in processing choice on this Mac; a backup must not enable it.",
-        AppSettingsKey.snippetsEnabled.rawValue:
-            "Doubles as keyword-expansion consent; an import must not enable keystroke listening.",
         AppSettingsKey.extensionPackageManager.rawValue:
             "Names a tool on this Mac; the machine a backup lands on may not have it.",
         AppSettingsKey.extensionCustomSearchPaths.rawValue:
@@ -107,8 +79,6 @@ enum SettingsBackupCoverage {
             "Doubles as consent to read your calendar; an import must not grant calendar access.",
         AppSettingsKey.autoJoinMeetings.rawValue:
             "Arms the app to open meeting links unattended; an import must not switch that on.",
-        AppSettingsKey.cameraPreview.rawValue:
-            "Turns the camera on before a meeting; an import must not grant that.",
         AppSettingsKey.aiEnabled.rawValue:
             "No other AI setting travels in a backup, so an import would arm a feature it cannot "
             + "configure.",
@@ -143,7 +113,7 @@ enum SettingsBackupCoverage {
             "Names the models of this Mac's own installed tools and connections, which another Mac "
             + "may not have.",
         AppSettingsKey.aiDisabledRoutes.rawValue:
-            "Names this Mac's own API connections and on-device model, which travel in no backup.",
+            "Names this Mac's own API connections, which travel in no backup.",
         AppSettingsKey.aiInstalledOverrides.rawValue:
             "Names a command to run and the variables to run it with; an import must never decide "
             + "which program this Mac launches.",
@@ -167,12 +137,6 @@ enum SettingsBackupCoverage {
             + "decision each Mac makes about its own text.",
         AppSettingsKey.quickActionInstructions.rawValue:
             "Custom model instructions change transformed results and must not move unseen.",
-        AppSettingsKey.quickActionLanguage.rawValue:
-            "Follows the language the person at this Mac reads, not the one who wrote the backup.",
-        AppSettingsKey.snippetsFolder.rawValue:
-            "Names a folder on this Mac; the one a backup lands on may not have it.",
-        AppSettingsKey.notesFolder.rawValue:
-            "Names a folder on this Mac; the one a backup lands on may not have it.",
         AppSettingsKey.settingsFileEnabled.rawValue:
             "Lets a file on this Mac change its settings; an import must not hand that to another."
     ]

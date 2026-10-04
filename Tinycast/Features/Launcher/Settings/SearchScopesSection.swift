@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Perception
 
 /// The editable list of folders (and individual `.app` bundles) the launcher indexes.
 struct SearchScopesSection: View {
@@ -10,28 +11,30 @@ struct SearchScopesSection: View {
     private var isDefault: Bool { settings.searchScopes == SearchScopes.defaults }
 
     var body: some View {
-        Section {
-            ForEach(settings.searchScopes, id: \.self) { scope in
-                SettingsScopeRow(
-                    scope: scope, path: SearchScopes.expand(scope),
-                    isMissing: missing.contains(scope)
-                ) {
-                    settings.searchScopes.removeAll { $0 == scope }
+        WithPerceptionTracking {
+            Section {
+                ForEach(settings.searchScopes, id: \.self) { scope in
+                    SettingsScopeRow(
+                        scope: scope, path: SearchScopes.expand(scope),
+                        isMissing: missing.contains(scope)
+                    ) {
+                        settings.searchScopes.removeAll { $0 == scope }
+                    }
                 }
-            }
 
-            HStack(spacing: Theme.Spacing.lg) {
-                Button("Add…", action: addScopes)
-                    .help("Add a folder or application to search.")
-                if !isDefault {
-                    Button("Restore Defaults") { settings.searchScopes = SearchScopes.defaults }
+                HStack(spacing: Theme.Spacing.lg) {
+                    Button("Add…", action: addScopes)
+                        .help("Add a folder or application to search.")
+                    if !isDefault {
+                        Button("Restore Defaults") { settings.searchScopes = SearchScopes.defaults }
+                    }
                 }
+            } header: {
+                SettingsSectionHeader(.applicationsSearchScopes)
             }
-        } header: {
-            SettingsSectionHeader(.applicationsSearchScopes)
+            .onAppear(perform: refreshMissing)
+            .onValueChange(of: settings.searchScopes) { _, _ in refreshMissing() }
         }
-        .onAppear(perform: refreshMissing)
-        .onChange(of: settings.searchScopes) { _, _ in refreshMissing() }
     }
 
     private func refreshMissing() {

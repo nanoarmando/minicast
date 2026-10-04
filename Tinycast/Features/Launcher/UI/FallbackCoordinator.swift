@@ -4,18 +4,16 @@ import Foundation
 @MainActor
 final class FallbackCoordinator {
     private let store: FallbackStore
-    private let quicklinks: QuicklinkStore
     private let settings: AppSettings
     private let visibility: VisibilityStore
-    /// The five destinations a fallback hands its query to; nothing here is this type's own state.
+    /// The destinations a fallback hands its query to; nothing here is this type's own state.
     private unowned let core: AppCore
 
     init(
-        store: FallbackStore, quicklinks: QuicklinkStore, settings: AppSettings,
+        store: FallbackStore, settings: AppSettings,
         visibility: VisibilityStore, core: AppCore
     ) {
         self.store = store
-        self.quicklinks = quicklinks
         self.settings = settings
         self.visibility = visibility
         self.core = core
@@ -32,11 +30,9 @@ final class FallbackCoordinator {
         }
     }
 
-    /// Nil for a quicklink deleted since the order was stored.
     func entry(for fallback: Fallback) -> AppEntry? {
         switch fallback {
         case .builtin(let builtin): return CommandCatalog.makeEntry(builtin.command)
-        case .quicklink(let id): return quicklinks.quicklink(id: id).map(AppEntry.init)
         }
     }
 
@@ -47,7 +43,6 @@ final class FallbackCoordinator {
         case .builtin(.searchFiles): core.fileSearchCoordinator.show(query: query)
         case .builtin(.runShellCommand): core.customCommandCoordinator.runShellCommand(query)
         case .builtin(.define): core.dictionaryCoordinator.show(term: query)
-        case .quicklink(let id): core.quicklinkCoordinator.openQuicklink(id: id, filling: query)
         }
     }
 
@@ -59,13 +54,7 @@ final class FallbackCoordinator {
 
     /// A fallback whose feature is switched off is offered nowhere, Settings included.
     private var candidates: [Fallback] {
-        var result = Fallback.Builtin.allCases.filter(isAvailable).map(Fallback.builtin)
-        guard settings.quicklinksEnabled else { return result }
-        result += quicklinks.quicklinks
-            .filter { $0.isEnabled && QuicklinkDestination.containsPlaceholder($0.link) }
-            .sorted(by: Quicklink.precedes)
-            .map { .quicklink($0.id) }
-        return result
+        Fallback.Builtin.allCases.filter(isAvailable).map(Fallback.builtin)
     }
 
     private func isAvailable(_ builtin: Fallback.Builtin) -> Bool {

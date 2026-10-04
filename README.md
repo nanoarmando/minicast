@@ -1,158 +1,146 @@
-# Tinycast
+# Tinycast Fork
 
-**A tiny, fully native macOS launcher. One hotkey, everything you reach for all day, under 100 MB of
-RAM.**
+A private fork of [Tinycast](https://github.com/abue-ammar/tinycast) by Abu Ammar: a tiny, fully native
+macOS launcher. The fork runs on **macOS 13 Ventura or later**, on Intel and Apple silicon, from one
+universal build. It is maintained for personal use and does not track upstream.
 
-<p align="center">
-  <a href="https://github.com/abue-ammar/tinycast/releases/latest">
-    <img alt="Latest release"
-         src="https://img.shields.io/github/v/release/abue-ammar/tinycast?sort=semver&style=flat&label=release&color=1F6FEB"></a>
-  <img alt="Swift 6.0"
-       src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat&logo=swift&logoColor=white">
-  <img alt="macOS 26 or later"
-       src="https://img.shields.io/badge/macOS-26%2B-000000?style=flat&logo=apple&logoColor=white">
-  <a href="LICENSE">
-    <img alt="License: AGPL-3.0"
-         src="https://img.shields.io/badge/License-AGPL--3.0-3DA639?style=flat"></a>
-  <a href="https://discord.gg/v2Eeb4QQy3">
-    <img alt="Join the Tinycast Discord"
-         src="https://img.shields.io/badge/Discord-Join-5865F2?style=flat&logo=discord&logoColor=white"></a>
-  <a href="https://tinycast.dev/support">
-    <img alt="Support Tinycast"
-         src="https://img.shields.io/badge/Support-Tip%20the%20dev-EA4AAA?style=flat&logo=polar&logoColor=white"></a>
-</p>
+All credit for the original app goes to its author. The fork keeps the AGPL-3.0 license.
 
-SwiftUI and AppKit, **zero third-party dependencies**, no Electron and no telemetry. It also **runs
-real Raycast extensions**, rendered as native SwiftUI. Free, open source, and staying that way.
+## What differs from upstream
 
-For anything private, email [iabueammar@gmail.com](mailto:iabueammar@gmail.com).
+| Area | Upstream | This fork |
+| --- | --- | --- |
+| Minimum macOS | 26 | 13 |
+| Architectures | Apple silicon (Intel via a separate cask) | One universal build (arm64 + x86_64) |
+| Appearance | Liquid Glass | Classic macOS blur materials on every version |
+| Identity | `com.tinycast.app`, "Tinycast" | `com.tinycast.app.fork`, "Tinycast Fork" |
+| Updates | Self-updates from GitHub releases | No self-update; rebuild from source |
+| Observation | Apple Observation | [swift-perception](https://github.com/pointfreeco/swift-perception) back-port |
 
-<p align="center">
-  <img src="docs/screenshot.png" alt="Tinycast command palette" width="720">
-</p>
-
-## Support
-
-Tinycast is **free, and it stays that way**. If it earns a place in your daily flow, a one-off tip helps
-keep it actively maintained. GitHub Sponsors isn't available in my country, so please support here:
-
-<p align="center">
-  <a href="https://tinycast.dev/support">
-    <img alt="Support Tinycast" width="188" height="44" src="docs/support-button.svg"></a><br>
-  <sub>Payments are handled securely by <a href="https://polar.sh">Polar.sh</a>.</sub>
-</p>
+**Removed features:** Apple Intelligence as an AI provider, the Translate quick action, Dictation, Notes,
+Quicklinks, the camera preview, Snippets, the Support reminder, Onboarding, the window switcher and menu
+bar search (the Navigation pane), and updates.
 
 ## Features
 
-- **App launcher** — fuzzy-search and launch anything, pin favorites, see what's running, quit an app
-  or every app at once.
-- **Global hotkey** — one shortcut summons the palette from anywhere.
-- **Per-app hotkeys** — bind a key to an app; press it to toggle (focus/hide).
-- **Search Files** — open files and folders from the folders you choose, through Spotlight, with no
-  index of our own.
-- **Dictionary** — look a word up with the Define Word command, or define whatever you typed from the
-  launcher's fallbacks, read from the Mac's own dictionaries.
-- **Clipboard history** — text and images, searchable, pasted back into the app you were using.
-- **Calculator** — do math, unit, live currency and crypto conversions inline, right in the palette.
-- **Quicklinks** — turn a URL, search, file or deeplink into a command, with placeholders for typed
-  input, the clipboard or the date.
-- **Apple Shortcuts** — search and run the shortcuts you built in the Shortcuts app, with aliases and
-  global hotkeys.
-- **Snippets** — reusable Markdown templates with dynamic placeholders, arguments, nested references
-  and optional keyword expansion.
-- **Custom commands** — run named shell commands through fuzzy search or their own global hotkeys.
-- **Window management** — 34 Rectangle-style actions: halves, quarters, thirds, sizing, nudging,
-  display moves, fullscreen and Spaces.
-- **System actions** — lock, sleep, restart, empty trash, toggle appearance, Bluetooth, mute, hidden
-  files, and more.
-- **Calendar and meetings** — your next meeting on the empty palette and in the menu bar, one key to
-  join it, or let it join itself.
-- **Notes** — an unlimited collection of plain Markdown files in one floating editor, searchable from
-  the palette and rendered as you write.
-- **Emoji picker** — a searchable emoji grid, one keystroke away.
-- **AI chat** — use your own key or an installed AI account: ask Quick AI from the palette, or keep
-  longer conversations in the AI Chat window, with a searchable, pinnable history. Off out of the box,
-  like every AI feature.
-- **Quick Actions** — fix grammar, rewrite, translate or summarize the selected text in any app.
-- **Raycast extensions** — run the ones you already have natively, rendered as SwiftUI.
-- **Backup and import** — export your settings to a file, or import your setup from Raycast.
+- **App launcher** with favorites, running apps and per-app hotkeys.
+- **Global hotkey** to summon the palette.
+- **Search Files** through Spotlight.
+- **Dictionary** lookups.
+- **Clipboard history** for text and images.
+- **Calculator** with units and live currency conversion.
+- **Apple Shortcuts** and **custom shell commands**, with aliases and hotkeys.
+- **Window management**: window commands with hotkeys, layouts, rooms and custom sizes.
+- **System actions**: lock, sleep, appearance, Bluetooth, mute and more.
+- **Calendar and meetings** in the palette and the menu bar.
+- **Emoji picker**.
+- **AI chat and Quick Actions** with your own API keys or installed AI accounts, plus **MCP** servers.
+- **Raycast extensions**, rendered natively.
+- **Backup and import**, including import from Raycast.
+
+## Requirements
+
+- To run: macOS 13 or later, Intel or Apple silicon.
+- To build: a Mac with Xcode 27 (selected with `xcode-select`, license accepted, first-launch components
+  installed). XcodeGen is used from a project-local binary in `.tools/xcodegen/` (not committed); download
+  the official release from [XcodeGen](https://github.com/yonaskolb/XcodeGen/releases) into that folder.
+
+## Build
+
+1. Create the local signing identity once per Mac, following [docs/signing.md](docs/signing.md). A stable
+   identity lets macOS keep the Accessibility permission across rebuilds.
+2. After editing `project.yml`, regenerate the project:
+   ```sh
+   ./.tools/xcodegen/bin/xcodegen generate
+   ```
+3. Build the signed universal app and DMG:
+   ```sh
+   ./Scripts/build-dmg.sh
+   ```
+   The script checks the signing identity, verifies both architectures and the macOS 13.0 minimum, and
+   writes `build/Tinycast-Fork-<version>.dmg`.
+
+Command-line builds need `-skipMacroValidation` because swift-perception uses a Swift macro; the build
+script already passes it.
 
 ## Install
 
-First, add the tap:
+Copy "Tinycast Fork.app" to `/Applications`. On another Mac (for example the Intel one), copy the same
+signed app; if it was transferred through a download, clear the quarantine flag once:
 
 ```sh
-brew trust --tap abue-ammar/tinycast   # required for third-party taps
-brew tap abue-ammar/tinycast
+xattr -dr com.apple.quarantine "/Applications/Tinycast Fork.app"
 ```
 
-Then run the one line that matches your Mac:
+## Data and the official app
 
-| Your Mac                         | Install                                  |
-| -------------------------------- | ---------------------------------------- |
-| Apple silicon, macOS 26 or newer | `brew install --cask tinycast`           |
-| Intel, macOS 26                  | `brew install --cask tinycast-universal` |
+The fork keeps all its data apart from the official app, so the official app can be reinstalled at any
+time and finds its own configuration untouched.
 
-Not sure which you have? **Apple menu → About This Mac.** Homebrew checks too, and refuses the
-wrong one.
+| Data | Official app | Fork |
+| --- | --- | --- |
+| Preferences | `com.tinycast.app` | `com.tinycast.app.fork` |
+| Data (clipboard, AI chats, extensions) | `~/Library/Application Support/com.tinycast.app` | `~/Library/Application Support/com.tinycast.app.fork` |
+| Settings file | `~/.config/tinycast/settings.json` | `~/.config/tinycast-fork/settings.json` |
+| Keychain secrets | `com.tinycast.app.*` | `com.tinycast.app.fork.*` |
 
-Want early builds? `brew install --cask tinycast@beta` puts `Tinycast Beta.app` beside the stable
-app, with its own settings and permissions. Apple silicon, macOS 26+.
+Running both apps at the same time is not recommended: they claim the same URL schemes (`tinycast://`,
+`raycast://`) and may register the same hotkeys. While the fork runs, the official app is hidden from the
+fork's launcher.
 
-Homebrew clears the macOS quarantine flag on every install and update, so there is nothing else to
-run. Downloading a DMG from [Releases](https://github.com/abue-ammar/tinycast/releases) instead?
-Tinycast is self-signed, so clear the flag once:
-`xattr -dr com.apple.quarantine "/Applications/Tinycast.app"`.
+## Migrating from the official app
+
+A fresh fork starts empty. To bring over an existing setup, run the one-time migration script:
+
+1. Quit the official Tinycast.
+2. Copy "Tinycast Fork.app" to `/Applications` without opening it.
+3. Run:
+   ```sh
+   ./Scripts/migrate-from-official.sh
+   ```
+   macOS asks for authorization for each Keychain secret (AI keys, MCP secrets, extension sign-ins).
+   Denied secrets are skipped and listed.
+4. Open the fork, grant **Accessibility** (and any other permission a feature asks for) and turn
+   **launch at login** back on in **Settings → General**.
+
+The script copies preferences, Application Support data, caches, the settings file (without keys of
+removed features) and Keychain secrets. It never modifies the official app's data. It aborts if either
+app is running, if the fork is not installed, or if the fork already has data; `--force` first moves the
+fork's existing data to `~/Documents/Backups/Tinycast-Fork-<timestamp>/`.
+
+Permissions and the login item cannot be migrated because macOS ties them to the app's signature.
+
+Alternatively, export a backup from the official app and import it in **Settings → Backup**; it covers
+settings, hotkeys, clipboard history and launcher learning, but not AI keys, MCP servers or extensions.
 
 ## Permissions
 
-**Accessibility** — needed when Tinycast pastes or expands text into another app, and the only
-permission snippet keyword expansion needs. You're prompted when you first use a feature that needs
-it; grant access in **System Settings → Privacy & Security → Accessibility**. Snippets ship
-disabled, and keystrokes are matched locally, never stored and never sent anywhere.
+**Accessibility** is needed when Tinycast pastes text into another app or reads the selected text for
+Quick Actions. Grant it in **System Settings → Privacy & Security → Accessibility**. Calendar access is
+requested when the calendar feature is enabled.
 
 ## Using it
 
-1. Open **Settings → General** and record a global shortcut to summon Tinycast.
-2. Press it anywhere → the palette floats in. Type to filter, **↵** to launch.
-3. **Tab** switches between Apps and Clipboard; **↑/↓** move, **Esc** dismisses.
-4. **Settings → Shortcuts** — search an app or custom command and record a global shortcut.
-5. **Settings → Snippets** — enable the feature, then create templates with expansion keywords.
+1. Open **Settings → General** and record a global shortcut to summon the palette (the menu bar item
+   also opens it).
+2. Press it anywhere, type to filter, **↵** to launch, **↑/↓** to move, **Esc** to dismiss.
+3. **Settings → Shortcuts** assigns hotkeys to apps, commands and window actions.
 
-## Building from source
+## Tests
 
-See **[docs/development.md](docs/development.md)** for the toolchain, build, packaging, release and
-website workflows. **[docs/](docs/README.md)** indexes everything else — architecture, engineering
-standards, the design system and one document per feature.
+```sh
+./Scripts/run-tests.sh
+```
 
-## Contributing
+The runner builds swift-perception once into `.build/harness-perception/` (rebuilt when
+`Tinycast.xcodeproj/.../Package.resolved` changes) and links it into every harness. `./Scripts/lint.sh`
+requires SwiftLint.
 
-> [!IMPORTANT]
-> **Open an issue before you write code — this is mandatory.** Get the bug or the feature agreed on
-> first; discussing it in the issue (or on [Discord](https://discord.gg/v2Eeb4QQy3)) is strongly
-> encouraged. A PR that doesn't close an issue marked `approved` is closed automatically however good
-> the patch is, and the work is wasted. Docs-only fixes are the one exception.
->
-> Tinycast's feature set is deliberately closed, and "another launcher has it" is not a reason on its
-> own. Ask whether a feature is wanted before you ask for it.
+## Known limitations
 
-Read **[CONTRIBUTING.md](CONTRIBUTING.md)** first — it covers the memory budget every PR is held to,
-the before/after video requirement for visual changes, and why features get declined. Every PR fills
-in the **[pull request template](.github/PULL_REQUEST_TEMPLATE.md)**. Security issues go through
-[SECURITY.md](SECURITY.md), not the issue tracker.
-
-Questions, ideas, or just want to follow along? **[Join the Discord](https://discord.gg/v2Eeb4QQy3)**.
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=abue-ammar%2Ftinycast&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=abue-ammar/tinycast&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=abue-ammar/tinycast&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=abue-ammar/tinycast&type=date&legend=top-left" />
- </picture>
-</a>
+- On macOS 13 there are no symbol animations and no focus-ring suppression.
+- Custom quick actions saved with SF Symbol names newer than macOS 13 render without an icon.
 
 ## License
 
-[AGPL-3.0](LICENSE)
+[AGPL-3.0](LICENSE). Based on Tinycast by Abu Ammar.

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The palette's extension screen: whichever root component the running command rendered.
 struct ExtensionCommandView: View {
@@ -13,8 +14,10 @@ struct ExtensionCommandView: View {
     let onFieldChange: (RenderNode, Any) -> Void
 
     var body: some View {
-        content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        WithPerceptionTracking {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     @ViewBuilder
@@ -72,27 +75,29 @@ struct ExtensionFailureView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: metrics.spacing.md) {
-                HStack(spacing: metrics.spacing.sm) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(headline)
-                        .font(metrics.typography.rowTitle)
-                        .textSelection(.enabled)
+        WithPerceptionTracking {
+            ScrollView {
+                VStack(alignment: .leading, spacing: metrics.spacing.md) {
+                    HStack(spacing: metrics.spacing.sm) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(headline)
+                            .font(metrics.typography.rowTitle)
+                            .textSelection(.enabled)
+                    }
+                    if let detail {
+                        Text(detail)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
                 }
-                if let detail {
-                    Text(detail)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(metrics.spacing.lg)
+                .hideNativeScrollers()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(metrics.spacing.lg)
-            .hideNativeScrollers()
+            .thinScrollbar()
         }
-        .thinScrollbar()
     }
 }
 
@@ -118,59 +123,61 @@ struct ExtensionToastPill: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            mark.frame(width: metrics.size.menuButton, height: metrics.size.menuButton)
-            HStack(spacing: metrics.spacing.md) {
-                Text(toast.title).foregroundStyle(Theme.Colors.textPrimary).layoutPriority(1)
-                if let message = toast.message, !message.isEmpty {
-                    Text(message).foregroundStyle(Theme.Colors.textSecondary)
-                }
-                if toast.style == .failure {
-                    divider
-                    button {
-                        Paster.copyPlainText(
-                            [toast.title, toast.message].compactMap(\.self).joined(separator: "\n"))
-                        copiedAt = Date()
-                    } label: {
-                        // The wider word holds the width, so the pill never twitches on copy.
-                        ZStack {
-                            Text("Copied").hidden()
-                            Text(copiedAt == nil ? "Copy" : "Copied")
+        WithPerceptionTracking {
+            HStack(spacing: 0) {
+                mark.frame(width: metrics.size.menuButton, height: metrics.size.menuButton)
+                HStack(spacing: metrics.spacing.md) {
+                    Text(toast.title).foregroundStyle(Theme.Colors.textPrimary).layoutPriority(1)
+                    if let message = toast.message, !message.isEmpty {
+                        Text(message).foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    if toast.style == .failure {
+                        divider
+                        button {
+                            Paster.copyPlainText(
+                                [toast.title, toast.message].compactMap(\.self).joined(separator: "\n"))
+                            copiedAt = Date()
+                        } label: {
+                            // The wider word holds the width, so the pill never twitches on copy.
+                            ZStack {
+                                Text("Copied").hidden()
+                                Text(copiedAt == nil ? "Copy" : "Copied")
+                            }
+                        }
+                    } else if let action = toast.primaryAction {
+                        divider
+                        button {
+                            onAction(action.token)
+                        } label: {
+                            Text(action.title)
                         }
                     }
-                } else if let action = toast.primaryAction {
-                    divider
-                    button {
-                        onAction(action.token)
-                    } label: {
-                        Text(action.title)
-                    }
                 }
+                .font(metrics.typography.bar)
+                .lineLimit(1)
+                .padding(.trailing, metrics.spacing.xl)
             }
-            .font(metrics.typography.bar)
-            .lineLimit(1)
-            .padding(.trailing, metrics.spacing.xl)
-        }
-        .frame(height: metrics.size.menuButton)
-        .background { glow }
-        .overlay {
-            Capsule().strokeBorder(
-                LinearGradient(
-                    colors: [tint.opacity(Self.rimOpacity), tint.opacity(0.06), .clear],
-                    startPoint: .leading, endPoint: .trailing),
-                lineWidth: Theme.Size.hairline)
-        }
-        .frosted(in: Capsule())
-        .contentShape(Capsule())
-        .onTapGesture(perform: onDismiss)
-        .onHover { isHovered in
-            withAnimation(.easeOut(duration: Theme.Duration.hover)) { hovered = isHovered }
-        }
-        .accessibilityAction(named: "Dismiss", onDismiss)
-        .task(id: copiedAt) {
-            guard copiedAt != nil else { return }
-            try? await Task.sleep(for: .seconds(Theme.Duration.copyFeedback))
-            copiedAt = nil
+            .frame(height: metrics.size.menuButton)
+            .background { glow }
+            .overlay {
+                Capsule().strokeBorder(
+                    LinearGradient(
+                        colors: [tint.opacity(Self.rimOpacity), tint.opacity(0.06), .clear],
+                        startPoint: .leading, endPoint: .trailing),
+                    lineWidth: Theme.Size.hairline)
+            }
+            .frosted(in: Capsule())
+            .contentShape(Capsule())
+            .onTapGesture(perform: onDismiss)
+            .onHover { isHovered in
+                withAnimation(.easeOut(duration: Theme.Duration.hover)) { hovered = isHovered }
+            }
+            .accessibilityAction(named: "Dismiss", onDismiss)
+            .task(id: copiedAt) {
+                guard copiedAt != nil else { return }
+                try? await Task.sleep(for: .seconds(Theme.Duration.copyFeedback))
+                copiedAt = nil
+            }
         }
     }
 
@@ -192,11 +199,13 @@ struct ExtensionToastPill: View {
 
     private var glow: some View {
         GeometryReader { proxy in
-            Capsule().fill(
-                RadialGradient(
-                    colors: [tint.opacity(Self.glowOpacity), tint.opacity(0.03), .clear],
-                    center: UnitPoint(x: metrics.size.menuButton / 2 / proxy.size.width, y: 0.5),
-                    startRadius: 0, endRadius: Self.glowRadius))
+            WithPerceptionTracking {
+                Capsule().fill(
+                    RadialGradient(
+                        colors: [tint.opacity(Self.glowOpacity), tint.opacity(0.03), .clear],
+                        center: UnitPoint(x: metrics.size.menuButton / 2 / proxy.size.width, y: 0.5),
+                        startRadius: 0, endRadius: Self.glowRadius))
+            }
         }
     }
 
@@ -220,8 +229,8 @@ struct ExtensionToastPill: View {
         case .success: Image(systemName: "checkmark")
         case .failure: Image(systemName: "exclamationmark")
         case .animated:
-            Image(systemName: "progress.indicator")
-                .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing)
+            Image(systemName: "slowmo")
+                .progressSymbolPulse()
         }
     }
 }

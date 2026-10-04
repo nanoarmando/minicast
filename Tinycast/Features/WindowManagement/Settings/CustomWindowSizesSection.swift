@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The custom-size library, inside the Window Management pane beside the commands it extends.
 struct CustomWindowSizesSection: View {
@@ -8,20 +9,22 @@ struct CustomWindowSizesSection: View {
     @Environment(CustomWindowSizeCoordinator.self) private var coordinator
 
     var body: some View {
-        Section {
-            ForEach(store.sizes) { size in
-                CustomWindowSizeRow(
-                    size: size,
-                    onEdit: { onEdit(size) },
-                    onDelete: { delete(size) })
+        WithPerceptionTracking {
+            Section {
+                ForEach(store.sizes) { size in
+                    CustomWindowSizeRow(
+                        size: size,
+                        onEdit: { onEdit(size) },
+                        onDelete: { delete(size) })
+                }
+                Button {
+                    onEdit(nil)
+                } label: {
+                    SettingsRowTitle(.windowManagementCustomSizes, "New Custom Size")
+                }
+            } header: {
+                SettingsSectionHeader(.windowManagementCustomSizes)
             }
-            Button {
-                onEdit(nil)
-            } label: {
-                SettingsRowTitle(.windowManagementCustomSizes, "New Custom Size")
-            }
-        } header: {
-            SettingsSectionHeader(.windowManagementCustomSizes)
         }
     }
 
@@ -39,31 +42,33 @@ private struct CustomWindowSizeRow: View {
     @Environment(VisibilityStore.self) private var visibility
 
     var body: some View {
-        SettingsRow(title: size.name, subtitle: size.summary) {
-            Image(systemName: CustomWindowSize.sfSymbol)
-        } trailing: {
-            ShortcutRecorder(action: .customWindowSize(id: size.id))
+        WithPerceptionTracking {
+            SettingsRow(title: size.name, subtitle: size.summary) {
+                Image(systemName: CustomWindowSize.sfSymbol)
+            } trailing: {
+                ShortcutRecorder(action: .customWindowSize(id: size.id))
 
-            Button(action: onEdit) {
-                Image(systemName: "pencil")
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.plain)
+                .help("Edit")
+                .accessibilityLabel("Edit \(size.name)")
+
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundStyle(Theme.Colors.destructive)
+                }
+                .buttonStyle(.plain)
+                .help("Delete")
+                .accessibilityLabel("Delete \(size.name)")
+
+                Toggle("", isOn: visibilityBinding)
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    .launcherVisibilityHelp()
+                    .accessibilityLabel("Show \(size.name) in launcher")
             }
-            .buttonStyle(.plain)
-            .help("Edit")
-            .accessibilityLabel("Edit \(size.name)")
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-            .buttonStyle(.plain)
-            .help("Delete")
-            .accessibilityLabel("Delete \(size.name)")
-
-            Toggle("", isOn: visibilityBinding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .launcherVisibilityHelp()
-                .accessibilityLabel("Show \(size.name) in launcher")
         }
     }
 

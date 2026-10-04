@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 struct UninstallList: View {
 
@@ -19,44 +20,48 @@ struct UninstallList: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    SectionHeader(title: summary, isFirst: true)
-                    ForEach(results) { candidate in
-                        UninstallRow(
-                            candidate: candidate,
-                            selected: candidate.id == selectedID,
-                            checked: session.selection?.isChecked(candidate.id) ?? false,
-                            onToggle: { onToggle(candidate) }
-                        )
-                        .id(candidate.id)
-                        .selectionFrame(candidate.id == selectedID)
-                        .contentShape(Rectangle())
-                        // Simultaneous, so single-click select never waits on the double-click.
-                        .onTapGesture { onSelect(candidate) }
-                        .simultaneousGesture(
-                            TapGesture(count: 2).onEnded {
-                                onSelect(candidate)
-                                onToggle(candidate)
+        WithPerceptionTracking {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        WithPerceptionTracking {
+                            SectionHeader(title: summary, isFirst: true)
+                            ForEach(results) { candidate in
+                                UninstallRow(
+                                    candidate: candidate,
+                                    selected: candidate.id == selectedID,
+                                    checked: session.selection?.isChecked(candidate.id) ?? false,
+                                    onToggle: { onToggle(candidate) }
+                                )
+                                .id(candidate.id)
+                                .selectionFrame(candidate.id == selectedID)
+                                .contentShape(Rectangle())
+                                // Simultaneous, so single-click select never waits on the double-click.
+                                .onTapGesture { onSelect(candidate) }
+                                .simultaneousGesture(
+                                    TapGesture(count: 2).onEnded {
+                                        onSelect(candidate)
+                                        onToggle(candidate)
+                                    }
+                                )
+                                .onRightClick { onActions(candidate) }
                             }
-                        )
-                        .onRightClick { onActions(candidate) }
+                        }
                     }
+                    .padding(.horizontal, metrics.spacing.md)
+                    .padding(.top, metrics.spacing.xs)
+                    .padding(.bottom, metrics.spacing.md)
+                    .hideNativeScrollers()
+                    .scrollOriginAnchor()
                 }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.top, metrics.spacing.xs)
-                .padding(.bottom, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
+                .edgeDissolve()
+                .thinScrollbar()
+                // On the first row, snap to the origin so the summary header shows too.
+                .scrollFollowsSelection(
+                    scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
             }
-            .edgeDissolve()
-            .thinScrollbar()
-            // On the first row, snap to the origin so the summary header shows too.
-            .scrollFollowsSelection(
-                scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
+            .onDisappear { IconCache.purgeFitted() }
         }
-        .onDisappear { IconCache.purgeFitted() }
     }
 }
 
@@ -82,45 +87,47 @@ private struct UninstallRow: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
-            // Smaller glyph, same result-row slot, so titles line up at one x across modes.
-            SymbolImage(name: glyph, size: metrics.size.checkbox)
-                .foregroundStyle(candidate.isLocked ? Theme.Colors.textTertiary : .primary)
-                .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
-                .contentShape(Rectangle())
-                // Only the checkbox toggles; the rest of the row selects.
-                .onTapGesture(perform: onToggle)
-                .tooltip(candidate.lockReason)
-            Text(candidate.name)
-                .font(metrics.typography.rowTitle)
-                .lineLimit(1)
-                .layoutPriority(1)
-            Text(candidate.locationLabel)
-                .font(metrics.typography.rowTrailing)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            if let label = candidate.evidence.label {
-                Text(label)
-                    .font(metrics.typography.rowTrailing)
-                    .foregroundStyle(Theme.Colors.textTertiary)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.lg) {
+                // Smaller glyph, same result-row slot, so titles line up at one x across modes.
+                SymbolImage(name: glyph, size: metrics.size.checkbox)
+                    .foregroundStyle(candidate.isLocked ? Theme.Colors.textTertiary : .primary)
+                    .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
+                    .contentShape(Rectangle())
+                    // Only the checkbox toggles; the rest of the row selects.
+                    .onTapGesture(perform: onToggle)
+                    .tooltip(candidate.lockReason)
+                Text(candidate.name)
+                    .font(metrics.typography.rowTitle)
                     .lineLimit(1)
+                    .layoutPriority(1)
+                Text(candidate.locationLabel)
+                    .font(metrics.typography.rowTrailing)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let label = candidate.evidence.label {
+                    Text(label)
+                        .font(metrics.typography.rowTrailing)
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: metrics.spacing.md)
+                Text(candidate.size?.formatted ?? "")
+                    .font(metrics.typography.rowTrailing)
+                    .foregroundStyle(.secondary)
+                FileIconView(path: candidate.path)
+                    .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             }
-            Spacer(minLength: metrics.spacing.md)
-            Text(candidate.size?.formatted ?? "")
-                .font(metrics.typography.rowTrailing)
-                .foregroundStyle(.secondary)
-            FileIconView(path: candidate.path)
-                .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
+            .opacity(candidate.isLocked ? 0.55 : 1)
+            .padding(.horizontal, metrics.spacing.md)
+            .padding(.vertical, metrics.spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
+                    .fill(fill)
+            )
+            .armedHover($hovered)
         }
-        .opacity(candidate.isLocked ? 0.55 : 1)
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
-                .fill(fill)
-        )
-        .armedHover($hovered)
     }
 }
 
@@ -136,20 +143,22 @@ private struct FileIconView: View {
     }
 
     var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image).resizable()
-            } else {
-                RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous)
-                    .fill(Theme.Colors.iconPlaceholder)
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable()
+                } else {
+                    RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous)
+                        .fill(Theme.Colors.iconPlaceholder)
+                }
             }
-        }
-        .task(id: IconRequest(path)) {
-            if let warm = IconCache.cachedFitted(forFile: path) {
-                image = warm
-                return
+            .task(id: IconRequest(path)) {
+                if let warm = IconCache.cachedFitted(forFile: path) {
+                    image = warm
+                    return
+                }
+                image = await IconCache.loadFittedAsync(forFile: path)
             }
-            image = await IconCache.loadFittedAsync(forFile: path)
         }
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// A sibling of `RaycastImportSelection`, not a generalisation: only this greys absent rows.
 struct BackupCategorySelection: View {
@@ -30,32 +31,36 @@ struct BackupCategorySelection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            LazyVGrid(columns: Self.columns, alignment: .leading, spacing: Theme.Spacing.sm) {
-                ForEach(offered) { category in
-                    Toggle(isOn: included(category)) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: category.descriptor.symbol)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16)
-                            Text(category.descriptor.label).lineLimit(1)
-                            if let subtitle = subtitle(category) {
-                                Text(subtitle)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                LazyVGrid(columns: Self.columns, alignment: .leading, spacing: Theme.Spacing.sm) {
+                    WithPerceptionTracking {
+                        ForEach(offered) { category in
+                            Toggle(isOn: included(category)) {
+                                HStack(spacing: Theme.Spacing.sm) {
+                                    Image(systemName: category.descriptor.symbol)
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 16)
+                                    Text(category.descriptor.label).lineLimit(1)
+                                    if let subtitle = subtitle(category) {
+                                        Text(subtitle)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
                             }
+                            .toggleStyle(.checkbox)
                         }
                     }
-                    .toggleStyle(.checkbox)
                 }
+                Button(selection.isEmpty ? "Select All" : "Deselect All") {
+                    selection = selection.isEmpty ? Set(offered) : []
+                }
+                .buttonStyle(.link)
+                .font(.caption)
             }
-            Button(selection.isEmpty ? "Select All" : "Deselect All") {
-                selection = selection.isEmpty ? Set(offered) : []
-            }
-            .buttonStyle(.link)
-            .font(.caption)
+            .font(.callout)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(.callout)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

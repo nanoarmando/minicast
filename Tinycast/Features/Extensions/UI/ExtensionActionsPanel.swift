@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// File-scoped so a row and the cap that counts rows read one number.
 private struct Metrics {
@@ -63,24 +64,26 @@ struct ExtensionActionsPanel: View {
     private var hairline: CGFloat { 1 / displayScale }
 
     var body: some View {
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: metrics.radius.menuPanel,
-            bottomLeadingRadius: metrics.radius.menuPanel,
-            bottomTrailingRadius: metrics.size.menuButton / 2,
-            topTrailingRadius: metrics.radius.menuPanel,
-            style: .continuous)
-        return VStack(spacing: 0) {
-            listContent
-            Rectangle()
-                .fill(Theme.Colors.separator)
-                .frame(height: hairline)
-                .accessibilityHidden(true)
-            ExtensionMenuSearchField(
-                placeholder: "Search for actions…", height: panel.rowHeight,
-                verticalOffset: -metrics.spacing.xxs / 2)
+        WithPerceptionTracking {
+            let shape = UnevenRoundedRectangle(
+                topLeadingRadius: metrics.radius.menuPanel,
+                bottomLeadingRadius: metrics.radius.menuPanel,
+                bottomTrailingRadius: metrics.size.menuButton / 2,
+                topTrailingRadius: metrics.radius.menuPanel,
+                style: .continuous)
+            return VStack(spacing: 0) {
+                listContent
+                Rectangle()
+                    .fill(Theme.Colors.separator)
+                    .frame(height: hairline)
+                    .accessibilityHidden(true)
+                ExtensionMenuSearchField(
+                    placeholder: "Search for actions…", height: panel.rowHeight,
+                    verticalOffset: -metrics.spacing.xxs / 2)
+            }
+            .frame(width: panel.width)
+            .glassSurface(in: shape)
         }
-        .frame(width: panel.width)
-        .glassEffect(.regular, in: shape)
     }
 
     @ViewBuilder
@@ -124,12 +127,12 @@ struct ExtensionActionsPanel: View {
                 .padding(.horizontal, panel.listInset)
             }
             // A margin, not padding: a revealed end row keeps its inset instead of meeting the edge.
-            .contentMargins(.vertical, panel.listInset, for: .scrollContent)
+            .verticalScrollContentMargins(panel.listInset)
             .frame(height: extent.viewport + panel.listInset * 2)
-            .scrollBounceBehavior(extent.content > extent.viewport ? .always : .basedOnSize)
+            .scrollBounce(always: extent.content > extent.viewport)
             // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
             .scrollIndicators(.never)
-            .onChange(of: selection) {
+            .onValueChange(of: selection) {
                 let movedByPointer = hoverSelection == selection
                 hoverSelection = nil
                 guard !movedByPointer else { return }
@@ -189,35 +192,37 @@ private struct ExtensionActionRow: View {
     private var panel: Metrics { Metrics(interface: metrics) }
 
     var body: some View {
-        Button(action: onActivate) {
-            HStack(spacing: metrics.spacing.md) {
-                ExtensionIconView(
-                    resolved: item.icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
-                Text(item.title)
-                    .font(metrics.typography.menuRow)
-                    .foregroundStyle(item.isDestructive ? Color.red : Color.primary)
-                    .lineLimit(1)
-                Spacer(minLength: metrics.spacing.sm)
-                if let shortcut = item.shortcut {
-                    HStack(spacing: metrics.spacing.xxs) {
-                        ForEach(Array(shortcut.enumerated()), id: \.offset) { _, glyph in
-                            KeyCapChip(text: String(glyph), style: .outline)
+        WithPerceptionTracking {
+            Button(action: onActivate) {
+                HStack(spacing: metrics.spacing.md) {
+                    ExtensionIconView(
+                        resolved: item.icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    Text(item.title)
+                        .font(metrics.typography.menuRow)
+                        .foregroundStyle(item.isDestructive ? Color.red : Color.primary)
+                        .lineLimit(1)
+                    Spacer(minLength: metrics.spacing.sm)
+                    if let shortcut = item.shortcut {
+                        HStack(spacing: metrics.spacing.xxs) {
+                            ForEach(Array(shortcut.enumerated()), id: \.offset) { _, glyph in
+                                KeyCapChip(text: String(glyph), style: .outline)
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, metrics.spacing.md)
+                // Fixed, not padded: the height maths above counts rows, so a row is one exact height.
+                .frame(
+                    maxWidth: .infinity, minHeight: panel.rowHeight, maxHeight: panel.rowHeight,
+                    alignment: .leading
+                )
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
+                        .fill(selected ? Theme.Colors.menuHover : Color.clear)
+                )
             }
-            .padding(.horizontal, metrics.spacing.md)
-            // Fixed, not padded: the height maths above counts rows, so a row is one exact height.
-            .frame(
-                maxWidth: .infinity, minHeight: panel.rowHeight, maxHeight: panel.rowHeight,
-                alignment: .leading
-            )
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
-                    .fill(selected ? Theme.Colors.menuHover : Color.clear)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 }

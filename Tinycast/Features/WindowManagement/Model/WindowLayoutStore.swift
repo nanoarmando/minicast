@@ -1,14 +1,15 @@
 import Foundation
+import Perception
 
 /// The layout library. Authored data, so a bad record is cleaned rather than discarded.
 @MainActor
-@Observable
+@Perceptible
 final class WindowLayoutStore {
     private static let defaultsKey = "windowLayouts"
 
     private let defaults: UserDefaults
     private(set) var layouts: [WindowLayout]
-    @ObservationIgnored var onChange: (([WindowLayout]) -> Void)?
+    @PerceptionIgnored var onChange: (([WindowLayout]) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

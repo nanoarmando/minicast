@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The clipboard header's type filter control: it states the active filter and toggles its menu.
 struct ClipboardFilterButton: View {
@@ -7,11 +8,13 @@ struct ClipboardFilterButton: View {
     let action: () -> Void
 
     var body: some View {
-        HeaderMenuButton(
-            title: filter.title,
-            systemImage: filter.systemImage,
-            isOpen: isOpen,
-            help: "Filter by type  ⌘P",
-            action: action)
+        WithPerceptionTracking {
+            HeaderMenuButton(
+                title: filter.title,
+                systemImage: filter.systemImage,
+                isOpen: isOpen,
+                help: "Filter by type  ⌘P",
+                action: action)
+        }
     }
 }

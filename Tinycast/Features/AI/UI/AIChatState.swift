@@ -1,8 +1,8 @@
 import Foundation
-import Observation
+import Perception
 
 @MainActor
-@Observable
+@Perceptible
 final class AIChatState {
     private(set) var session = ChatSession()
     private(set) var isStreaming = false
@@ -16,20 +16,20 @@ final class AIChatState {
     var toolScope = ChatToolScope()
 
     /// Every path that consumes or drops the staged images moves this on, so a late decode knows
-    @ObservationIgnored private(set) var stagingGeneration = 0
+    @PerceptionIgnored private(set) var stagingGeneration = 0
 
     private let history: ChatHistoryStore
-    @ObservationIgnored private var replyTask: Task<Void, Never>?
-    @ObservationIgnored private var replyGeneration = 0
+    @PerceptionIgnored private var replyTask: Task<Void, Never>?
+    @PerceptionIgnored private var replyGeneration = 0
     /// Deltas buffered between flushes, so the transcript re-renders per cadence, not per token.
-    @ObservationIgnored private var pendingText = ""
-    @ObservationIgnored private var pendingReasoning = ""
+    @PerceptionIgnored private var pendingText = ""
+    @PerceptionIgnored private var pendingReasoning = ""
     /// When the reply's latest stretch of thinking began, so its fold can say for how long.
-    @ObservationIgnored private var reasoningStartedAt: Date?
+    @PerceptionIgnored private var reasoningStartedAt: Date?
     /// Told when a reply ends whole, which is when a chat has something to be named by.
-    @ObservationIgnored var onReplyFinished: (@MainActor (AIChatState) -> Void)?
-    @ObservationIgnored private var flushTask: Task<Void, Never>?
-    @ObservationIgnored private var lastFlush = ContinuousClock().now
+    @PerceptionIgnored var onReplyFinished: (@MainActor (AIChatState) -> Void)?
+    @PerceptionIgnored private var flushTask: Task<Void, Never>?
+    @PerceptionIgnored private var lastFlush = ContinuousClock().now
 
     private static let flushInterval: Duration = .milliseconds(40)
 

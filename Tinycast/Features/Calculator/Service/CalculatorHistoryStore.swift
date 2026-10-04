@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// One past calculation, recorded when the user copies an answer.
 struct CalcHistoryEntry: Identifiable, Codable, Hashable, Sendable {
@@ -10,7 +11,7 @@ struct CalcHistoryEntry: Identifiable, Codable, Hashable, Sendable {
 
 /// A capped JSON file beside `ClipboardStore` so `brew uninstall --zap` gets it too.
 @MainActor
-@Observable
+@Perceptible
 final class CalculatorHistoryStore {
     private static let cap = 200
 
@@ -24,7 +25,7 @@ final class CalculatorHistoryStore {
     }
 
     /// Repeated renders (arrow-key nav) reuse the filter instead of re-scanning every entry.
-    @ObservationIgnored private var searchMemo = Memo<SearchKey, [CalcHistoryEntry]>()
+    @PerceptionIgnored private var searchMemo = Memo<SearchKey, [CalcHistoryEntry]>()
     /// Bumped on every persisted mutation, so the key above names the entries it filtered.
     private var revision = 0
 

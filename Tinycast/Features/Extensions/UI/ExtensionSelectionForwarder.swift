@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Perception
 
 /// Keeps the extension's item-id selection in sync with Tinycast's flat palette index.
 struct ExtensionSelectionForwarder: ViewModifier {
@@ -19,17 +20,19 @@ struct ExtensionSelectionForwarder: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.onChange(of: screen.selectionChange(at: selectedIndex), initial: true) { _, change in
-            guard let change else { return }
-            if seededContext != context {
-                seededContext = context
-                if let index = screen.selectedItemIndex, selectedIndex != index {
-                    palette.selection = index
-                    return
+        WithPerceptionTracking {
+            content.onValueChange(of: screen.selectionChange(at: selectedIndex), initial: true) { _, change in
+                guard let change else { return }
+                if seededContext != context {
+                    seededContext = context
+                    if let index = screen.selectedItemIndex, selectedIndex != index {
+                        palette.selection = index
+                        return
+                    }
                 }
+                let argument: Any = change.itemID.map { $0 as Any } ?? NSNull()
+                extensions.dispatch(handler: change.handler, arguments: [argument])
             }
-            let argument: Any = change.itemID.map { $0 as Any } ?? NSNull()
-            extensions.dispatch(handler: change.handler, arguments: [argument])
         }
     }
 }

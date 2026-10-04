@@ -1,21 +1,21 @@
 import Foundation
+import Perception
 
 /// Follows Language & Region's number format, so a change there applies without a relaunch.
 @MainActor
-@Observable
+@Perceptible
 final class RegionNumberFormatMonitor {
     private(set) var system = RegionNumberFormatMonitor.read()
-    @ObservationIgnored private var token: NotificationCenter.ObservationToken?
+    @PerceptionIgnored private var token: NotificationToken?
 
     init() {
-        token = NotificationCenter.default.addObserver(of: Locale.self, for: .currentLocaleDidChange) {
-            [weak self] _ in
-            self?.system = Self.read()
+        let center = NotificationCenter.default
+        let observer = center.addObserver(
+            forName: NSLocale.currentLocaleDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.system = Self.read() }
         }
-    }
-
-    deinit {
-        if let token { NotificationCenter.default.removeObserver(token) }
+        token = NotificationToken(observer, center: center)
     }
 
     func format(for style: CalcNumberStyle) -> CalcNumberFormat {

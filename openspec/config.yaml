@@ -1,0 +1,8 @@
+schema: spec-driven
+
+context: |
+  Private fork of Tinycast (https://github.com/abue-ammar/tinycast), a native macOS menu-bar launcher.
+  Tech stack: Swift 6 language mode, SwiftUI + AppKit, Xcode project (Tinycast.xcodeproj), no upstream contributions.
+  Fork goal: run on macOS 13 Ventura on an Intel MacBook Pro (2017) while keeping the main Mac working.
+  The fork overrides the upstream "latest macOS only" posture described in AGENTS.md: compatibility
+  with macOS 13 is an explicit requirement here. Maintenance is personal; upstream changes are not merged.

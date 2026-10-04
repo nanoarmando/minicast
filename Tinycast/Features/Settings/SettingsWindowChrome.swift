@@ -1,17 +1,19 @@
 import AppKit
 
-/// The window flags `NSHostingController` can't bridge; SwiftUI owns the toolbar and its title.
+/// An empty unified toolbar only sizes the titlebar band; the controls live in the content beneath it.
 @MainActor
 final class SettingsWindowChrome: WindowChrome {
     func install(in window: NSWindow) {
-        // All three together are what puts the title inline and leading rather than centred.
-        window.titleVisibility = .visible
+        // Without a toolbar the band is 28pt and the traffic lights sit too high for the header row.
+        let toolbar = NSToolbar(identifier: "SettingsToolbar")
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
         window.toolbarStyle = .unified
-        // `.automatic` draws a hairline once content scrolls under the bar, splitting the surface.
         window.titlebarSeparatorStyle = .none
-        // Transparent opts the titlebar out of the system's glass band; Settings wants it drawn.
-        window.titlebarAppearsTransparent = false
-        // Stock Settings isn't dragged by its content — a drag on a `Form` shouldn't move the window.
+        // Hidden, not cleared: Mission Control and the Window menu still name the window.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        // A drag on a `Form` shouldn't move the window; the header band drags it through AppKit.
         window.isMovableByWindowBackground = false
     }
 }

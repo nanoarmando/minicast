@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 extension AppCore {
     /// Reads both observables, so a changed setting or region re-renders every calculator surface.
@@ -41,37 +42,39 @@ struct CalculatorCard: View {
     let selected: Bool
 
     var body: some View {
-        let result = core.calcNumberFormat.localized(result)
-        return Group {
-            switch result.payload {
-            case .value(let display, _):
-                HStack(spacing: 0) {
-                    LeadCardColumn(
-                        text: CalcSyntax.highlighted(result.expression),
-                        badge: result.sourceBadge)
-                    Image(systemName: "arrow.right")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                    LeadCardColumn(
-                        text: CalcSyntax.highlighted(display), badge: result.targetBadge,
-                        weight: .semibold)
+        WithPerceptionTracking {
+            let result = core.calcNumberFormat.localized(result)
+            return Group {
+                switch result.payload {
+                case .value(let display, _):
+                    HStack(spacing: 0) {
+                        LeadCardColumn(
+                            text: CalcSyntax.highlighted(result.expression),
+                            badge: result.sourceBadge)
+                        Image(systemName: "arrow.right")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                        LeadCardColumn(
+                            text: CalcSyntax.highlighted(display), badge: result.targetBadge,
+                            weight: .semibold)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                case .error(let message):
+                    HStack(spacing: metrics.spacing.md) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .symbolRenderingMode(.hierarchical)
+                        Text(message)
+                            .lineLimit(1)
+                    }
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
                 }
-                .fixedSize(horizontal: false, vertical: true)
-            case .error(let message):
-                HStack(spacing: metrics.spacing.md) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .symbolRenderingMode(.hierarchical)
-                    Text(message)
-                        .lineLimit(1)
-                }
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
             }
+            .padding(.horizontal, metrics.spacing.xl)
+            .padding(.vertical, metrics.spacing.xxxl)
+            .leadCard(selected: selected)
         }
-        .padding(.horizontal, metrics.spacing.xl)
-        .padding(.vertical, metrics.spacing.xxxl)
-        .leadCard(selected: selected)
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Settings › Extensions: the master switch, then a row per extension that expands in place.
 struct ExtensionsSettingsView: View {
@@ -20,62 +21,64 @@ struct ExtensionsSettingsView: View {
     @State private var reclaimable = ExtensionCleanup.Report()
 
     var body: some View {
-        @Bindable var settings = core.settings
-        return Form {
-            FeatureSwitchSection(
-                anchor: .extensionsExtensions,
-                enableTitle: "Enable extensions",
-                enableSubtitle: "Run Raycast extensions natively.",
-                // Enabling is consent to run third-party code, so the setter confirms.
-                isEnabled: Binding(
-                    get: { settings.extensionsEnabled },
-                    set: { core.extensionCoordinator.setExtensionsEnabled($0) }),
-                showsInLauncher: $settings.extensionsShowInLauncher,
-                showsIcon: true)
+        WithPerceptionTracking {
+            @Perception.Bindable var settings = core.settings
+            Form {
+                FeatureSwitchSection(
+                    anchor: .extensionsExtensions,
+                    enableTitle: "Enable extensions",
+                    enableSubtitle: "Run Raycast extensions natively.",
+                    // Enabling is consent to run third-party code, so the setter confirms.
+                    isEnabled: Binding(
+                        get: { settings.extensionsEnabled },
+                        set: { core.extensionCoordinator.setExtensionsEnabled($0) }),
+                    showsInLauncher: $settings.extensionsShowInLauncher,
+                    showsIcon: true)
 
-            Group {
-                install
-                library
-                compatibility
-            }
-            .settingsEnabled(settings.extensionsEnabled)
+                Group {
+                    install
+                    library
+                    compatibility
+                }
+                .settingsEnabled(settings.extensionsEnabled)
 
-            // Outside the enabled group: leftovers are on disk whether or not extensions are on.
-            storage
-        }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.extensions)
-        .releasesFocusOnOutsideClick()
-        // Escape and Return are the keyboard way out of the same field.
-        .onExitCommand { NSApp.keyWindow?.makeFirstResponder(nil) }
-        .onSubmit { NSApp.keyWindow?.makeFirstResponder(nil) }
-        // By item: `isPresented` builds the panel from a snapshot taken before the write.
-        .settingsEditorPanel(item: $importCandidates) { candidates in
-            ExtensionImportPanel(
-                candidates: candidates.entries,
-                onImport: { chosen in
-                    importCandidates = nil
-                    Task { await importAll(chosen) }
-                },
-                onCancel: { importCandidates = nil })
-        }
-        .settingsEditorPanel(isPresented: $browsingStore) {
-            ExtensionStorePanel(onClose: { browsingStore = false })
-        }
-        .settingsEditorPanel(isPresented: $installingFromGitHub) {
-            ExtensionGitHubPanel(onClose: { installingFromGitHub = false })
-        }
-        .onChange(of: navigation.scrollRequest, initial: true) {
-            if case .row(.extensionsInstalled, let name)? = navigation.scrollRequest?.target {
-                (expanded, filter) = (name, "")
+                // Outside the enabled group: leftovers are on disk whether or not extensions are on.
+                storage
             }
-        }
-        .onChange(of: core.extensions.installed.count) { Task { await measureReclaimable() } }
-        .task {
-            await core.extensions.refresh()
-            await measureReclaimable()
-            await findPending()
-            await core.extensions.checkForUpdates()
+            .formStyle(.grouped)
+            .settingsScrollTarget(.extensions)
+            .releasesFocusOnOutsideClick()
+            // Escape and Return are the keyboard way out of the same field.
+            .onExitCommand { NSApp.keyWindow?.makeFirstResponder(nil) }
+            .onSubmit { NSApp.keyWindow?.makeFirstResponder(nil) }
+            // By item: `isPresented` builds the panel from a snapshot taken before the write.
+            .settingsEditorPanel(item: $importCandidates) { candidates in
+                ExtensionImportPanel(
+                    candidates: candidates.entries,
+                    onImport: { chosen in
+                        importCandidates = nil
+                        Task { await importAll(chosen) }
+                    },
+                    onCancel: { importCandidates = nil })
+            }
+            .settingsEditorPanel(isPresented: $browsingStore) {
+                ExtensionStorePanel(onClose: { browsingStore = false })
+            }
+            .settingsEditorPanel(isPresented: $installingFromGitHub) {
+                ExtensionGitHubPanel(onClose: { installingFromGitHub = false })
+            }
+            .onValueChange(of: navigation.scrollRequest, initial: true) {
+                if case .row(.extensionsInstalled, let name)? = navigation.scrollRequest?.target {
+                    (expanded, filter) = (name, "")
+                }
+            }
+            .onValueChange(of: core.extensions.installed.count) { Task { await measureReclaimable() } }
+            .task {
+                await core.extensions.refresh()
+                await measureReclaimable()
+                await findPending()
+                await core.extensions.checkForUpdates()
+            }
         }
     }
 
@@ -371,10 +374,12 @@ private struct ExtensionSettingsIcon: View {
     private let iconSize = Theme.Size.settingsRowIcon + Theme.Spacing.xs
 
     var body: some View {
-        Image(systemName: systemName)
-            .font(.system(size: Theme.Size.settingsRowIcon - Theme.Spacing.xs))
-            .foregroundStyle(.primary)
-            .frame(width: iconSize, height: iconSize)
+        WithPerceptionTracking {
+            Image(systemName: systemName)
+                .font(.system(size: Theme.Size.settingsRowIcon - Theme.Spacing.xs))
+                .foregroundStyle(.primary)
+                .frame(width: iconSize, height: iconSize)
+        }
     }
 }
 
@@ -389,11 +394,13 @@ private struct ExtensionDisclosure: View {
     let onUninstall: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            summary
-            if isExpanded {
-                settings
-                    .padding(.top, Theme.Spacing.lg)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: 0) {
+                summary
+                if isExpanded {
+                    settings
+                        .padding(.top, Theme.Spacing.lg)
+                }
             }
         }
     }
@@ -510,35 +517,37 @@ private struct SettingsCardRow<Control: View>: View {
     @ViewBuilder var control: Control
 
     var body: some View {
-        GridRow(alignment: .center) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Text(title)
-                    if let badge {
-                        Text(badge)
-                            .font(.caption2)
+        WithPerceptionTracking {
+            GridRow(alignment: .center) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Text(title)
+                        if let badge {
+                            Text(badge)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, Theme.Spacing.xs)
+                                .padding(.vertical, 1)
+                                .background(Theme.Colors.controlSurface, in: .capsule)
+                        }
+                    }
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, Theme.Spacing.xs)
-                            .padding(.vertical, 1)
-                            .background(Theme.Colors.controlSurface, in: .capsule)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                if let detail, !detail.isEmpty {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .padding(.leading, indent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .gridColumnAlignment(.leading)
+                // One width for every control: else a toggle, a pop-up and a field end apart.
+                control
+                    .frame(width: controlWidth, alignment: .trailing)
+                    .gridColumnAlignment(.trailing)
             }
-            .padding(.leading, indent)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .gridColumnAlignment(.leading)
-            // One width for every control: else a toggle, a pop-up and a field end apart.
-            control
-                .frame(width: controlWidth, alignment: .trailing)
-                .gridColumnAlignment(.trailing)
+            .padding(.vertical, Theme.Spacing.xxs)
         }
-        .padding(.vertical, Theme.Spacing.xxs)
     }
 }
 
@@ -558,49 +567,51 @@ private struct CommandRows: View {
     }
 
     var body: some View {
-        let entry = installed.launcherEntry(for: command)
-        let isVisible = visibility.isItemVisible(entry)
-        SettingsCardRow(
-            title: command.title, detail: command.description, badge: badge, controlWidth: nil
-        ) {
-            HStack(spacing: Theme.Spacing.lg) {
-                // Hidden or unpublished commands never reach rank, so typing here would match nothing.
-                AliasField(entry: entry)
-                    .settingsEnabled(settings.extensionsShowInLauncher && isVisible)
-                // Per command, not per extension: a shortcut has to land on one thing to run.
-                ShortcutRecorder(action: .extensionCommand(entryID: entry.id))
-                Toggle(
-                    "", isOn: Binding(get: { isVisible }, set: { visibility.setItemVisible($0, for: entry) })
-                )
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .help("Show in launcher")
-                .accessibilityLabel("Show \(command.title) in launcher")
+        WithPerceptionTracking {
+            let entry = installed.launcherEntry(for: command)
+            let isVisible = visibility.isItemVisible(entry)
+            SettingsCardRow(
+                title: command.title, detail: command.description, badge: badge, controlWidth: nil
+            ) {
+                HStack(spacing: Theme.Spacing.lg) {
+                    // Hidden or unpublished commands never reach rank, so typing here would match nothing.
+                    AliasField(entry: entry)
+                        .settingsEnabled(settings.extensionsShowInLauncher && isVisible)
+                    // Per command, not per extension: a shortcut has to land on one thing to run.
+                    ShortcutRecorder(action: .extensionCommand(entryID: entry.id))
+                    Toggle(
+                        "", isOn: Binding(get: { isVisible }, set: { visibility.setItemVisible($0, for: entry) })
+                    )
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    .help("Show in launcher")
+                    .accessibilityLabel("Show \(command.title) in launcher")
+                }
             }
-        }
-        if command.mode == .menuBar {
-            SettingsCardRow(title: "Show in menu bar", indent: Theme.Spacing.lg) {
-                Toggle(
-                    "Show in menu bar",
-                    isOn: Binding(
-                        get: { core.extensionCoordinator.menuBarIsEnabled(reference) },
-                        set: { core.extensionCoordinator.setMenuBarEnabled($0, reference: reference) })
-                )
-                .labelsHidden()
+            if command.mode == .menuBar {
+                SettingsCardRow(title: "Show in menu bar", indent: Theme.Spacing.lg) {
+                    Toggle(
+                        "Show in menu bar",
+                        isOn: Binding(
+                            get: { core.extensionCoordinator.menuBarIsEnabled(reference) },
+                            set: { core.extensionCoordinator.setMenuBarEnabled($0, reference: reference) })
+                    )
+                    .labelsHidden()
+                }
             }
-        }
-        // Indented under its command: at the same inset the association is reading order.
-        ForEach(command.preferences, id: \.name) { schema in
-            ExtensionPreferenceRow(
-                extensionName: installed.manifest.name, schema: schema, indent: Theme.Spacing.lg)
-        }
-        // The same predicate the scheduler runs on: an unparseable interval gets no toggle.
-        if ExtensionRefreshPolicy.isSchedulable(mode: command.mode, interval: command.interval),
-            let schedule = command.intervalRaw
-        {
-            ExtensionRefreshRow(
-                extensionName: installed.manifest.name, command: command, schedule: schedule,
-                indent: Theme.Spacing.lg)
+            // Indented under its command: at the same inset the association is reading order.
+            ForEach(command.preferences, id: \.name) { schema in
+                ExtensionPreferenceRow(
+                    extensionName: installed.manifest.name, schema: schema, indent: Theme.Spacing.lg)
+            }
+            // The same predicate the scheduler runs on: an unparseable interval gets no toggle.
+            if ExtensionRefreshPolicy.isSchedulable(mode: command.mode, interval: command.interval),
+                let schedule = command.intervalRaw
+            {
+                ExtensionRefreshRow(
+                    extensionName: installed.manifest.name, command: command, schedule: schedule,
+                    indent: Theme.Spacing.lg)
+            }
         }
     }
 }
@@ -620,14 +631,16 @@ private struct ExtensionRefreshRow: View {
     }()
 
     var body: some View {
-        let info = core.extensions.backgroundInfo(extension: extensionName, command: command.name)
-        SettingsCardRow(title: "Background refresh", detail: detail(for: info), indent: indent) {
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: { info.backgroundEnabled }, set: { setEnabled($0) })
-            )
-            .labelsHidden()
+        WithPerceptionTracking {
+            let info = core.extensions.backgroundInfo(extension: extensionName, command: command.name)
+            SettingsCardRow(title: "Background refresh", detail: detail(for: info), indent: indent) {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { info.backgroundEnabled }, set: { setEnabled($0) })
+                )
+                .labelsHidden()
+            }
         }
     }
 
@@ -655,17 +668,19 @@ private struct ExtensionLauncherRow: View {
     @Environment(VisibilityStore.self) private var visibility
 
     var body: some View {
-        let entries = installed.manifest.commands.map(installed.launcherEntry)
-        let visibleCount = entries.count(where: visibility.isItemVisible)
-        SettingsCardRow(title: "Show in launcher", detail: detail(visible: visibleCount, of: entries.count)) {
-            // A closure, not `set: setVisible`: an actor-isolated method as a setter crashes IRGen.
-            Toggle(
-                "",
-                isOn: Binding(
-                    get: { visibleCount > 0 },
-                    set: { visible in entries.forEach { visibility.setItemVisible(visible, for: $0) } })
-            )
-            .labelsHidden()
+        WithPerceptionTracking {
+            let entries = installed.manifest.commands.map(installed.launcherEntry)
+            let visibleCount = entries.count(where: visibility.isItemVisible)
+            SettingsCardRow(title: "Show in launcher", detail: detail(visible: visibleCount, of: entries.count)) {
+                // A closure, not `set: setVisible`: an actor-isolated method as a setter crashes IRGen.
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { visibleCount > 0 },
+                        set: { visible in entries.forEach { visibility.setItemVisible(visible, for: $0) } })
+                )
+                .labelsHidden()
+            }
         }
     }
 
@@ -690,22 +705,26 @@ private struct ExtensionIconRow: View {
     }
 
     var body: some View {
-        SettingsCardRow(
-            title: "Launcher icon",
-            detail: appearance == nil ? nil : "Custom icon."
-        ) {
-            HStack(spacing: Theme.Spacing.md) {
-                preview
-                Button("Change…") { picking = true }
-                    .popover(isPresented: $picking, arrowEdge: .bottom) {
-                        ExtensionAppearancePicker(
-                            current: appearance ?? .fallback,
-                            isCustom: appearance != nil,
-                            onPick: { core.extensions.setAppearance($0, for: installed.manifest.name) },
-                            onReset: {
-                                core.extensions.setAppearance(nil, for: installed.manifest.name)
-                            })
-                    }
+        WithPerceptionTracking {
+            SettingsCardRow(
+                title: "Launcher icon",
+                detail: appearance == nil ? nil : "Custom icon."
+            ) {
+                HStack(spacing: Theme.Spacing.md) {
+                    preview
+                    Button("Change…") { picking = true }
+                        .popover(isPresented: $picking, arrowEdge: .bottom) {
+                            WithPerceptionTracking {
+                                ExtensionAppearancePicker(
+                                    current: appearance ?? .fallback,
+                                    isCustom: appearance != nil,
+                                    onPick: { core.extensions.setAppearance($0, for: installed.manifest.name) },
+                                    onReset: {
+                                        core.extensions.setAppearance(nil, for: installed.manifest.name)
+                                    })
+                            }
+                        }
+                }
             }
         }
     }
@@ -734,10 +753,12 @@ private struct ExtensionPreferenceRow: View {
     private var storage: ExtensionStorage { core.extensions.storage }
 
     var body: some View {
-        SettingsCardRow(title: schema.displayTitle, detail: detail, indent: indent) {
-            control
+        WithPerceptionTracking {
+            SettingsCardRow(title: schema.displayTitle, detail: detail, indent: indent) {
+                control
+            }
+            .onAppear(perform: load)
         }
-        .onAppear(perform: load)
     }
 
     private var detail: String? {
@@ -752,7 +773,7 @@ private struct ExtensionPreferenceRow: View {
         case .checkbox:
             Toggle(schema.label ?? "", isOn: $flag)
                 .labelsHidden()
-                .onChange(of: flag) { _, value in
+                .onValueChange(of: flag) { _, value in
                     storage.setPreference(
                         extension: extensionName, key: schema.name, value: .bool(value))
                 }
@@ -763,13 +784,13 @@ private struct ExtensionPreferenceRow: View {
                 }
             }
             .labelsHidden()
-            .onChange(of: text) { _, value in save(value) }
+            .onValueChange(of: text) { _, value in save(value) }
         case .password:
             SecureField("", text: $text, prompt: schema.placeholder.map(Text.init))
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
-                .pointerStyle(.horizontalText)
-                .onChange(of: text) { _, value in save(value) }
+                .textCursorOnHover()
+                .onValueChange(of: text) { _, value in save(value) }
         case .file, .directory, .appPicker:
             HStack(spacing: Theme.Spacing.sm) {
                 Text(text.isEmpty ? "Not set" : (text as NSString).lastPathComponent)
@@ -782,8 +803,8 @@ private struct ExtensionPreferenceRow: View {
             TextField("", text: $text, prompt: schema.placeholder.map(Text.init))
                 .textFieldStyle(.roundedBorder)
                 .labelsHidden()
-                .pointerStyle(.horizontalText)
-                .onChange(of: text) { _, value in save(value) }
+                .textCursorOnHover()
+                .onValueChange(of: text) { _, value in save(value) }
         }
     }
 
@@ -847,73 +868,75 @@ private struct ExtensionImportPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-            ExtensionSettingsEditorHeader(title: "Import from Raycast", subtitle: subtitle)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                ExtensionSettingsEditorHeader(title: "Import from Raycast", subtitle: subtitle)
 
-            if candidates.count > 6 {
-                SettingsFilterField(prompt: "Filter…", query: $filter)
-            }
+                if candidates.count > 6 {
+                    SettingsFilterField(prompt: "Filter…", query: $filter)
+                }
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(matching) { candidate in
-                        // AppKit aligns a checkbox to its label's first baseline.
-                        HStack(spacing: Theme.Spacing.md) {
-                            Toggle("", isOn: binding(for: candidate))
-                                .labelsHidden()
-                            ExtensionIconView(
-                                resolved: candidate.installed.iconPath.map {
-                                    ExtensionImage.Resolved(source: .file($0))
-                                }, size: Theme.Size.rowIcon)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(candidate.installed.title)
-                                Text(detail(for: candidate))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(matching) { candidate in
+                            // AppKit aligns a checkbox to its label's first baseline.
+                            HStack(spacing: Theme.Spacing.md) {
+                                Toggle("", isOn: binding(for: candidate))
+                                    .labelsHidden()
+                                ExtensionIconView(
+                                    resolved: candidate.installed.iconPath.map {
+                                        ExtensionImage.Resolved(source: .file($0))
+                                    }, size: Theme.Size.rowIcon)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(candidate.installed.title)
+                                    Text(detail(for: candidate))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .padding(.vertical, Theme.Spacing.xs)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                            .onTapGesture { binding(for: candidate).wrappedValue.toggle() }
                         }
-                        .padding(.vertical, Theme.Spacing.xs)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
-                        .onTapGesture { binding(for: candidate).wrappedValue.toggle() }
                     }
+                    .hideNativeScrollers()
                 }
-                .hideNativeScrollers()
-            }
-            .overflowFade()
-            .thinScrollbar()
-            .frame(minHeight: 220)
+                .overflowFade()
+                .thinScrollbar()
+                .frame(minHeight: 220)
 
-            HStack {
-                // Reads against what is selected, so it is never a button that does nothing.
-                Button(allChosen ? "Deselect All" : "Select All") {
-                    chosen = allChosen ? [] : Set(candidates.map(\.installed.manifest.name))
+                HStack {
+                    // Reads against what is selected, so it is never a button that does nothing.
+                    Button(allChosen ? "Deselect All" : "Select All") {
+                        chosen = allChosen ? [] : Set(candidates.map(\.installed.manifest.name))
+                    }
+                    .buttonStyle(
+                        ExtensionSettingsEditorButtonStyle(role: .standard, fillsWidth: false)
+                    )
+                    .disabled(candidates.isEmpty)
+                    Spacer()
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .cancel))
+                        .keyboardShortcut(.cancelAction)
+                    Button("Import \(chosen.isEmpty ? "" : "(\(chosen.count))")") {
+                        onImport(
+                            candidates.map(\.installed).filter { chosen.contains($0.manifest.name) })
+                    }
+                    .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .primary))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(chosen.isEmpty)
                 }
-                .buttonStyle(
-                    ExtensionSettingsEditorButtonStyle(role: .standard, fillsWidth: false)
-                )
-                .disabled(candidates.isEmpty)
-                Spacer()
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .cancel))
-                    .keyboardShortcut(.cancelAction)
-                Button("Import \(chosen.isEmpty ? "" : "(\(chosen.count))")") {
-                    onImport(
-                        candidates.map(\.installed).filter { chosen.contains($0.manifest.name) })
-                }
-                .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .primary))
-                .keyboardShortcut(.defaultAction)
-                .disabled(chosen.isEmpty)
             }
-        }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: Theme.Size.editorSheetWidth)
-        .extensionSettingsEditorPanelSurface()
-        .onAppear {
-            // Once: re-seeding on every render would fight the user's own deselection.
-            guard !seeded else { return }
-            seeded = true
-            chosen = Set(fresh.map(\.installed.manifest.name))
+            .padding(Theme.Spacing.dialogInset)
+            .frame(width: Theme.Size.editorSheetWidth)
+            .extensionSettingsEditorPanelSurface()
+            .onAppear {
+                // Once: re-seeding on every render would fight the user's own deselection.
+                guard !seeded else { return }
+                seeded = true
+                chosen = Set(fresh.map(\.installed.manifest.name))
+            }
         }
     }
 

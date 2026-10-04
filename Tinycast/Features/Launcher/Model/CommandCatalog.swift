@@ -28,7 +28,7 @@ enum CommandCatalog {
 
     /// The row a typed web address earns; unlike a catalog entry, its URL is the real destination.
     static func openInBrowser(for query: String) -> AppEntry? {
-        guard case .web(let url)? = QuicklinkDestination.detect(query) else { return nil }
+        guard case .web(let url)? = LinkDestination.detect(query) else { return nil }
         return makeEntry(.openInBrowser, url: url, subtitle: "URL")
     }
 
@@ -50,14 +50,9 @@ enum CommandCatalog {
 extension SettingsTab {
     var ownedCommands: [CommandID] {
         switch self {
-        case .quicklinks:
-            [.createQuicklink, .searchQuicklinks, .importQuicklinks, .exportQuicklinks]
         case .ai: [.quickAI, .aiChat]
-        case .quickActions: [.fixGrammar, .rewrite, .translate, .summarize]
+        case .quickActions: [.fixGrammar, .rewrite, .summarize]
         case .fileSearch: [.searchFiles]
-        case .notes: [.showNotes, .createNote, .searchNotes]
-        case .snippets: [.searchSnippets, .createSnippet]
-        case .navigation: [.switchWindows, .searchMenuItems]
         case .windowManagement:
             [.createWindowLayout, .captureWindowLayout, .switchRoom, .createRoom]
         case .clipboard: [.clipboardHistory, .pasteSequentially]

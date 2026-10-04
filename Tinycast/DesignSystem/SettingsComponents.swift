@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 // The few pieces more than one Settings pane or editor needs; everything else stays feature-owned.
 
@@ -10,20 +11,22 @@ struct SettingsTabIcon: View {
     var size = Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2
 
     var body: some View {
-        let scale = size / (Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2)
-        Image(systemName: systemImage)
-            .resizable()
-            .scaledToFit()
-            .frame(
-                width: Theme.Size.settingsSidebarGlyph * scale,
-                height: Theme.Size.settingsSidebarGlyph * scale
-            )
-            .foregroundStyle(tint)
-            .padding(Theme.Spacing.xs * scale)
-            .background(
-                tint.opacity(0.1),
-                in: RoundedRectangle(
-                    cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous))
+        WithPerceptionTracking {
+            let scale = size / (Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2)
+            Image(systemName: systemImage)
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: Theme.Size.settingsSidebarGlyph * scale,
+                    height: Theme.Size.settingsSidebarGlyph * scale
+                )
+                .foregroundStyle(tint)
+                .padding(Theme.Spacing.xs * scale)
+                .background(
+                    tint.opacity(0.1),
+                    in: RoundedRectangle(
+                        cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous))
+        }
     }
 }
 
@@ -33,16 +36,18 @@ struct SettingsFeatureToggleLabel: View {
     let subtitle: String
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.lg) {
-            SettingsTabIcon(
-                systemImage: anchor.tab.systemImage, tint: .accentColor,
-                size: Theme.Size.settingsRowIcon * 1.5)
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                SettingsRowTitle(anchor, title)
-                    .fontWeight(.semibold)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        WithPerceptionTracking {
+            HStack(spacing: Theme.Spacing.lg) {
+                SettingsTabIcon(
+                    systemImage: anchor.tab.systemImage, tint: .accentColor,
+                    size: Theme.Size.settingsRowIcon * 1.5)
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    SettingsRowTitle(anchor, title)
+                        .fontWeight(.semibold)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -61,30 +66,32 @@ struct SettingsRow<Icon: View, Trailing: View>: View {
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
-        HStack(alignment: alignment, spacing: Theme.Spacing.lg) {
-            icon.opacity(labelOpacity)
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Group {
-                    if let anchor {
-                        SettingsRowTitle(anchor, title)
-                    } else {
-                        Text(title)
+        WithPerceptionTracking {
+            HStack(alignment: alignment, spacing: Theme.Spacing.lg) {
+                icon.opacity(labelOpacity)
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    Group {
+                        if let anchor {
+                            SettingsRowTitle(anchor, title)
+                        } else {
+                            Text(title)
+                        }
+                    }
+                    .lineLimit(1)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(subtitleLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .truncationMode(.middle)
+                            .help(subtitle)
                     }
                 }
-                .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(subtitleLineLimit)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .truncationMode(.middle)
-                        .help(subtitle)
-                }
+                .opacity(labelOpacity)
+                Spacer(minLength: Theme.Spacing.lg)
+                trailing
             }
-            .opacity(labelOpacity)
-            Spacer(minLength: Theme.Spacing.lg)
-            trailing
         }
     }
 }
@@ -117,41 +124,43 @@ struct SettingsScopeRow: View {
     private var isFolder: Bool { (path as NSString).pathExtension != "app" }
 
     var body: some View {
-        LabeledContent {
-            HStack(spacing: Theme.Spacing.sm) {
-                if isMissing {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .help("This location no longer exists.")
+        WithPerceptionTracking {
+            LabeledContent {
+                HStack(spacing: Theme.Spacing.sm) {
+                    if isMissing {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .help("This location no longer exists.")
+                    }
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove \(scope)")
                 }
-                Button(action: onRemove) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+            } label: {
+                HStack {
+                    Image(nsImage: IconCache.icon(forFile: path))
+                        .resizable()
+                        .renderingMode(.original)
+                        .interpolation(.high)
+                        .id(IconCache.style.generation)
+                        .frame(
+                            width: SettingsListMetrics.iconSize
+                                - (isFolder ? Theme.Spacing.xxs + 1 : 0),
+                            height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0)
+                        )
+                        .frame(
+                            width: SettingsListMetrics.iconSize,
+                            height: SettingsListMetrics.iconSize
+                        )
+                        .accessibilityHidden(true)
+                    Text(scope)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(isMissing ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(scope)")
-            }
-        } label: {
-            HStack {
-                Image(nsImage: IconCache.icon(forFile: path))
-                    .resizable()
-                    .renderingMode(.original)
-                    .interpolation(.high)
-                    .id(IconCache.style.generation)
-                    .frame(
-                        width: SettingsListMetrics.iconSize
-                            - (isFolder ? Theme.Spacing.xxs + 1 : 0),
-                        height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0)
-                    )
-                    .frame(
-                        width: SettingsListMetrics.iconSize,
-                        height: SettingsListMetrics.iconSize
-                    )
-                    .accessibilityHidden(true)
-                Text(scope)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(isMissing ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
             }
         }
     }
@@ -201,14 +210,16 @@ struct SettingsEditorHeader: View {
     var subtitle: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
-                .font(Theme.Typography.panelTitle)
-            if let subtitle {
-                Text(subtitle)
-                    .font(Theme.Typography.rowTitle)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(title)
+                    .font(Theme.Typography.panelTitle)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(Theme.Typography.rowTitle)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -229,26 +240,30 @@ struct SettingsEditorField<Content: View>: View {
     }
 
     var body: some View {
-        LabeledContent {
-            content
-                .labelsHidden()
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        } label: {
-            Text(title).font(labelFont)
+        WithPerceptionTracking {
+            LabeledContent {
+                content
+                    .labelsHidden()
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            } label: {
+                Text(title).font(labelFont)
+            }
         }
     }
 }
 
 private struct SettingsEditorTextField: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .textFieldStyle(.plain)
-            .padding(.horizontal, Theme.Spacing.lg)
-            .frame(height: Theme.Size.dialogButtonHeight)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
-                    .fill(Theme.Colors.controlSurface))
+        WithPerceptionTracking {
+            content
+                .textFieldStyle(.plain)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .frame(height: Theme.Size.dialogButtonHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
+                        .fill(Theme.Colors.controlSurface))
+        }
     }
 }
 
@@ -256,13 +271,15 @@ private struct SettingsEditorTextArea: ViewModifier {
     let height: CGFloat
 
     func body(content: Content) -> some View {
-        content
-            .scrollContentBackground(.hidden)
-            .padding(Theme.Spacing.sm)
-            .frame(height: height)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
-                    .fill(Theme.Colors.controlSurface))
+        WithPerceptionTracking {
+            content
+                .scrollContentBackground(.hidden)
+                .padding(Theme.Spacing.sm)
+                .frame(height: height)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
+                        .fill(Theme.Colors.controlSurface))
+        }
     }
 }
 
@@ -271,16 +288,18 @@ private struct SettingsEditorPanelSurface: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
-        // In front of the glass: a glass fill is hit-testable and would hide a handle behind it.
-        let draggable = content.background(WindowDragBackground())
-        if controlsOnGlass {
-            draggable
-                .background(Theme.Colors.panelScrim, in: shape)
-                .glassEffect(.regular, in: shape)
-        } else {
-            draggable.background {
-                shape.fill(Theme.Colors.panelScrim).glassEffect(.regular, in: shape)
+        WithPerceptionTracking {
+            let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
+            // In front of the glass: a glass fill is hit-testable and would hide a handle behind it.
+            let draggable = content.background(WindowDragBackground())
+            if controlsOnGlass {
+                draggable
+                    .background(Theme.Colors.panelScrim, in: shape)
+                    .glassSurface(in: shape)
+            } else {
+                draggable.background {
+                    shape.fill(Theme.Colors.panelScrim).glassSurface(in: shape)
+                }
             }
         }
     }
@@ -297,10 +316,12 @@ struct FeatureSwitchSection: View {
     var showsHeader = true
 
     var body: some View {
-        if showsHeader {
-            section
-        } else {
-            section.settingsAnchor(anchor)
+        WithPerceptionTracking {
+            if showsHeader {
+                section
+            } else {
+                section.settingsAnchor(anchor)
+            }
         }
     }
 
@@ -332,28 +353,30 @@ struct SettingsFilterField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            // `prompt:` + `labelsHidden`, or the form makes the placeholder a left-column heading.
-            TextField("", text: $query, prompt: Text(prompt))
-                .textFieldStyle(.plain)
-                .labelsHidden()
-                .focused($focused)
-                .pointerStyle(.horizontalText)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+        WithPerceptionTracking {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                // `prompt:` + `labelsHidden`, or the form makes the placeholder a left-column heading.
+                TextField("", text: $query, prompt: Text(prompt))
+                    .textFieldStyle(.plain)
+                    .labelsHidden()
+                    .focused($focused)
+                    .textCursorOnHover()
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
             }
+            .contentShape(.rect)
+            .onTapGesture { focused = true }
         }
-        .contentShape(.rect)
-        .onTapGesture { focused = true }
     }
 }
 
@@ -462,52 +485,54 @@ struct AliasField: View {
     @State private var focused = false
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Theme.Radius.menu, style: .continuous)
-        HStack(spacing: Theme.Spacing.xs) {
-            ZStack(alignment: .leading) {
-                if draft.isEmpty {
-                    Text("Add Alias")
-                        .font(Theme.Typography.keyCap)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-                AliasTextField(text: $draft, focused: $focused, onCancel: revert)
-                    .focusEffectDisabled()
-                    // The pane's `releasesFocusOnOutsideClick` resigns; this catches it landing.
-                    .onChange(of: focused) { _, now in
-                        if !now { commit() }
+        WithPerceptionTracking {
+            let shape = RoundedRectangle(cornerRadius: Theme.Radius.menu, style: .continuous)
+            HStack(spacing: Theme.Spacing.xs) {
+                ZStack(alignment: .leading) {
+                    if draft.isEmpty {
+                        Text("Add Alias")
+                            .font(Theme.Typography.keyCap)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                     }
-            }
-            if !draft.isEmpty {
-                Button(action: clear) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+                    AliasTextField(text: $draft, focused: $focused, onCancel: revert)
+                        .focusRingHidden()
+                        // The pane's `releasesFocusOnOutsideClick` resigns; this catches it landing.
+                        .onValueChange(of: focused) { _, now in
+                            if !now { commit() }
+                        }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear alias for \(name)")
+                if !draft.isEmpty {
+                    Button(action: clear) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear alias for \(name)")
+                }
             }
-        }
-        .onAppear { draft = aliases.alias(for: key) ?? "" }
-        // A backup import replaces the table out from under an unfocused row.
-        .onChange(of: aliases.revision) { _, _ in
-            if !focused { draft = aliases.alias(for: key) ?? "" }
-        }
-        // A reused table row hands the field another entry; unsaved text belongs to the old one.
-        .onChange(of: key) { old, new in
-            if focused {
-                aliases.setAlias(draft, for: old)
-                focused = false
+            .onAppear { draft = aliases.alias(for: key) ?? "" }
+            // A backup import replaces the table out from under an unfocused row.
+            .onValueChange(of: aliases.revision) { _, _ in
+                if !focused { draft = aliases.alias(for: key) ?? "" }
             }
-            draft = aliases.alias(for: new) ?? ""
+            // A reused table row hands the field another entry; unsaved text belongs to the old one.
+            .onValueChange(of: key) { old, new in
+                if focused {
+                    aliases.setAlias(draft, for: old)
+                    focused = false
+                }
+                draft = aliases.alias(for: new) ?? ""
+            }
+            .padding(.horizontal, Theme.Spacing.sm + 1)
+            .frame(width: Theme.Size.shortcutRecorder, height: 24)
+            .background(shape.fill(Theme.Colors.cardFill))
+            .overlay(shape.strokeBorder(Theme.Colors.cardStroke, lineWidth: 1))
+            .clipShape(shape)
+            .accessibilityLabel("Alias for \(name)")
         }
-        .padding(.horizontal, Theme.Spacing.sm + 1)
-        .frame(width: Theme.Size.shortcutRecorder, height: 24)
-        .background(shape.fill(Theme.Colors.cardFill))
-        .overlay(shape.strokeBorder(Theme.Colors.cardStroke, lineWidth: 1))
-        .clipShape(shape)
-        .accessibilityLabel("Alias for \(name)")
     }
 
     /// The one commit path — ↵ or focus landing elsewhere; a blank draft removes the alias.

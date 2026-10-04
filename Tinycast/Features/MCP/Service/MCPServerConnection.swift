@@ -1,19 +1,19 @@
 import Foundation
-import Observation
+import Perception
 
 /// One configured server, from handshake to tool list to call; the transport under it varies.
 @MainActor
-@Observable
+@Perceptible
 final class MCPServerConnection {
     private(set) var status: MCPServerStatus = .stopped
     private(set) var tools: [MCPTool] = []
 
-    @ObservationIgnored private let oauth: MCPOAuthManager?
-    @ObservationIgnored let server: MCPServer
-    @ObservationIgnored private let secrets: MCPSecretStore.Secrets
-    @ObservationIgnored private var transport: (any MCPTransport)?
-    @ObservationIgnored private var generation = UUID()
-    @ObservationIgnored private var listTask: Task<Void, Never>?
+    @PerceptionIgnored private let oauth: MCPOAuthManager?
+    @PerceptionIgnored let server: MCPServer
+    @PerceptionIgnored private let secrets: MCPSecretStore.Secrets
+    @PerceptionIgnored private var transport: (any MCPTransport)?
+    @PerceptionIgnored private var generation = UUID()
+    @PerceptionIgnored private var listTask: Task<Void, Never>?
 
     init(server: MCPServer, secrets: MCPSecretStore.Secrets, oauth: MCPOAuthManager? = nil) {
         self.oauth = oauth

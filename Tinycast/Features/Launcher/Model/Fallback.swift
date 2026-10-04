@@ -21,13 +21,11 @@ enum Fallback: Hashable, Sendable {
     }
 
     case builtin(Builtin)
-    case quicklink(UUID)
 
     /// The row's `AppEntry` id, so a stored order outlives a rename and survives a reinstall.
     var id: String {
         switch self {
         case .builtin(let builtin): return builtin.command.rawValue
-        case .quicklink(let id): return Quicklink.entryIDPrefix + id.uuidString.lowercased()
         }
     }
 
@@ -36,8 +34,6 @@ enum Fallback: Hashable, Sendable {
             let builtin = Builtin.allCases.first(where: { $0.command == command })
         {
             self = .builtin(builtin)
-        } else if let quicklink = Quicklink.id(fromEntryID: id) {
-            self = .quicklink(quicklink)
         } else {
             return nil
         }
@@ -50,11 +46,10 @@ enum Fallback: Hashable, Sendable {
         case .builtin(.searchFiles): return "Search Files"
         case .builtin(.runShellCommand): return "Run Shell Command"
         case .builtin(.define): return "Define Word"
-        case .quicklink: return "Open Quicklink"
         }
     }
 
-    /// Stored order first, then anything it has never seen — a quicklink added today lands last.
+    /// Stored order first, then anything it has never seen — a destination added later lands last.
     static func ordered(_ available: [Fallback], by storedIDs: [String]) -> [Fallback] {
         var remaining = Dictionary(available.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let known = storedIDs.compactMap { remaining.removeValue(forKey: $0) }

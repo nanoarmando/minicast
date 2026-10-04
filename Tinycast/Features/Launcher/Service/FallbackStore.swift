@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The reader's fallback list: which of them are offered, and in what order.
 @MainActor
-@Observable
+@Perceptible
 final class FallbackStore {
     private let defaults = UserDefaults.standard
     private let orderKey = "fallbackOrder"

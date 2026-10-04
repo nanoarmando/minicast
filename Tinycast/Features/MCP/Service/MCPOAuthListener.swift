@@ -16,9 +16,9 @@ final class MCPOAuthListener {
         state: String, issuer: String, requiresIssuer: Bool, timeout: Duration = .seconds(300)
     ) async throws {
         guard result == nil else { throw CancellationError() }
-        let listener = try NetworkListener(
-            using: .parameters { TCP() }
-                .localEndpoint(.hostPort(host: .ipv4(.loopback), port: 4962)))
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: 4962)
+        let listener = try NWListener(using: parameters)
         listener.newConnectionLimit = 16
         try await withTaskCancellationHandler {
             try Task.checkCancellation()
@@ -72,31 +72,50 @@ final class MCPOAuthListener {
     }
 
     private func run(
-        _ listener: NetworkListener<TCP>, state: String, issuer: String, requiresIssuer: Bool
+        _ listener: NWListener, state: String, issuer: String, requiresIssuer: Bool
     ) async throws {
-        try await listener.onStateUpdate { [weak self] _, status in
-            switch status {
-            case .ready:
-                self?.ready?.resume()
-                self?.ready = nil
-            case .waiting, .failed:
-                self?.finish(.failure(MCPOAuth.Failure.listenerUnavailable))
-            default: break
+        let connections = AsyncStream<NWConnection> { stream in
+            listener.newConnectionHandler = { stream.yield($0) }
+            listener.stateUpdateHandler = { [weak self] status in
+                MainActor.assumeIsolated {
+                    switch status {
+                    case .ready:
+                        self?.ready?.resume()
+                        self?.ready = nil
+                    case .waiting, .failed:
+                        self?.finish(.failure(MCPOAuth.Failure.listenerUnavailable))
+                    case .cancelled:
+                        stream.finish()
+                    default: break
+                    }
+                }
             }
-        }.run { [weak self] connection in
-            await self?.receive(connection, state: state, issuer: issuer, requiresIssuer: requiresIssuer)
+        }
+        await withTaskCancellationHandler {
+            listener.start(queue: .main)
+            await withTaskGroup(of: Void.self) { group in
+                for await connection in connections {
+                    connection.start(queue: .main)
+                    group.addTask { [weak self] in
+                        await self?.receive(
+                            connection, state: state, issuer: issuer, requiresIssuer: requiresIssuer)
+                    }
+                }
+            }
+        } onCancel: {
+            listener.cancel()
         }
     }
 
     private func read(
-        _ connection: NetworkConnection<TCP>, state: String, issuer: String, requiresIssuer: Bool
+        _ connection: NWConnection, state: String, issuer: String, requiresIssuer: Bool
     ) async throws {
         var bytes = Data()
         while bytes.count < 8192 {
-            let message = try await connection.receive(atLeast: 1, atMost: 8192 - bytes.count)
+            let message = try await connection.receive(atMost: 8192 - bytes.count)
             bytes.append(message.content)
             if bytes.range(of: Data("\r\n\r\n".utf8)) != nil { break }
-            if message.metadata.endOfStream { return }
+            if message.endOfStream { return }
         }
         guard !accepted else { return }
         guard let request = String(bytes: bytes, encoding: .utf8), request.contains("\r\n\r\n") else {
@@ -124,7 +143,7 @@ final class MCPOAuthListener {
             + "Connection: close\r\nContent-Length: \(page.utf8.count)\r\n\r\n\(page)"
         if outcome != nil { self.accepted = true }
         do {
-            try await connection.send(Data(response.utf8), endOfStream: true)
+            try await connection.sendFinal(Data(response.utf8))
         } catch {
             if let outcome { self.finish(outcome) }
             throw error
@@ -133,8 +152,9 @@ final class MCPOAuthListener {
     }
 
     private func receive(
-        _ connection: NetworkConnection<TCP>, state: String, issuer: String, requiresIssuer: Bool
+        _ connection: NWConnection, state: String, issuer: String, requiresIssuer: Bool
     ) async {
+        defer { connection.cancel() }
         do {
             try await withThrowingTaskGroup(of: Void.self) { group in
                 group.addTask { [weak self] in
@@ -153,5 +173,39 @@ private extension Result where Success == String, Failure == Error {
     var failure: Error? {
         if case .failure(let error) = self { return error }
         return nil
+    }
+}
+
+/// `NWConnection`'s callbacks as cancellable async calls; cancelling the task drops the connection.
+private extension NWConnection {
+    func receive(atMost maximum: Int) async throws -> (content: Data, endOfStream: Bool) {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                receive(minimumIncompleteLength: 1, maximumLength: maximum) {
+                    content, _, isComplete, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: (content ?? Data(), isComplete))
+                    }
+                }
+            }
+        } onCancel: {
+            cancel()
+        }
+    }
+
+    func sendFinal(_ data: Data) async throws {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                send(
+                    content: data, contentContext: .finalMessage, isComplete: true,
+                    completion: .contentProcessed { error in
+                        if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+                    })
+            }
+        } onCancel: {
+            cancel()
+        }
     }
 }

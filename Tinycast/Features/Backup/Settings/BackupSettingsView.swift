@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 struct BackupSettingsView: View {
     @Environment(AppCore.self) private var core
@@ -44,106 +45,108 @@ struct BackupSettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                LabeledContent {
-                    if exporting {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button("Export…") { runExport() }.disabled(exportSelection.isEmpty)
-                    }
-                } label: {
-                    SettingsRowTitle(.backupExport, "Export Backup")
-                    Text("The ticked items, as one .tinycast file.")
-                }
-                BackupCategorySelection(selection: $exportSelection)
-                if let backupStatus { statusRow(backupStatus) }
-            } header: {
-                SettingsSectionHeader(.backupExport)
-            }
-
-            Section {
-                LabeledContent {
-                    Button("Choose…") { chooseBackupFile() }
-                } label: {
-                    SettingsRowTitle(.backupImport, "Backup File")
-                    Text(backupFileSubtitle)
-                }
-                if let manifest = openedManifest {
-                    BackupCategorySelection(
-                        selection: $importSelection, available: available(in: manifest))
+        WithPerceptionTracking {
+            Form {
+                Section {
                     LabeledContent {
-                        if importingBackup {
+                        if exporting {
                             ProgressView().controlSize(.small)
                         } else {
-                            Button("Import") { runBackupImport() }
-                                .disabled(importSelection.isEmpty)
+                            Button("Export…") { runExport() }.disabled(exportSelection.isEmpty)
+                        }
+                    } label: {
+                        SettingsRowTitle(.backupExport, "Export Backup")
+                        Text("The ticked items, as one .tinycast file.")
+                    }
+                    BackupCategorySelection(selection: $exportSelection)
+                    if let backupStatus { statusRow(backupStatus) }
+                } header: {
+                    SettingsSectionHeader(.backupExport)
+                }
+
+                Section {
+                    LabeledContent {
+                        Button("Choose…") { chooseBackupFile() }
+                    } label: {
+                        SettingsRowTitle(.backupImport, "Backup File")
+                        Text(backupFileSubtitle)
+                    }
+                    if let manifest = openedManifest {
+                        BackupCategorySelection(
+                            selection: $importSelection, available: available(in: manifest))
+                        LabeledContent {
+                            if importingBackup {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Button("Import") { runBackupImport() }
+                                    .disabled(importSelection.isEmpty)
+                            }
+                        } label: {
+                            Text("Import")
+                        }
+                    }
+                } header: {
+                    SettingsSectionHeader(.backupImport)
+                }
+
+                Section {
+                    LabeledContent {
+                        Button("Choose…") { chooseRaycastFile() }
+                    } label: {
+                        SettingsRowTitle(.backupImportFromRaycast, "Raycast Export")
+                        Text(raycastFileSubtitle)
+                    }
+                    LabeledContent {
+                        RevealableSecureField(
+                            title: "Passphrase", text: $passphrase, prompt: Text("Export password")
+                        )
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        // LabeledContent right-aligns its value text, caret and all; a field reads left.
+                        .multilineTextAlignment(.leading)
+                        .frame(width: 160)
+                        .onSubmit(runRaycastImport)
+                    } label: {
+                        Text("Passphrase")
+                    }
+                    RaycastImportSelection(selection: $selection)
+                    conflictNotice
+                    LabeledContent {
+                        if importing {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Button("Import") { runRaycastImport() }
+                                .disabled(!isRaycastExport || passphrase.isEmpty || selection.isEmpty)
                         }
                     } label: {
                         Text("Import")
                     }
+                    if let status { statusRow(status) }
+                } header: {
+                    SettingsSectionHeader(.backupImportFromRaycast)
                 }
-            } header: {
-                SettingsSectionHeader(.backupImport)
-            }
 
-            Section {
-                LabeledContent {
-                    Button("Choose…") { chooseRaycastFile() }
-                } label: {
-                    SettingsRowTitle(.backupImportFromRaycast, "Raycast Export")
-                    Text(raycastFileSubtitle)
-                }
-                LabeledContent {
-                    RevealableSecureField(
-                        title: "Passphrase", text: $passphrase, prompt: Text("Export password")
-                    )
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    // LabeledContent right-aligns its value text, caret and all; a field reads left.
-                    .multilineTextAlignment(.leading)
-                    .frame(width: 160)
-                    .onSubmit(runRaycastImport)
-                } label: {
-                    Text("Passphrase")
-                }
-                RaycastImportSelection(selection: $selection)
-                conflictNotice
-                LabeledContent {
-                    if importing {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button("Import") { runRaycastImport() }
-                            .disabled(!isRaycastExport || passphrase.isEmpty || selection.isEmpty)
+                Section {
+                    Toggle(isOn: settingsFileSync) {
+                        SettingsRowTitle(.backupSettingsFile, "Sync settings file")
+                        Text(BackupActions.settingsFilePath)
                     }
-                } label: {
-                    Text("Import")
-                }
-                if let status { statusRow(status) }
-            } header: {
-                SettingsSectionHeader(.backupImportFromRaycast)
-            }
-
-            Section {
-                Toggle(isOn: settingsFileSync) {
-                    SettingsRowTitle(.backupSettingsFile, "Sync settings file")
-                    Text(BackupActions.settingsFilePath)
-                }
-                if core.settings.settingsFileEnabled {
-                    LabeledContent {
-                        Button("Show in Finder", action: BackupActions.revealSettingsFile)
-                    } label: {
-                        Text("Settings changed here are written to the file, and edits to it apply here.")
-                            .foregroundStyle(.secondary)
+                    if core.settings.settingsFileEnabled {
+                        LabeledContent {
+                            Button("Show in Finder", action: BackupActions.revealSettingsFile)
+                        } label: {
+                            Text("Settings changed here are written to the file, and edits to it apply here.")
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                } header: {
+                    SettingsSectionHeader(.backupSettingsFile)
                 }
-            } header: {
-                SettingsSectionHeader(.backupSettingsFile)
             }
+            .formStyle(.grouped)
+            .settingsScrollTarget(.backup)
+            .onDisappear { if !importingBackup { discardStagedBackup() } }
         }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.backup)
-        .onDisappear { if !importingBackup { discardStagedBackup() } }
     }
 
     @ViewBuilder

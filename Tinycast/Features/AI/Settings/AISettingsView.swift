@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct AISettingsView: View {
     @Environment(AppCore.self) private var core
@@ -10,62 +11,59 @@ struct AISettingsView: View {
     @State private var providersPresented = false
 
     var body: some View {
-        @Bindable var appSettings = appSettings
-        @Bindable var settings = settings
-        return Form {
-            Section {
-                Toggle(isOn: $appSettings.aiEnabled) {
-                    SettingsFeatureToggleLabel(
-                        anchor: .aiAI, title: "Enable AI",
-                        subtitle: "Nothing is loaded or sent while it is off.")
+        WithPerceptionTracking {
+            @Perception.Bindable var appSettings = appSettings
+            @Perception.Bindable var settings = settings
+            Form {
+                Section {
+                    Toggle(isOn: $appSettings.aiEnabled) {
+                        SettingsFeatureToggleLabel(
+                            anchor: .aiAI, title: "Enable AI",
+                            subtitle: "Nothing is loaded or sent while it is off.")
+                    }
+                    SettingsRow(
+                        title: "Providers", subtitle: providerSummary, anchor: .aiProviders
+                    ) {
+                        Button("Manage…") { providersPresented = true }
+                    }
+                } header: {
+                    SettingsSectionHeader(.aiAI)
                 }
-                SettingsRow(
-                    title: "Providers", subtitle: providerSummary, anchor: .aiProviders
-                ) {
-                    Button("Manage…") { providersPresented = true }
-                }
-            } header: {
-                SettingsSectionHeader(.aiAI)
-            }
 
-            FeatureCommandsSection(owner: .ai, anchor: .aiCommands)
+                FeatureCommandsSection(owner: .ai, anchor: .aiCommands)
+                    .settingsEnabled(appSettings.aiEnabled)
+
+                Group {
+                    defaultModelSection
+                    chatSection
+                    conversationsSection
+                    systemPromptSection
+                    MCPSettingsSection()
+                }
                 .settingsEnabled(appSettings.aiEnabled)
-
-            Group {
-                defaultModelSection
-                chatSection
-                conversationsSection
-                systemPromptSection
-                MCPSettingsSection()
             }
-            .settingsEnabled(appSettings.aiEnabled)
+            .formStyle(.grouped)
+            .settingsScrollTarget(.ai)
+            .settingsEditorPanel(isPresented: $providersPresented) {
+                AIProvidersPanel(onDone: { providersPresented = false })
+            }
+            .onAppear {
+                core.applyInstalledAILifecycle()
+            }
+            // Switched on with the pane already open, provider status would otherwise stay empty.
+            .onValueChange(of: appSettings.aiEnabled) { core.applyInstalledAILifecycle() }
+            .onValueChange(of: settings.enabledInstalledProviders) {
+                core.applyInstalledAILifecycle()
+                syncSelection()
+            }
+            .onValueChange(of: subscription.models) { syncSelection() }
+            .onValueChange(of: subscription.phase) { syncSelection() }
+            .onValueChange(of: installedAI.statuses) { syncSelection() }
         }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.ai)
-        .settingsEditorPanel(isPresented: $providersPresented) {
-            AIProvidersPanel(onDone: { providersPresented = false })
-        }
-        .onAppear {
-            core.applyInstalledAILifecycle()
-        }
-        // Switched on with the pane already open, provider status would otherwise stay empty.
-        .onChange(of: appSettings.aiEnabled) { core.applyInstalledAILifecycle() }
-        .onChange(of: settings.enabledInstalledProviders) {
-            core.applyInstalledAILifecycle()
-            syncSelection()
-        }
-        .onChange(of: subscription.models) { syncSelection() }
-        .onChange(of: subscription.phase) { syncSelection() }
-        .onChange(of: installedAI.statuses) { syncSelection() }
     }
 
     private var defaultModelSection: some View {
         Section {
-            // A Mac with nothing configured is the one that needs telling its free route is off.
-            if let reason = appleIntelligenceReason {
-                Label(reason, systemImage: "apple.intelligence")
-                    .foregroundStyle(.secondary)
-            }
             AIModelSelectionRows(
                 selection: settings.defaultModel,
                 select: { $0.map(settings.select) },
@@ -86,17 +84,9 @@ struct AISettingsView: View {
     }
 
     private var defaultModelFooter: String {
-        if settings.defaultModel?.isOnDevice == true {
-            return "Apple Intelligence runs on this Mac. Nothing leaves it."
-        }
         return settings.defaultModel == nil
-            ? "Turn on Apple Intelligence, or add a provider above."
+            ? "Add a provider above."
             : "Only the selected provider is contacted."
-    }
-
-    /// Why the on-device route is missing from the picker, or `nil` when it is there.
-    private var appleIntelligenceReason: String? {
-        settings.isAppleIntelligenceAvailable() ? nil : AppleIntelligenceProvider.status().message
     }
 
     private var providerSummary: String {
@@ -118,7 +108,7 @@ struct AISettingsView: View {
     }
 
     private var chatSection: some View {
-        @Bindable var settings = settings
+        @Perception.Bindable var settings = settings
         return Section {
             Toggle(isOn: $settings.webSearchEnabled) {
                 SettingsRowTitle(.aiChat, "Web search")
@@ -138,7 +128,7 @@ struct AISettingsView: View {
     }
 
     private var conversationsSection: some View {
-        @Bindable var settings = settings
+        @Perception.Bindable var settings = settings
         return Section {
             Picker(selection: $settings.opensTo) {
                 ForEach(AIOpensTo.allCases) { Text($0.title).tag($0) }
@@ -168,7 +158,7 @@ struct AISettingsView: View {
     }
 
     private var systemPromptSection: some View {
-        @Bindable var settings = settings
+        @Perception.Bindable var settings = settings
         return Section {
             Toggle(isOn: $settings.systemPromptEnabled) {
                 SettingsRowTitle(.aiSystemPrompt, "Send a system prompt")

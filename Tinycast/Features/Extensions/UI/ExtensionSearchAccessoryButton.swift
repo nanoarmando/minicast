@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The extension's search-bar dropdown, drawn as a header control. Not `HeaderMenuButton`: the
 /// choice it states carries an extension's own icon, which `PopoverMenuIcon` cannot name.
@@ -18,22 +19,24 @@ struct ExtensionSearchAccessoryButton: View {
     @Environment(\.isDarkAppearance) private var isDark
 
     var body: some View {
-        BarButton(chrome: .rounded, action: action) {
-            HStack(spacing: metrics.spacing.sm) {
-                if let icon {
-                    ExtensionIconView(
-                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+        WithPerceptionTracking {
+            BarButton(chrome: .rounded, action: action) {
+                HStack(spacing: metrics.spacing.sm) {
+                    if let icon {
+                        ExtensionIconView(
+                            resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    }
+                    Text(accessory.title(for: value) ?? "")
+                        .font(metrics.typography.bar)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    // The panel always drops below the header, so it never points back up flipped.
+                    ExtensionDisclosureChevron(open: isOpen)
                 }
-                Text(accessory.title(for: value) ?? "")
-                    .font(metrics.typography.bar)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                // The panel always drops below the header, so it never points back up flipped.
-                ExtensionDisclosureChevron(open: isOpen)
+                .foregroundStyle(Theme.Colors.textSecondary)
             }
-            .foregroundStyle(Theme.Colors.textSecondary)
+            .help("\(accessory.tooltip ?? accessory.placeholder ?? "Filter")  ⌘P")
         }
-        .help("\(accessory.tooltip ?? accessory.placeholder ?? "Filter")  ⌘P")
     }
 
     private var icon: ExtensionImage.Resolved? {

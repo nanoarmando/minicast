@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// One emoji's usage tally, keyed on the base (untoned) glyph.
 struct FrequentEmoji: Codable, Hashable, Sendable {
@@ -9,7 +10,7 @@ struct FrequentEmoji: Codable, Hashable, Sendable {
 
 /// Capped emoji history and usage counts, persisted together for the grid and search.
 @MainActor
-@Observable
+@Perceptible
 final class FrequentEmojiStore {
     private static let cap = 300
 
@@ -18,7 +19,7 @@ final class FrequentEmojiStore {
     private(set) var records: [FrequentEmoji]
 
     /// Search re-reads `top()` across queries, so this sorts once per tally.
-    @ObservationIgnored private var sortedMemo = Memo<Int, [String]>()
+    @PerceptionIgnored private var sortedMemo = Memo<Int, [String]>()
     private(set) var revision = 0
 
     init(fileURL: URL = AppPaths.applicationSupport().appendingPathComponent("emoji-frequency.json")) {

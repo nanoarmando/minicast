@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The one control surface a form draws, kept here rather than in `DesignSystem`.
 struct ExtensionFieldChrome: ViewModifier {
@@ -17,28 +18,30 @@ struct ExtensionFieldChrome: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, form.textInset)
-            // One inset either way, so a text area's first line sits where a field's does.
-            .padding(.vertical, form.verticalInset)
-            .frame(
-                width: form.controlWidth, height: height,
-                alignment: multiline ? .topLeading : .leading
-            )
-            .background(
-                RoundedRectangle(
-                    cornerRadius: metrics.radius.row, style: .continuous
+        WithPerceptionTracking {
+            content
+                .padding(.horizontal, form.textInset)
+                // One inset either way, so a text area's first line sits where a field's does.
+                .padding(.vertical, form.verticalInset)
+                .frame(
+                    width: form.controlWidth, height: height,
+                    alignment: multiline ? .topLeading : .leading
                 )
-                .fill(fill)
-            )
-            .overlay(
-                RoundedRectangle(
-                    cornerRadius: metrics.radius.row, style: .continuous
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: metrics.radius.row, style: .continuous
+                    )
+                    .fill(fill)
                 )
-                .strokeBorder(stroke, lineWidth: 1)
-            )
-            // The form draws its own focused edge, so AppKit's blue ring would be a second one.
-            .focusEffectDisabled()
+                .overlay(
+                    RoundedRectangle(
+                        cornerRadius: metrics.radius.row, style: .continuous
+                    )
+                    .strokeBorder(stroke, lineWidth: 1)
+                )
+                // The form draws its own focused edge, so AppKit's blue ring would be a second one.
+                .focusRingHidden()
+        }
     }
 
     private var fill: Color {
@@ -69,10 +72,12 @@ struct ExtensionDisclosureChevron: View {
     var flipped = false
 
     var body: some View {
-        // Closed it always points down; open, it points back at the list it dropped.
-        Image(systemName: pointsUp ? "chevron.up" : "chevron.down")
-            .font(metrics.typography.disclosure)
-            .foregroundStyle(Theme.Colors.textSecondary)
+        WithPerceptionTracking {
+            // Closed it always points down; open, it points back at the list it dropped.
+            Image(systemName: pointsUp ? "chevron.up" : "chevron.down")
+                .font(metrics.typography.disclosure)
+                .foregroundStyle(Theme.Colors.textSecondary)
+        }
     }
 
     private var pointsUp: Bool { open && !flipped }
@@ -91,40 +96,42 @@ struct ExtensionPickerRow: View {
     let onActivate: () -> Void
 
     var body: some View {
-        Button(action: onActivate) {
-            HStack(spacing: metrics.spacing.md) {
-                if let icon {
-                    ExtensionIconView(
-                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
-                }
-                Text(title)
-                    .font(metrics.typography.menuRow)
-                    .lineLimit(1)
-                Spacer(minLength: metrics.spacing.sm)
-                if let detail {
-                    Text(detail)
-                        .font(metrics.typography.menuShortcut)
-                        .foregroundStyle(.secondary)
+        WithPerceptionTracking {
+            Button(action: onActivate) {
+                HStack(spacing: metrics.spacing.md) {
+                    if let icon {
+                        ExtensionIconView(
+                            resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    }
+                    Text(title)
+                        .font(metrics.typography.menuRow)
                         .lineLimit(1)
+                    Spacer(minLength: metrics.spacing.sm)
+                    if let detail {
+                        Text(detail)
+                            .font(metrics.typography.menuShortcut)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if checked {
+                        Image(systemName: "checkmark")
+                            .font(metrics.typography.disclosure)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
                 }
-                if checked {
-                    Image(systemName: "checkmark")
-                        .font(metrics.typography.disclosure)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
+                .padding(.horizontal, metrics.spacing.md)
+                // Stated, not padded: the height maths counts rows, so a row is one exact height.
+                .frame(
+                    maxWidth: .infinity, minHeight: form.popoverRowHeight,
+                    maxHeight: form.popoverRowHeight, alignment: .leading
+                )
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
+                        .fill(selected ? Theme.Colors.menuHover : Color.clear)
+                )
             }
-            .padding(.horizontal, metrics.spacing.md)
-            // Stated, not padded: the height maths counts rows, so a row is one exact height.
-            .frame(
-                maxWidth: .infinity, minHeight: form.popoverRowHeight,
-                maxHeight: form.popoverRowHeight, alignment: .leading
-            )
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
-                    .fill(selected ? Theme.Colors.menuHover : Color.clear)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 }

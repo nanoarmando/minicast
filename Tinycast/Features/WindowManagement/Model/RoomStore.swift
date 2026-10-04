@@ -1,15 +1,16 @@
 import CoreGraphics
 import Foundation
+import Perception
 
 /// The room library. Authored data, so a bad record is cleaned rather than discarded.
 @MainActor
-@Observable
+@Perceptible
 final class RoomStore {
     private static let defaultsKey = "windowRooms"
 
     private let defaults: UserDefaults
     private(set) var rooms: [Room]
-    @ObservationIgnored var onChange: (([Room]) -> Void)?
+    @PerceptionIgnored var onChange: (([Room]) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

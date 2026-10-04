@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// One entry's usage: a decaying score, and the terms it was last opened by.
 struct LauncherVisit: Codable, Hashable, Sendable {
@@ -20,7 +21,7 @@ struct LauncherUsage: Sendable, Equatable {
 
 /// Learns what the user opens, and by which query, as bounded on-device frecency data.
 @MainActor
-@Observable
+@Perceptible
 final class LauncherRankingStore {
     /// Each visit adds 100 to a score that halves every ten days and never drops below 1.
     nonisolated static let halfLife: TimeInterval = 10 * 86_400
@@ -41,7 +42,7 @@ final class LauncherRankingStore {
     private(set) var revision = 0
 
     /// The in-flight persist, awaited by the next one so a burst can't land out of order.
-    @ObservationIgnored private var writeTask: Task<Void, Never>?
+    @PerceptionIgnored private var writeTask: Task<Void, Never>?
 
     init(fileURL: URL? = nil, now: @escaping () -> Date = Date.init) {
         self.fileURL = fileURL ?? Self.defaultFileURL()

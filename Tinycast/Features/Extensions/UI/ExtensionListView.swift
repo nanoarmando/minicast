@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Row order comes from `ExtensionScreen`, so the palette's flat index matches the draw.
 struct ExtensionListView: View {
@@ -16,20 +17,22 @@ struct ExtensionListView: View {
     private static let detailListWidth: CGFloat = 290
 
     var body: some View {
-        Group {
-            if screen.items.isEmpty {
-                emptyState
-            } else if screen.showsDetail {
-                HStack(spacing: 0) {
+        WithPerceptionTracking {
+            Group {
+                if screen.items.isEmpty {
+                    emptyState
+                } else if screen.showsDetail {
+                    HStack(spacing: 0) {
+                        rowList
+                            .frame(width: metrics.scaled(Self.detailListWidth))
+                        Rectangle().fill(Theme.Colors.separator).frame(width: 1)
+                        detailPane
+                    }
+                } else if case .grid(let layout) = screen.kind {
+                    gridBody(layout: layout)
+                } else {
                     rowList
-                        .frame(width: metrics.scaled(Self.detailListWidth))
-                    Rectangle().fill(Theme.Colors.separator).frame(width: 1)
-                    detailPane
                 }
-            } else if case .grid(let layout) = screen.kind {
-                gridBody(layout: layout)
-            } else {
-                rowList
             }
         }
     }
@@ -64,25 +67,27 @@ struct ExtensionListView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(screen.rows) { row in
-                        switch row {
-                        case .header(let title, let subtitle, _):
-                            SectionHeader(
-                                title: [title, subtitle].compactMap { $0 }.filter { !$0.isEmpty }
-                                    .joined(separator: "  ·  "),
-                                isFirst: row.id == screen.rows.first?.id)
-                        case .item(let item):
-                            ExtensionItemRow(
-                                node: item.node, selected: item.index == selection,
-                                assetsPath: assetsPath, compact: screen.showsDetail
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onSelect(item.index)
-                                onActivate(item.index)
+                    WithPerceptionTracking {
+                        ForEach(screen.rows) { row in
+                            switch row {
+                            case .header(let title, let subtitle, _):
+                                SectionHeader(
+                                    title: [title, subtitle].compactMap { $0 }.filter { !$0.isEmpty }
+                                        .joined(separator: "  ·  "),
+                                    isFirst: row.id == screen.rows.first?.id)
+                            case .item(let item):
+                                ExtensionItemRow(
+                                    node: item.node, selected: item.index == selection,
+                                    assetsPath: assetsPath, compact: screen.showsDetail
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    onSelect(item.index)
+                                    onActivate(item.index)
+                                }
+                                .onRightClick { onActions(item.index) }
+                                .selectionFrame(item.index == selection)
                             }
-                            .onRightClick { onActions(item.index) }
-                            .selectionFrame(item.index == selection)
                         }
                     }
                 }
@@ -107,11 +112,13 @@ struct ExtensionListView: View {
     /// Measured once for the whole grid: a tile's own `GeometryReader` would cost a pass per cell.
     private func gridBody(layout: ExtensionGridLayout) -> some View {
         GeometryReader { geometry in
-            grid(
-                layout: layout,
-                tileWidth: layout.tileWidth(
-                    inWidth: geometry.size.width - metrics.spacing.md * 2,
-                    spacing: metrics.spacing.sm))
+            WithPerceptionTracking {
+                grid(
+                    layout: layout,
+                    tileWidth: layout.tileWidth(
+                        inWidth: geometry.size.width - metrics.spacing.md * 2,
+                        spacing: metrics.spacing.sm))
+            }
         }
     }
 
@@ -183,34 +190,36 @@ private struct ExtensionItemRow: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
-            if let icon = node.props["icon"], icon != .null {
-                ExtensionIconView(
-                    resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                    size: metrics.size.resultRowIcon)
-            }
-            Text(node.string("title") ?? "")
-                .font(metrics.typography.rowTitle)
-                .lineLimit(1)
-                // A detail list is 290pt wide, and an accessory would otherwise win the squeeze.
-                .layoutPriority(1)
-            if !compact, let subtitle = node.string("subtitle"), !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(metrics.typography.rowTrailing)
-                    .foregroundStyle(.secondary)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.lg) {
+                if let icon = node.props["icon"], icon != .null {
+                    ExtensionIconView(
+                        resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
+                        size: metrics.size.resultRowIcon)
+                }
+                Text(node.string("title") ?? "")
+                    .font(metrics.typography.rowTitle)
                     .lineLimit(1)
+                    // A detail list is 290pt wide, and an accessory would otherwise win the squeeze.
+                    .layoutPriority(1)
+                if !compact, let subtitle = node.string("subtitle"), !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(metrics.typography.rowTrailing)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: metrics.spacing.sm)
+                // Raycast draws the accessories it is given, and a quota row's signal is all in them.
+                ExtensionAccessoriesView(
+                    accessories: node.array("accessories"), assetsPath: assetsPath)
             }
-            Spacer(minLength: metrics.spacing.sm)
-            // Raycast draws the accessories it is given, and a quota row's signal is all in them.
-            ExtensionAccessoriesView(
-                accessories: node.array("accessories"), assetsPath: assetsPath)
+            .padding(.horizontal, metrics.spacing.md)
+            .padding(.vertical, metrics.spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
+            )
+            .armedHover($hovered)
         }
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
-        .armedHover($hovered)
     }
 }
 
@@ -222,10 +231,12 @@ struct ExtensionAccessoriesView: View {
     let assetsPath: String?
 
     var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            ForEach(Array(accessories.enumerated()), id: \.offset) { _, accessory in
-                if let fields = accessory.objectValue {
-                    accessoryView(fields)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.sm) {
+                ForEach(Array(accessories.enumerated()), id: \.offset) { _, accessory in
+                    if let fields = accessory.objectValue {
+                        accessoryView(fields)
+                    }
                 }
             }
         }
@@ -330,22 +341,24 @@ private struct ExtensionGridCell: View {
     }
 
     var body: some View {
-        VStack(spacing: metrics.spacing.xs) {
-            tile
-            if let title = node.string("title") {
-                Text(title)
-                    .font(metrics.typography.rowTrailing)
-                    .lineLimit(1)
+        WithPerceptionTracking {
+            VStack(spacing: metrics.spacing.xs) {
+                tile
+                if let title = node.string("title") {
+                    Text(title)
+                        .font(metrics.typography.rowTrailing)
+                        .lineLimit(1)
+                }
+                if let subtitle = node.string("subtitle") {
+                    Text(subtitle)
+                        .font(metrics.typography.rowTrailing)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
-            if let subtitle = node.string("subtitle") {
-                Text(subtitle)
-                    .font(metrics.typography.rowTrailing)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            .frame(width: width)
+            .armedHover($hovered)
         }
-        .frame(width: width)
-        .armedHover($hovered)
     }
 
     private var tile: some View {
@@ -392,11 +405,13 @@ private struct ExtensionGridContentView: View {
     @State private var loaded: NSImage?
 
     var body: some View {
-        content
-            // Keyed on appearance too: an inline SVG's palette resolves at decode.
-            .task(id: ExtensionImage.LoadKey(source: resolved?.source, isDark: isDark)) {
-                loaded = await ExtensionImage.load(resolved, isDark: isDark, animates: true)
-            }
+        WithPerceptionTracking {
+            content
+                // Keyed on appearance too: an inline SVG's palette resolves at decode.
+                .task(id: ExtensionImage.LoadKey(source: resolved?.source, isDark: isDark)) {
+                    loaded = await ExtensionImage.load(resolved, isDark: isDark, animates: true)
+                }
+        }
     }
 
     @ViewBuilder

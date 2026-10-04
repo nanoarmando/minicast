@@ -1,15 +1,13 @@
 import SwiftUI
+import Perception
 
 struct QuickActionResultView: View {
 
     @Environment(\.metrics) private var metrics
     let state: QuickActionPanelState
-    let languages: [Locale.Language]
     let onReplace: () -> Void
     let onCopy: () -> Void
     let onCancel: () -> Void
-    let onRetranslate: (Locale.Language) -> Void
-    let onOpenLanguageSettings: () -> Void
     let onHeight: (CGFloat) -> Void
 
     @State private var contentHeight: CGFloat = 0
@@ -18,32 +16,34 @@ struct QuickActionResultView: View {
 
     /// Explicit overlays, not `safeAreaBar`: that lays its bars over the content instead of inset.
     var body: some View {
-        ScrollView {
-            body(for: state.phase)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, metrics.spacing.xxl)
-                // A `ScrollView` has no ideal height, so the frame below is set, not merely capped.
-                .fixedSize(horizontal: false, vertical: true)
-                // Measured before the insets, so `isScrollable` cannot depend on its own answer.
-                .onGeometryChange(for: CGFloat.self) {
-                    $0.size.height
-                } action: {
-                    contentHeight = $0
-                }
-                .padding(.top, inset(headerHeight))
-                .padding(.bottom, inset(footerHeight))
+        WithPerceptionTracking {
+            ScrollView {
+                body(for: state.phase)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, metrics.spacing.xxl)
+                    // A `ScrollView` has no ideal height, so the frame below is set, not merely capped.
+                    .fixedSize(horizontal: false, vertical: true)
+                    // Measured before the insets, so `isScrollable` cannot depend on its own answer.
+                    .onGeometryChange(for: CGFloat.self) {
+                        $0.size.height
+                    } action: {
+                        contentHeight = $0
+                    }
+                    .padding(.top, inset(headerHeight))
+                    .padding(.bottom, inset(footerHeight))
+            }
+            .scrollBounce()
+            .mask(scrollFade)
+            .overlay(alignment: .top) { measured(header) { headerHeight = $0 } }
+            .overlay(alignment: .bottom) { measured(footer) { footerHeight = $0 } }
+            .frame(width: metrics.size.quickActionPanel, height: panelHeight)
+            .background(Theme.Colors.panelScrim)
+            .background(GlassEffectView())
+            .clipShape(RoundedRectangle(cornerRadius: metrics.radius.dialog, style: .continuous))
+            .panelEntrance()
+            // Reported, not measured: the frame above is ours, so reading it back would feed itself.
+            .onValueChange(of: panelHeight, initial: true) { onHeight(panelHeight) }
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .mask(scrollFade)
-        .overlay(alignment: .top) { measured(header) { headerHeight = $0 } }
-        .overlay(alignment: .bottom) { measured(footer) { footerHeight = $0 } }
-        .frame(width: metrics.size.quickActionPanel, height: panelHeight)
-        .background(Theme.Colors.panelScrim)
-        .background(GlassEffectView())
-        .clipShape(RoundedRectangle(cornerRadius: metrics.radius.dialog, style: .continuous))
-        .panelEntrance()
-        // Reported, not measured: the frame above is ours, so reading it back would feed itself.
-        .onChange(of: panelHeight, initial: true) { onHeight(panelHeight) }
     }
 
     private func measured(_ bar: some View, action: @escaping (CGFloat) -> Void) -> some View {
@@ -98,7 +98,6 @@ struct QuickActionResultView: View {
                 Spacer(minLength: metrics.spacing.md)
             }
             .windowDraggable(true)
-            if state.action == .translate, !languages.isEmpty { languageMenu }
         }
         .padding(.horizontal, metrics.spacing.xxl)
         .padding(.top, metrics.spacing.xl)
@@ -120,8 +119,6 @@ struct QuickActionResultView: View {
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(metrics.typography.rowTitle)
                 .foregroundStyle(Theme.Colors.textSecondary)
-        case .needsLanguageDownload:
-            downloadPrompt
         }
     }
 
@@ -162,34 +159,6 @@ struct QuickActionResultView: View {
                 result.append(run)
             }
         }
-    }
-
-    /// System Settings, not `prepareTranslation`: its sheet never appears over this panel.
-    private var downloadPrompt: some View {
-        let language = TextTranslator.displayName(of: state.targetLanguage)
-        return VStack(alignment: .leading, spacing: metrics.spacing.lg) {
-            VStack(alignment: .leading, spacing: metrics.spacing.xs) {
-                Text("\(language) hasn't been downloaded yet.")
-                    .font(metrics.typography.rowTitle)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-                Text("Click **Translation Languages…** in Language & Region, then download it.")
-                    .font(metrics.typography.rowTrailing)
-                    .foregroundStyle(Theme.Colors.textTertiary)
-            }
-            Button("Open Language & Region", action: onOpenLanguageSettings)
-                .buttonStyle(.modalAction(.standard, fillsWidth: false))
-        }
-    }
-
-    private var languageMenu: some View {
-        Menu(TextTranslator.displayName(of: state.targetLanguage)) {
-            ForEach(languages, id: \.minimalIdentifier) { language in
-                Button(TextTranslator.displayName(of: language)) { onRetranslate(language) }
-            }
-        }
-        .menuStyle(.button)
-        .buttonStyle(.accessoryBar)
-        .fixedSize()
     }
 
     private var footer: some View {

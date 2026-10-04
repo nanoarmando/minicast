@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct CalendarSettingsView: View {
     @Environment(AppCore.self) private var core
@@ -6,141 +7,139 @@ struct CalendarSettingsView: View {
     @Environment(CalendarStore.self) private var store
 
     var body: some View {
-        @Bindable var settings = settings
-        Form {
-            FeatureSwitchSection(
-                anchor: .calendarCalendar,
-                enableTitle: "Join meetings from Tinycast",
-                enableSubtitle:
-                    "Reads \(settings.calendarSpan.possessivePhrase) events for join links. "
-                    + "Nothing leaves this Mac.",
-                isEnabled: enabledBinding,
-                showsInLauncher: $settings.calendarShowInLauncher,
-                showsIcon: true,
-                showsHeader: false)
+        WithPerceptionTracking {
+            @Perception.Bindable var settings = settings
+            Form {
+                FeatureSwitchSection(
+                    anchor: .calendarCalendar,
+                    enableTitle: "Join meetings from Tinycast",
+                    enableSubtitle:
+                        "Reads \(settings.calendarSpan.possessivePhrase) events for join links. "
+                        + "Nothing leaves this Mac.",
+                    isEnabled: enabledBinding,
+                    showsInLauncher: $settings.calendarShowInLauncher,
+                    showsIcon: true,
+                    showsHeader: false)
 
-            Section {
-                Picker(selection: $settings.calendarLauncherLimit) {
-                    ForEach(CalendarLauncherLimit.allCases) { limit in
-                        Text(limit.title).tag(limit)
-                    }
-                } label: {
-                    SettingsRowTitle(.calendarCalendar, "Upcoming meetings in launcher")
-                }
-            }
-            .settingsEnabled(settings.calendarEnabled && settings.calendarShowInLauncher)
-
-            if settings.calendarEnabled, store.access == .notDetermined {
                 Section {
-                    SettingsRow(
-                        title: "Calendar access is needed",
-                        subtitle: "Needed to read events and find join links."
-                    ) {
-                        Button("Allow Calendar Access…") {
-                            core.calendarCoordinator.setCalendarEnabled(true)
+                    Picker(selection: $settings.calendarLauncherLimit) {
+                        ForEach(CalendarLauncherLimit.allCases) { limit in
+                            Text(limit.title).tag(limit)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarCalendar, "Upcoming meetings in launcher")
+                    }
+                }
+                .settingsEnabled(settings.calendarEnabled && settings.calendarShowInLauncher)
+
+                if settings.calendarEnabled, store.access == .notDetermined {
+                    Section {
+                        SettingsRow(
+                            title: "Calendar access is needed",
+                            subtitle: "Needed to read events and find join links."
+                        ) {
+                            Button("Allow Calendar Access…") {
+                                core.calendarCoordinator.setCalendarEnabled(true)
+                            }
+                        }
+                    }
+                } else if store.access == .denied {
+                    Section {
+                        SettingsRow(
+                            title: "Calendar access is off",
+                            subtitle: "Allow it in Privacy & Security ▸ Calendars."
+                        ) {
+                            Button("Open System Settings…") { Permissions.openCalendarSettings() }
                         }
                     }
                 }
-            } else if store.access == .denied {
+
                 Section {
-                    SettingsRow(
-                        title: "Calendar access is off",
-                        subtitle: "Allow it in Privacy & Security ▸ Calendars."
-                    ) {
-                        Button("Open System Settings…") { Permissions.openCalendarSettings() }
+                    Picker(selection: $settings.joinWindowMinutes) {
+                        ForEach(JoinWindow.allCases) { window in
+                            Text(window.title).tag(window)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarJoining, "Show the join card")
+                        Text("Before and after a meeting starts.")
                     }
-                }
-            }
-
-            Section {
-                Picker(selection: $settings.joinWindowMinutes) {
-                    ForEach(JoinWindow.allCases) { window in
-                        Text(window.title).tag(window)
+                    Toggle(isOn: $settings.autoJoinMeetings) {
+                        SettingsRowTitle(.calendarJoining, "Auto Join Meetings")
+                        Text("As they start.")
                     }
-                } label: {
-                    SettingsRowTitle(.calendarJoining, "Show the join card")
-                    Text("Before and after a meeting starts.")
-                }
-                Toggle(isOn: $settings.autoJoinMeetings) {
-                    SettingsRowTitle(.calendarJoining, "Auto Join Meetings")
-                    Text("As they start.")
-                }
-                Toggle(isOn: $settings.autoJoinConfirms) {
-                    SettingsRowTitle(.calendarJoining, "Confirm before joining")
-                }
-                .toggleStyle(.checkbox)
-                .settingsEnabled(settings.autoJoinMeetings)
-                Toggle(isOn: $settings.cameraPreview) {
-                    SettingsRowTitle(.calendarJoining, "Camera Preview")
-                    Text("Before joining a meeting.")
-                }
-                MeetingBrowserPicker(selection: $settings.meetingBrowserBundleID)
-            } header: {
-                SettingsSectionHeader(.calendarJoining)
-            }
-            .settingsEnabled(settings.calendarEnabled)
-
-            Section {
-                Picker(selection: $settings.calendarMenuBarDisplay) {
-                    ForEach(CalendarMenuBarDisplay.allCases) { display in
-                        Text(display.title).tag(display)
+                    Toggle(isOn: $settings.autoJoinConfirms) {
+                        SettingsRowTitle(.calendarJoining, "Confirm before joining")
                     }
-                } label: {
-                    SettingsRowTitle(.calendarMenuBar, "Calendar in Menu Bar")
-                    Text("Separate from the Tinycast icon.")
+                    .toggleStyle(.checkbox)
+                    .settingsEnabled(settings.autoJoinMeetings)
+                    MeetingBrowserPicker(selection: $settings.meetingBrowserBundleID)
+                } header: {
+                    SettingsSectionHeader(.calendarJoining)
                 }
-                Picker(selection: $settings.calendarSpan) {
-                    ForEach(MeetingSpan.allCases) { span in
-                        Text(span.title).tag(span)
-                    }
-                } label: {
-                    SettingsRowTitle(.calendarMenuBar, "Days to Show")
-                    Text("In the menu, My Schedule and launcher search.")
-                }
-                Picker(selection: $settings.menuBarEvents) {
-                    ForEach(MenuBarEvents.allCases) { lead in
-                        Text(lead.title).tag(lead)
-                    }
-                } label: {
-                    SettingsRowTitle(.calendarMenuBar, "Show Upcoming Events")
-                    Text("When the next event appears.")
-                }
-                .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
-                Toggle(isOn: $settings.menuBarLinkedEventsOnly) {
-                    SettingsRowTitle(.calendarMenuBar, "Only show events with meetings")
-                }
-                .toggleStyle(.checkbox)
-                .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
-                Toggle(isOn: $settings.calendarMenuBarHidesWhenEmpty) {
-                    SettingsRowTitle(.calendarMenuBar, "Hide when there are no upcoming events")
-                }
-                .toggleStyle(.checkbox)
-                .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
-                Picker(selection: $settings.hideCurrentEvent) {
-                    ForEach(HideCurrentEvent.allCases) { hide in
-                        Text(hide.title).tag(hide)
-                    }
-                } label: {
-                    SettingsRowTitle(.calendarMenuBar, "Hide Current Event")
-                    Text("Once it has started.")
-                }
-                .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
-            } header: {
-                SettingsSectionHeader(.calendarMenuBar)
-            }
-            .settingsEnabled(settings.calendarEnabled)
-
-            FeatureCommandsSection(owner: .calendar, anchor: .calendarCommands)
                 .settingsEnabled(settings.calendarEnabled)
 
-            CalendarPickerSection()
+                Section {
+                    Picker(selection: $settings.calendarMenuBarDisplay) {
+                        ForEach(CalendarMenuBarDisplay.allCases) { display in
+                            Text(display.title).tag(display)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarMenuBar, "Calendar in Menu Bar")
+                        Text("Separate from the Tinycast icon.")
+                    }
+                    Picker(selection: $settings.calendarSpan) {
+                        ForEach(MeetingSpan.allCases) { span in
+                            Text(span.title).tag(span)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarMenuBar, "Days to Show")
+                        Text("In the menu, My Schedule and launcher search.")
+                    }
+                    Picker(selection: $settings.menuBarEvents) {
+                        ForEach(MenuBarEvents.allCases) { lead in
+                            Text(lead.title).tag(lead)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarMenuBar, "Show Upcoming Events")
+                        Text("When the next event appears.")
+                    }
+                    .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
+                    Toggle(isOn: $settings.menuBarLinkedEventsOnly) {
+                        SettingsRowTitle(.calendarMenuBar, "Only show events with meetings")
+                    }
+                    .toggleStyle(.checkbox)
+                    .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
+                    Toggle(isOn: $settings.calendarMenuBarHidesWhenEmpty) {
+                        SettingsRowTitle(.calendarMenuBar, "Hide when there are no upcoming events")
+                    }
+                    .toggleStyle(.checkbox)
+                    .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
+                    Picker(selection: $settings.hideCurrentEvent) {
+                        ForEach(HideCurrentEvent.allCases) { hide in
+                            Text(hide.title).tag(hide)
+                        }
+                    } label: {
+                        SettingsRowTitle(.calendarMenuBar, "Hide Current Event")
+                        Text("Once it has started.")
+                    }
+                    .settingsEnabled(settings.calendarMenuBarDisplay != .disabled)
+                } header: {
+                    SettingsSectionHeader(.calendarMenuBar)
+                }
                 .settingsEnabled(settings.calendarEnabled)
+
+                FeatureCommandsSection(owner: .calendar, anchor: .calendarCommands)
+                    .settingsEnabled(settings.calendarEnabled)
+
+                CalendarPickerSection()
+                    .settingsEnabled(settings.calendarEnabled)
+            }
+            .formStyle(.grouped)
+            .settingsScrollTarget(.calendar)
+            .releasesFocusOnOutsideClick()
+            // The snapshot is only reloaded while the feature runs, so a grant made in Settings lands here.
+            .onAppear { store.refreshAccess() }
         }
-        .formStyle(.grouped)
-        .settingsScrollTarget(.calendar)
-        .releasesFocusOnOutsideClick()
-        // The snapshot is only reloaded while the feature runs, so a grant made in Settings lands here.
-        .onAppear { store.refreshAccess() }
     }
 
     /// Routed through the coordinator so enabling, which is also consent, confirms first.
@@ -157,17 +156,19 @@ private struct MeetingBrowserPicker: View {
     @State private var browsers: [MeetingLauncher.Browser] = []
 
     var body: some View {
-        Picker(selection: installedSelection) {
-            Text("Default Browser").tag(String?.none)
-            Divider()
-            ForEach(browsers) { browser in
-                Text(browser.name).tag(Optional(browser.id))
+        WithPerceptionTracking {
+            Picker(selection: installedSelection) {
+                Text("Default Browser").tag(String?.none)
+                Divider()
+                ForEach(browsers) { browser in
+                    Text(browser.name).tag(Optional(browser.id))
+                }
+            } label: {
+                SettingsRowTitle(.calendarJoining, "Open Meeting Links In")
+                Text("When no meeting app handles the link.")
             }
-        } label: {
-            SettingsRowTitle(.calendarJoining, "Open Meeting Links In")
-            Text("When no meeting app handles the link.")
+            .onAppear { browsers = MeetingLauncher.installedBrowsers() }
         }
-        .onAppear { browsers = MeetingLauncher.installedBrowsers() }
     }
 
     /// A browser since removed reads as the default, which is what joining falls back to.
@@ -193,20 +194,22 @@ private struct CalendarPickerSection: View {
     }
 
     var body: some View {
-        Section {
-            SettingsFilterField(prompt: "Search calendars…", query: $query)
+        WithPerceptionTracking {
+            Section {
+                SettingsFilterField(prompt: "Search calendars…", query: $query)
 
-            if calendars.isEmpty {
-                Text(emptyMessage)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                ForEach(calendars) { calendar in
-                    CalendarRow(calendar: calendar)
+                if calendars.isEmpty {
+                    Text(emptyMessage)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    ForEach(calendars) { calendar in
+                        CalendarRow(calendar: calendar)
+                    }
                 }
+            } header: {
+                SettingsSectionHeader(.calendarCalendars)
             }
-        } header: {
-            SettingsSectionHeader(.calendarCalendars)
         }
     }
 
@@ -221,11 +224,13 @@ private struct CalendarRow: View {
     @Environment(CalendarStore.self) private var store
 
     var body: some View {
-        SettingsRow(title: calendar.title, subtitle: calendar.accountName) {
-            Toggle("", isOn: binding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .accessibilityLabel("Include \(calendar.title) in meetings")
+        WithPerceptionTracking {
+            SettingsRow(title: calendar.title, subtitle: calendar.accountName) {
+                Toggle("", isOn: binding)
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+                    .accessibilityLabel("Include \(calendar.title) in meetings")
+            }
         }
     }
 

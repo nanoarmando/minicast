@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Alignment guides marking the palette's default placement while a drag is in flight.
 struct PaletteDropGuideView: View {
@@ -11,21 +12,23 @@ struct PaletteDropGuideView: View {
     let horizontalFlash: Bool
 
     var body: some View {
-        ZStack {
-            DropGuidePath(topLeft: outerCorner, width: outerWidth, vertical: true)
-                .stroke(
-                    verticalFlash ? Theme.Colors.dropGuideArmed : Theme.Colors.dropGuide,
-                    style: strokeStyle(dash: Theme.Size.dropGuideDash, crossing: outerCorner.y)
-                )
-                .opacity(opacity(at: horizontalDistance))
-                .animation(.easeInOut(duration: Theme.Duration.dropGuide), value: verticalFlash)
-            DropGuidePath(topLeft: outerCorner, width: outerWidth, vertical: false)
-                .stroke(
-                    horizontalFlash ? Theme.Colors.dropGuideArmed : Theme.Colors.dropGuide,
-                    style: strokeStyle(dash: horizontalDash, crossing: outerCorner.x)
-                )
-                .opacity(min(opacity(at: horizontalDistance), opacity(at: verticalDistance)))
-                .animation(.easeInOut(duration: Theme.Duration.dropGuide), value: horizontalFlash)
+        WithPerceptionTracking {
+            ZStack {
+                DropGuidePath(topLeft: outerCorner, width: outerWidth, vertical: true)
+                    .stroke(
+                        verticalFlash ? Theme.Colors.dropGuideArmed : Theme.Colors.dropGuide,
+                        style: strokeStyle(dash: Theme.Size.dropGuideDash, crossing: outerCorner.y)
+                    )
+                    .opacity(opacity(at: horizontalDistance))
+                    .animation(.easeInOut(duration: Theme.Duration.dropGuide), value: verticalFlash)
+                DropGuidePath(topLeft: outerCorner, width: outerWidth, vertical: false)
+                    .stroke(
+                        horizontalFlash ? Theme.Colors.dropGuideArmed : Theme.Colors.dropGuide,
+                        style: strokeStyle(dash: horizontalDash, crossing: outerCorner.x)
+                    )
+                    .opacity(min(opacity(at: horizontalDistance), opacity(at: verticalDistance)))
+                    .animation(.easeInOut(duration: Theme.Duration.dropGuide), value: horizontalFlash)
+            }
         }
     }
 

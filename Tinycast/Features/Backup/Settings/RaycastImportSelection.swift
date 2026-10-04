@@ -1,6 +1,7 @@
 import SwiftUI
+import Perception
 
-/// The category picker shared by the Backup pane and onboarding.
+/// The category picker shown by the Backup pane.
 struct RaycastImportSelection: View {
     @Binding var selection: RaycastImportOptions
 
@@ -19,8 +20,6 @@ struct RaycastImportSelection: View {
         .init(option: .launchAtLogin, symbol: "power", label: "Launch at login"),
         .init(option: .menuBarVisibility, symbol: "menubar.rectangle", label: "Menu-bar icon"),
         .init(option: .clipboardHistory, symbol: "doc.on.clipboard", label: "Clipboard history"),
-        .init(option: .snippets, symbol: "curlybraces", label: "Snippets"),
-        .init(option: .quicklinks, symbol: Quicklink.sfSymbol, label: "Quicklinks"),
         .init(option: .popToRoot, symbol: "arrow.uturn.backward", label: "Pop to root"),
         .init(option: .compactMode, symbol: "macwindow", label: "Compact mode")
     ]
@@ -35,27 +34,31 @@ struct RaycastImportSelection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            LazyVGrid(columns: Self.columns, alignment: .leading, spacing: Theme.Spacing.sm) {
-                ForEach(Self.categories) { category in
-                    Toggle(isOn: included(category.option)) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: category.symbol)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 16)
-                            Text(category.label).lineLimit(1)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                LazyVGrid(columns: Self.columns, alignment: .leading, spacing: Theme.Spacing.sm) {
+                    WithPerceptionTracking {
+                        ForEach(Self.categories) { category in
+                            Toggle(isOn: included(category.option)) {
+                                HStack(spacing: Theme.Spacing.sm) {
+                                    Image(systemName: category.symbol)
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 16)
+                                    Text(category.label).lineLimit(1)
+                                }
+                            }
+                            .toggleStyle(.checkbox)
                         }
                     }
-                    .toggleStyle(.checkbox)
                 }
+                Button(selection == .all ? "Deselect All" : "Select All") {
+                    selection = selection == .all ? [] : .all
+                }
+                .buttonStyle(.link)
+                .font(.caption)
             }
-            Button(selection == .all ? "Deselect All" : "Select All") {
-                selection = selection == .all ? [] : .all
-            }
-            .buttonStyle(.link)
-            .font(.caption)
+            .font(.callout)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(.callout)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

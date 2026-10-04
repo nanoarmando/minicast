@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 struct FileSearchList: View {
 
@@ -17,33 +18,37 @@ struct FileSearchList: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    SectionHeader(title: title, isFirst: true)
-                    ForEach(results) { result in
-                        FileSearchRow(result: result, selected: result.id == selectedID)
-                            .selectionFrame(result.id == selectedID)
-                            .contentShape(Rectangle())
-                            .onRowClick(
-                                select: { onSelect(result) }, activate: { onActivate(result) },
-                                drag: drag(for: result)
-                            )
-                            .onRightClick { onActions(result) }
+        WithPerceptionTracking {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        WithPerceptionTracking {
+                            SectionHeader(title: title, isFirst: true)
+                            ForEach(results) { result in
+                                FileSearchRow(result: result, selected: result.id == selectedID)
+                                    .selectionFrame(result.id == selectedID)
+                                    .contentShape(Rectangle())
+                                    .onRowClick(
+                                        select: { onSelect(result) }, activate: { onActivate(result) },
+                                        drag: drag(for: result)
+                                    )
+                                    .onRightClick { onActions(result) }
+                            }
+                        }
                     }
+                    .padding(.horizontal, metrics.spacing.md)
+                    .padding(.top, metrics.spacing.xs)
+                    .padding(.bottom, metrics.spacing.md)
+                    .hideNativeScrollers()
+                    .scrollOriginAnchor()
                 }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.top, metrics.spacing.xs)
-                .padding(.bottom, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
+                .edgeDissolve()
+                .thinScrollbar()
+                .scrollFollowsSelection(
+                    scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
             }
-            .edgeDissolve()
-            .thinScrollbar()
-            .scrollFollowsSelection(
-                scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
+            .onDisappear { IconCache.purgeFitted() }
         }
-        .onDisappear { IconCache.purgeFitted() }
     }
 
     /// The row's own fitted tile, which is warm by the time a pointer can reach it.
@@ -77,45 +82,47 @@ private struct FileSearchRow: View {
     /// A folder is named by where it sits: half the hits are some `src` or `Tinycast`.
     private var label: Text {
         guard result.isDirectory, !result.parentName.isEmpty else { return Text(result.name) }
-        let parent = Text("\(result.parentName)/").foregroundStyle(.secondary)
+        let parent = Text("\(result.parentName)/").foregroundColor(.secondary)
         return Text("\(parent)\(result.name)")
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
-            Group {
-                if let image {
-                    Image(nsImage: image).resizable()
-                } else {
-                    RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous)
-                        .fill(Theme.Colors.iconPlaceholder)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.lg) {
+                Group {
+                    if let image {
+                        Image(nsImage: image).resizable()
+                    } else {
+                        RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous)
+                            .fill(Theme.Colors.iconPlaceholder)
+                    }
                 }
+                .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
+                // The column is too narrow for a path beside the name; the preview states it instead.
+                label
+                    .font(metrics.typography.rowTitle)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
             }
-            .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
-            // The column is too narrow for a path beside the name; the preview states it instead.
-            label
-                .font(metrics.typography.rowTitle)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
-                .fill(fill)
-        )
-        .armedHover($hovered)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(result.name)
-        .accessibilityValue(result.parentPath)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-        .task(id: IconRequest(result.id)) {
-            if let warm = IconCache.cachedFitted(forFile: result.id) {
-                image = warm
-                return
+            .padding(.horizontal, metrics.spacing.md)
+            .padding(.vertical, metrics.spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
+                    .fill(fill)
+            )
+            .armedHover($hovered)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(result.name)
+            .accessibilityValue(result.parentPath)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .task(id: IconRequest(result.id)) {
+                if let warm = IconCache.cachedFitted(forFile: result.id) {
+                    image = warm
+                    return
+                }
+                image = await IconCache.loadFittedAsync(forFile: result.id)
             }
-            image = await IconCache.loadFittedAsync(forFile: result.id)
         }
     }
 }

@@ -596,7 +596,7 @@ extension ExtensionTests {
         await settle(300)
         check("opening a menu reloads its runtime", boots.count == 2 && manager.isRunning)
         let items = controller.menu.items
-        check("native section header", items.first?.isSectionHeader == true && items.first?.title == "Usage")
+        check("disabled section header", items.first?.isEnabled == false && items.first?.title == "Usage")
         check(
             "informational row is disabled",
             items.first { $0.title == "Information Details" }?.isEnabled == false)

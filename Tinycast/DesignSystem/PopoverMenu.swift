@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// A menu row's leading glyph: a symbol, a bundled template asset, or an app icon from `IconCache`.
 enum PopoverMenuIcon: Equatable {
@@ -125,12 +126,14 @@ struct PopoverMenu: View {
     /// One device pixel: a point-wide rule reads heavy against the glass.
     private var hairline: CGFloat { 1 / displayScale }
     var body: some View {
-        let shape = SurfaceShape(
-            attachment: attachment, radius: metrics.radius.menuPanel,
-            attachedRadius: metrics.size.menuButton / 2)
-        surfaceContent
-            .frame(width: width ?? metrics.size.actionMenuWidth)
-            .glassEffect(.regular, in: shape)
+        WithPerceptionTracking {
+            let shape = SurfaceShape(
+                attachment: attachment, radius: metrics.radius.menuPanel,
+                attachedRadius: metrics.size.menuButton / 2)
+            surfaceContent
+                .frame(width: width ?? metrics.size.actionMenuWidth)
+                .glassSurface(in: shape)
+        }
     }
 
     private var surfaceContent: some View {
@@ -168,7 +171,7 @@ struct PopoverMenu: View {
     }
 
     private var searchField: some View {
-        @Bindable var palette = palette
+        @Perception.Bindable var palette = palette
         let placeholder = search.placeholder
         return TextField("", text: $palette.menuQuery)
             .textFieldStyle(.plain)
@@ -221,43 +224,45 @@ struct PopoverMenu: View {
             ScrollView {
                 // Lazy: a model menu runs to hundreds of rows, and only the viewport's are ever seen.
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    // Index-as-id is stable: a menu's rows never reorder while it is open.
-                    ForEach(items.indices, id: \.self) { index in
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Inside the first row's target, so revealing that row brings the title.
-                            if index == 0, let header {
-                                headerLabel(header)
-                                Color.clear.frame(height: metrics.size.menuRowSpacing)
-                            }
-                            rowBoundary(before: index)
+                    WithPerceptionTracking {
+                        // Index-as-id is stable: a menu's rows never reorder while it is open.
+                        ForEach(items.indices, id: \.self) { index in
                             VStack(alignment: .leading, spacing: 0) {
-                                if let sectionTitle = items[index].sectionTitle {
-                                    sectionLabel(sectionTitle, isFirst: index == 0)
+                                // Inside the first row's target, so revealing that row brings the title.
+                                if index == 0, let header {
+                                    headerLabel(header)
+                                    Color.clear.frame(height: metrics.size.menuRowSpacing)
                                 }
-                                PopoverMenuRow(
-                                    item: items[index],
-                                    selected: index == selection && items[index].isSelectable
-                                ) {
-                                    onActivate(index)
+                                rowBoundary(before: index)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    if let sectionTitle = items[index].sectionTitle {
+                                        sectionLabel(sectionTitle, isFirst: index == 0)
+                                    }
+                                    PopoverMenuRow(
+                                        item: items[index],
+                                        selected: index == selection && items[index].isSelectable
+                                    ) {
+                                        onActivate(index)
+                                    }
                                 }
+                                .onContinuousHover { if case .active = $0 { hover(index) } }
                             }
-                            .onContinuousHover { if case .active = $0 { hover(index) } }
+                            .id(index)
                         }
-                        .id(index)
                     }
                 }
                 .padding(.horizontal, listInset)
             }
             // A margin, not padding: a revealed end row keeps its inset instead of meeting the edge.
-            .contentMargins(.vertical, listInset, for: .scrollContent)
+            .verticalScrollContentMargins(listInset)
             .frame(height: extent.viewport + listInset * 2)
             // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
             .scrollIndicators(.never)
-            .scrollBounceBehavior(extent.content > extent.viewport ? .always : .basedOnSize)
+            .scrollBounce(always: extent.content > extent.viewport)
             // The hosting view outlives a presentation, so a fresh one must not inherit the offset.
             .id(palette.menuPresentationToken)
             .onAppear { proxy.scrollTo(selection, anchor: .center) }
-            .onChange(of: selection) {
+            .onValueChange(of: selection) {
                 let byPointer = pointerSelection == selection
                 pointerSelection = nil
                 guard !byPointer else { return }
@@ -344,78 +349,80 @@ private struct PopoverMenuRow: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        Button(action: onActivate) {
-            HStack(spacing: metrics.spacing.md) {
-                if item.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-                } else {
-                    switch item.icon {
-                    case .blank:
-                        EmptyView()
-                    case .symbol(let name):
-                        Image(systemName: SystemSymbolName.resolve(name))
-                            .font(
-                                .system(
-                                    size: metrics.scaled(Theme.Typography.menuSymbolSize),
-                                    weight: Theme.Typography.menuSymbolWeight)
-                            )
-                            .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(
-                                item.isDestructive ? Color.red : Theme.Colors.menuSymbol
-                            )
+        WithPerceptionTracking {
+            Button(action: onActivate) {
+                HStack(spacing: metrics.spacing.md) {
+                    if item.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
                             .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-                    case .asset(let name):
-                        Image(name)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .foregroundStyle(item.isDestructive ? Color.red : Color.secondary)
-                            .frame(width: metrics.size.menuBrandIcon, height: metrics.size.menuBrandIcon)
-                            .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-                    case .file(let path):
-                        MenuFileIcon(path: path)
-                    case .thumbnail(let id, let data):
-                        MenuThumbnail(id: id, data: data)
+                    } else {
+                        switch item.icon {
+                        case .blank:
+                            EmptyView()
+                        case .symbol(let name):
+                            Image(systemName: SystemSymbolName.resolve(name))
+                                .font(
+                                    .system(
+                                        size: metrics.scaled(Theme.Typography.menuSymbolSize),
+                                        weight: Theme.Typography.menuSymbolWeight)
+                                )
+                                .symbolRenderingMode(.monochrome)
+                                .foregroundStyle(
+                                    item.isDestructive ? Color.red : Theme.Colors.menuSymbol
+                                )
+                                .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+                        case .asset(let name):
+                            Image(name)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .foregroundStyle(item.isDestructive ? Color.red : Color.secondary)
+                                .frame(width: metrics.size.menuBrandIcon, height: metrics.size.menuBrandIcon)
+                                .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+                        case .file(let path):
+                            MenuFileIcon(path: path)
+                        case .thumbnail(let id, let data):
+                            MenuThumbnail(id: id, data: data)
+                        }
                     }
-                }
-                Text(item.title)
-                    .font(metrics.typography.menuRow)
-                    .foregroundStyle(item.isDestructive ? Color.red : Color.primary)
-                    .lineLimit(1)
-                Spacer(minLength: metrics.spacing.sm)
-                if let detail = item.detail {
-                    Text(detail)
-                        // Smaller than the title it trails: a stated value, not a second label.
-                        .font(metrics.typography.keyCap)
-                        .foregroundStyle(.secondary)
+                    Text(item.title)
+                        .font(metrics.typography.menuRow)
+                        .foregroundStyle(item.isDestructive ? Color.red : Color.primary)
                         .lineLimit(1)
-                        // A notation opens with what identifies it, so the tail is what can go.
-                        .truncationMode(.tail)
-                }
-                if let shortcut = item.shortcut {
-                    HStack(spacing: metrics.spacing.xxs) {
-                        ForEach(Array(shortcut.enumerated()), id: \.offset) { _, glyph in
-                            KeyCapChip(text: String(glyph), style: .outline)
+                    Spacer(minLength: metrics.spacing.sm)
+                    if let detail = item.detail {
+                        Text(detail)
+                            // Smaller than the title it trails: a stated value, not a second label.
+                            .font(metrics.typography.keyCap)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            // A notation opens with what identifies it, so the tail is what can go.
+                            .truncationMode(.tail)
+                    }
+                    if let shortcut = item.shortcut {
+                        HStack(spacing: metrics.spacing.xxs) {
+                            ForEach(Array(shortcut.enumerated()), id: \.offset) { _, glyph in
+                                KeyCapChip(text: String(glyph), style: .outline)
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, metrics.spacing.md)
+                // Stated, not padded: the height maths above counts rows, so a row is one exact height.
+                .frame(
+                    maxWidth: .infinity, minHeight: metrics.size.menuRowHeight,
+                    maxHeight: metrics.size.menuRowHeight, alignment: .leading
+                )
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
+                        .fill(selected ? Theme.Colors.menuHover : Color.clear)
+                )
+                .opacity(item.isEnabled ? 1 : 0.45)
             }
-            .padding(.horizontal, metrics.spacing.md)
-            // Stated, not padded: the height maths above counts rows, so a row is one exact height.
-            .frame(
-                maxWidth: .infinity, minHeight: metrics.size.menuRowHeight,
-                maxHeight: metrics.size.menuRowHeight, alignment: .leading
-            )
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
-                    .fill(selected ? Theme.Colors.menuHover : Color.clear)
-            )
-            .opacity(item.isEnabled ? 1 : 0.45)
+            .buttonStyle(.plain)
+            .disabled(!item.isSelectable)
         }
-        .buttonStyle(.plain)
-        .disabled(!item.isSelectable)
     }
 }
 
@@ -427,16 +434,18 @@ struct MenuThumbnail: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image).resizable().scaledToFill()
-            } else {
-                Color.clear
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else {
+                    Color.clear
+                }
             }
+            .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
+            .task(id: id) { image = NSImage(data: data) }
         }
-        .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
-        .task(id: id) { image = NSImage(data: data) }
     }
 }
 
@@ -452,17 +461,19 @@ struct MenuFileIcon: View {
     }
 
     var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image).resizable()
-            } else {
-                Color.clear
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable()
+                } else {
+                    Color.clear
+                }
             }
-        }
-        .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-        .task(id: IconRequest(path)) {
-            guard image == nil else { return }
-            image = await IconCache.loadAsync(forFile: path)
+            .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+            .task(id: IconRequest(path)) {
+                guard image == nil else { return }
+                image = await IconCache.loadAsync(forFile: path)
+            }
         }
     }
 }

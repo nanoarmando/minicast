@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 extension View {
     /// Publishes the selected row's frame for `scrollFollowsSelection`; only that row measures.
@@ -6,9 +7,11 @@ extension View {
         overlay {
             if selected {
                 GeometryReader { geometry in
-                    Color.clear
-                        .preference(
-                            key: SelectionFrameKey.self, value: geometry.frame(in: .scrollView))
+                    WithPerceptionTracking {
+                        Color.clear
+                            .preference(
+                                key: SelectionFrameKey.self, value: geometry.frame(in: .global))
+                    }
                 }
             }
         }
@@ -37,7 +40,9 @@ private struct SelectionFollowing: ViewModifier {
     let proxy: ScrollViewProxy
 
     @State private var band = Band(insetTop: 0, height: 0)
+    /// Both in window space: `frame(in: .scrollView)` is macOS 14, so the row is placed by hand.
     @State private var selection: CGRect?
+    @State private var viewport: CGRect = .zero
     /// Where the selection is still owed a place; nil once it has one, and the pointer owns it.
     @State private var target: Target?
 
@@ -55,22 +60,25 @@ private struct SelectionFollowing: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content
-            .onScrollGeometryChange(for: Band.self) {
-                Band(insetTop: $0.contentInsets.top, height: $0.containerSize.height)
-            } action: { old, new in
-                band = new
-                // The inset settles after mount and moves the resting offset: restate a landing.
-                if old.insetTop != new.insetTop, scroll.kind != .follow {
-                    return begin(scroll.kind)
+        WithPerceptionTracking {
+            content
+                .onScrollMetricsChange(for: Band.self) {
+                    Band(insetTop: $0.contentInsets.top, height: $0.containerSize.height)
+                } action: { old, new in
+                    band = new
+                    // The inset settles after mount and moves the resting offset: restate a landing.
+                    if old.insetTop != new.insetTop, scroll.kind != .follow {
+                        return begin(scroll.kind)
+                    }
+                    align()
                 }
-                align()
-            }
-            .onPreferenceChange(SelectionFrameKey.self) { frame in
-                selection = frame
-                align()
-            }
-            .onChange(of: scroll) { _, scroll in begin(scroll.kind) }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { viewport = $0 }
+                .onPreferenceChange(SelectionFrameKey.self) { frame in
+                    selection = frame
+                    align()
+                }
+                .onValueChange(of: scroll) { _, scroll in begin(scroll.kind) }
+        }
     }
 
     private func begin(_ kind: ScrollIntent.Kind) {
@@ -105,7 +113,8 @@ private struct SelectionFollowing: ViewModifier {
         }
         guard
             let edge = SelectionReveal.edge(
-                rowTop: selection.minY, rowBottom: selection.maxY, band: band.height)
+                rowTop: selection.minY - viewport.minY, rowBottom: selection.maxY - viewport.minY,
+                band: band.height)
         else {
             self.target = nil
             return

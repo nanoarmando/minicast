@@ -51,7 +51,7 @@ final class AppWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    /// A prebuilt controller; Settings needs one to bridge its SwiftUI toolbar into the window.
+    /// A prebuilt controller, for a caller that needs the hosting view once it is in the window.
     @discardableResult
     func show(chrome: WindowChrome? = nil, contentViewController: () -> NSViewController) -> Bool {
         if let window {
@@ -123,7 +123,6 @@ final class AppWindowController: NSObject, NSWindowDelegate {
         window.isRestorable = false
         window.contentMinSize = minimumSize
         window.delegate = self
-        // Before the content: a bridged SwiftUI toolbar restores the title flags it mounted over.
         chrome?.install(in: window)
 
         window.contentViewController = content

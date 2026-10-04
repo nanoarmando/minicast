@@ -1,4 +1,5 @@
 import Foundation
+import Perception
 
 /// A screen to return to, held with enough state that going back looks like never having left.
 struct PaletteFrame: Equatable {
@@ -9,7 +10,7 @@ struct PaletteFrame: Equatable {
 
 /// Palette state shared between the panel's SwiftUI tree and the coordinator.
 @MainActor
-@Observable
+@Perceptible
 final class PaletteState {
     var mode: PaletteMode = .launcher
     /// The screens below `mode`, innermost last: a summon starts a new one, navigating pushes on.
@@ -36,7 +37,7 @@ final class PaletteState {
     var resetToken = UUID()
     /// Bumped when an action reorders the list, so the highlight scrolls back into view.
     var followToken = UUID()
-    /// AppKit binds ⌘. to `cancelOperation:`, so the field editor eats it before `onKeyPress`.
+    /// AppKit binds ⌘. to `cancelOperation:`, so the field editor eats it before `onKeyDown`.
     private(set) var pinChordToken = UUID()
     /// Bumped when AppKit resolves ⌘1…⌘0 to a slot index from the physical number row.
     private(set) var favoriteSlotToken = UUID()
@@ -59,7 +60,7 @@ final class PaletteState {
     /// True once ⌘ has been *held*, which numbers the favorite rows. The panel is the only writer.
     private(set) var commandHeld = false
     /// A chord is a tap, so the numbering waits out the tap before it claims the trailing labels.
-    @ObservationIgnored private var commandHoldTask: Task<Void, Never>?
+    @PerceptionIgnored private var commandHoldTask: Task<Void, Never>?
     /// True while a form field owns the keyboard, so the palette's own text keys stay out of it.
     private(set) var isEditingField = false
     /// True while a control inside a screen has a list open, which owns the arrows and ↵ whole.
@@ -67,18 +68,18 @@ final class PaletteState {
     /// Bumped when a press lands outside an open control list, which is how the list learns of it.
     private(set) var controlListDismissToken = UUID()
     /// True only once the pointer has moved of its own accord; untracked, so it never re-renders.
-    @ObservationIgnored private(set) var hoverHighlightArmed = false
+    @PerceptionIgnored private(set) var hoverHighlightArmed = false
     /// Bumped when the highlight drops, so a lit row clears even though the pointer never left it.
     private(set) var hoverDisarmToken = UUID()
     /// Where the pointer stood when the list last moved on its own; movement is measured from here.
-    @ObservationIgnored private var hoverAnchor: CGPoint = .zero
+    @PerceptionIgnored private var hoverAnchor: CGPoint = .zero
     /// A containment test, because hit-testing a rebuilding hierarchy misses the field.
-    @ObservationIgnored var searchFieldFrame: CGRect = .zero
+    @PerceptionIgnored var searchFieldFrame: CGRect = .zero
     /// True while a palette menu is open. See docs/features/palette.md#menu-open-input-freeze.
-    @ObservationIgnored var menuOpen = false { didSet { onMenuOpenChanged?(menuOpen) } }
+    @PerceptionIgnored var menuOpen = false { didSet { onMenuOpenChanged?(menuOpen) } }
     var menuQuery = ""
     /// Fired when `menuOpen` flips, so the panel can hide the caret without a focus swap.
-    @ObservationIgnored var onMenuOpenChanged: ((Bool) -> Void)?
+    @PerceptionIgnored var onMenuOpenChanged: ((Bool) -> Void)?
     /// A fresh presentation resets a long popover to the row it opens with.
     private(set) var menuPresentationToken = UUID()
 

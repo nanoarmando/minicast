@@ -1,9 +1,9 @@
 import Foundation
-import Observation
+import Perception
 
 /// MCP's action surface: what is running, what the model may call, and who is asked first.
 @MainActor
-@Observable
+@Perceptible
 final class MCPCoordinator {
     private let settings: AppSettings
     private let store: MCPSettingsStore
@@ -11,7 +11,7 @@ final class MCPCoordinator {
     private unowned let core: AppCore
 
     /// Servers each conversation was granted; keyed, since a dialog may outlive a chat switch.
-    @ObservationIgnored private var chatGrants: [UUID: Set<UUID>] = [:]
+    @PerceptionIgnored private var chatGrants: [UUID: Set<UUID>] = [:]
 
     init(
         settings: AppSettings, store: MCPSettingsStore, manager: MCPServerManager, core: AppCore

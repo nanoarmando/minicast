@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// Favorite apps as an ordered key list, pinned to the top while the search is empty.
 @MainActor
-@Observable
+@Perceptible
 final class FavoritesStore {
     private let defaults = UserDefaults.standard
     private let key = "favoriteApps"

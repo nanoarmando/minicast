@@ -234,21 +234,17 @@ struct PaletteHeaderAccessory {
     let fieldNames: [String]
     /// The first field that still has to be filled before ↵ can act, if any.
     let firstIncompleteField: String?
-    /// A field whose value is chosen rather than typed hands back its menu; nil means free text.
-    let optionsMenu: (String) -> PopoverMenuContent?
     let placement: Placement
     let view: AnyView
 
     init(
         width: CGFloat, fieldNames: [String], firstIncompleteField: String?,
-        optionsMenu: @escaping (String) -> PopoverMenuContent? = { _ in nil },
         placement: Placement = .afterQuery,
         view: AnyView
     ) {
         self.width = width
         self.fieldNames = fieldNames
         self.firstIncompleteField = firstIncompleteField
-        self.optionsMenu = optionsMenu
         self.placement = placement
         self.view = view
     }

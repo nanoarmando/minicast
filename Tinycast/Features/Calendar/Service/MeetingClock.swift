@@ -1,15 +1,16 @@
 import Foundation
+import Perception
 
 /// Publishes the current minute, and only while something is watching.
 @MainActor
-@Observable
+@Perceptible
 final class MeetingClock {
     private(set) var now = Date()
 
     /// Fired after each boundary; the coordinator decides what a new minute means.
-    @ObservationIgnored var onTick: (@MainActor () -> Void)?
+    @PerceptionIgnored var onTick: (@MainActor () -> Void)?
 
-    @ObservationIgnored private var tick: Task<Void, Never>?
+    @PerceptionIgnored private var tick: Task<Void, Never>?
 
     var isRunning: Bool { tick != nil }
 

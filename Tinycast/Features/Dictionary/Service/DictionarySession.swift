@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The dictionary screen's lookup: one term in flight, answered off the main actor.
 @MainActor
-@Observable
+@Perceptible
 final class DictionarySession {
     struct Lookup: Equatable {
         let term: String
@@ -12,8 +13,8 @@ final class DictionarySession {
 
     /// The last answered lookup; it stays up while the next term resolves, so typing never blanks.
     private(set) var lookup: Lookup?
-    @ObservationIgnored private var term = ""
-    @ObservationIgnored private var task: Task<Void, Never>?
+    @PerceptionIgnored private var term = ""
+    @PerceptionIgnored private var task: Task<Void, Never>?
 
     /// Coalesces a burst of keystrokes into the lookup for the word they settle on.
     private static let debounce = Duration.milliseconds(90)

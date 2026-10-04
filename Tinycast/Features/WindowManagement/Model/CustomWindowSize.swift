@@ -5,7 +5,7 @@ import Foundation
 /// See docs/features/window-management.md#custom-sizes.
 struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
     static let entryIDPrefix = "window-size:"
-    static let sfSymbol = "macwindow.and.cursorarrow"
+    static let sfSymbol = "macwindow"
 
     /// One axis's length, in the unit the user typed it in.
     struct Dimension: Codable, Hashable, Sendable {

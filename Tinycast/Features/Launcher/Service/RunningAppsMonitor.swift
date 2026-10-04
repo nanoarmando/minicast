@@ -1,11 +1,12 @@
 import AppKit
+import Perception
 
 /// Tracks running apps for the launcher's indicator, live from NSWorkspace.
 @MainActor
-@Observable
+@Perceptible
 final class RunningAppsMonitor {
     private(set) var runningBundleIDs: Set<String> = []
-    @ObservationIgnored private var observers: [NotificationToken] = []
+    @PerceptionIgnored private var observers: [NotificationToken] = []
 
     init() {
         refresh()

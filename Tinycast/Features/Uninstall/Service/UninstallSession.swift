@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// One scan, its plan and the checked set; the checked-set invariant lives elsewhere.
 @MainActor
-@Observable
+@Perceptible
 final class UninstallSession {
     enum State: Equatable {
         case idle
@@ -17,7 +18,7 @@ final class UninstallSession {
     /// Kept for the confirmation copy and the post-uninstall cleanup.
     private(set) var app: AppEntry?
 
-    @ObservationIgnored private var scanTask: Task<Void, Never>?
+    @PerceptionIgnored private var scanTask: Task<Void, Never>?
 
     var plan: UninstallPlan? {
         if case .ready(let plan) = state { return plan }

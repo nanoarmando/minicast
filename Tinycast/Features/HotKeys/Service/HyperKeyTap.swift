@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Perception
 @preconcurrency import IOKit.hidsystem
 
 // Snapshot the mutable C global `mach_task_self_`, so actor code never reads it raw.
@@ -82,7 +83,7 @@ private enum CapsLockRemap {
 
 /// The Hyper Key engine, a modifying tap. See docs/features/hotkeys.md#the-hyper-key.
 @MainActor
-@Observable
+@Perceptible
 final class HyperKeyTap: HealthCheckable {
     enum Status: Equatable {
         case off
@@ -114,22 +115,22 @@ final class HyperKeyTap: HealthCheckable {
 
     private(set) var status: Status = .off
 
-    @ObservationIgnored private var settings: AppSettings?
+    @PerceptionIgnored private var settings: AppSettings?
     // Raw CF handles the tap callback and teardown reach; never a view dependency.
-    @ObservationIgnored private var tapPort: CFMachPort?
-    @ObservationIgnored private var runLoopSource: CFRunLoopSource?
-    @ObservationIgnored private var sessionTokens: [NotificationToken] = []
-    @ObservationIgnored private var hidConnect: io_connect_t = IO_OBJECT_NULL
+    @PerceptionIgnored private var tapPort: CFMachPort?
+    @PerceptionIgnored private var runLoopSource: CFRunLoopSource?
+    @PerceptionIgnored private var sessionTokens: [NotificationToken] = []
+    @PerceptionIgnored private var hidConnect: io_connect_t = IO_OBJECT_NULL
 
-    @ObservationIgnored weak var healthTicker: HealthTicker?
+    @PerceptionIgnored weak var healthTicker: HealthTicker?
 
     /// Mirror of `settings.hyperKey`; the toggles are read live, so nothing goes stale.
-    @ObservationIgnored private var key: HyperKeyPhysicalKey = .none
+    @PerceptionIgnored private var key: HyperKeyPhysicalKey = .none
 
     // Hold state machine, written from the tap callback on every keystroke.
-    @ObservationIgnored private var hyperActive = false
-    @ObservationIgnored private var hyperDownAt: ContinuousClock.Instant?
-    @ObservationIgnored private var otherKeyPressed = false
+    @PerceptionIgnored private var hyperActive = false
+    @PerceptionIgnored private var hyperDownAt: ContinuousClock.Instant?
+    @PerceptionIgnored private var otherKeyPressed = false
     private let clock = ContinuousClock()
     private static let quickPressWindow: Duration = .milliseconds(250)
 
@@ -165,7 +166,7 @@ final class HyperKeyTap: HealthCheckable {
 
     /// Fires synchronously on main before the write lands, so the task re-arms, then applies.
     private func observeKey() {
-        withObservationTracking {
+        withPerceptionTracking {
             _ = settings?.hyperKey
         } onChange: { [weak self] in
             Task { @MainActor in

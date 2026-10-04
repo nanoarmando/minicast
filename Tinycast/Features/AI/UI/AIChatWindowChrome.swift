@@ -1,4 +1,5 @@
 import AppKit
+import Perception
 
 /// The AI Chat window's toolbar, title and chords; it lives exactly as long as the window does.
 @MainActor
@@ -61,7 +62,6 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
-        toolbar.allowsDisplayModeCustomization = false
         window.toolbar = toolbar
 
         installKeyMonitor()
@@ -161,7 +161,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
 
     /// Re-armed after every read; the hop is because `onChange` fires before the write lands.
     private func observeTitle() {
-        withObservationTracking {
+        withPerceptionTracking {
             window?.title = coordinator.title(of: chat)
         } onChange: { [weak self] in
             Task { @MainActor in self?.observeTitle() }

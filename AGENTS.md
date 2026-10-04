@@ -1,35 +1,57 @@
-# Tinycast
+# Tinycast Fork
 
-A native macOS menu-bar launcher: fuzzy app launcher, global and per-app hotkeys, a text/image
-clipboard history, an inline calculator, a floating note, snippets, quicklinks, window management
-and an emoji picker. It also **runs Raycast extensions** natively, in JavaScriptCore.
-SwiftUI + AppKit, running as an accessory with no Dock icon (`LSUIElement`). Zero third-party
-dependencies.
+A private fork of Tinycast, a native macOS menu-bar launcher: fuzzy app launcher, global and per-app
+hotkeys, a text/image clipboard history, an inline calculator, file search, window management, calendar,
+AI chat, quick actions and an emoji picker. It also **runs Raycast extensions** natively, in
+JavaScriptCore. SwiftUI + AppKit, running as an accessory with no Dock icon (`LSUIElement`).
 
-## Posture: latest-only, always
+Upstream is not merged. Planning lives in OpenSpec (`openspec/`); the port is the change
+`openspec/changes/port-to-macos-13/`. The docs under `docs/` and `website/` describe upstream and are not
+kept in sync with the fork; this file and `README.md` win when they disagree.
 
-**Tinycast targets one macOS — the current stable release — and nothing else.** macOS 26+, the Xcode 26
-toolchain, Swift 6 language mode. There is no compatibility floor to defend, no shim layer and no
-deprecation debt, and that is the single largest reason the codebase stays as small as it does.
+## Posture: macOS 13 floor, one code path
 
-Write code as if the platform released yesterday:
+**The fork targets macOS 13 Ventura and later, Intel and Apple silicon, from one universal build.** It
+is built with the Xcode 27 toolchain in Swift 6 language mode. This overrides upstream's "latest macOS
+only" posture.
 
-- **Prefer the modern Apple API**, always. Observation over `ObservableObject`. Swift Concurrency over
-  `DispatchQueue` or completion handlers. `SMAppService` over login-item shims. Structured concurrency
-  over detached bookkeeping.
-- **Migrate, never wrap.** When an API gains a modern replacement, adopt it and delete the old call
-  site. A wrapper that preserves an old spelling is the thing this project has spent the most effort
-  removing.
-- **A deprecated API is a defect**, not a warning to live with.
-- **No compatibility layers, no legacy workarounds, no older architectural patterns.** Delete rather
-  than deprecate; raising the minimum macOS *deletes* the code that supported the old one.
-- **Never introduce backwards compatibility unless explicitly asked for it.** No version flags, no
-  migration scaffolding, no "just in case" fallbacks. The codebase carries no migration, and adding
-  one needs an explicit task saying so.
+- **Every API must exist on macOS 13.** The compiler is the inventory: the deployment target is 13.0,
+  so anything newer is a build error, never a warning to live with.
+- **One code path for every macOS version.** Use `#available` only where the macOS 13 call is wrong on
+  newer systems (EventKit full access in `Platform/Permissions.swift`) or for cosmetic modifiers that
+  simply do nothing on macOS 13.
+- **Compatibility helpers live in `Tinycast/DesignSystem/Compatibility/`** and keep the shape of the
+  newer API so call sites stay readable: `onValueChange` (for `onChange`), `onKeyDown` (for
+  `onKeyPress`), `onScrollMetricsChange`/`onLiveScrollChange`/`onScrollVisibilityChanged` (for scroll
+  geometry), `EmptyStateView` (for `ContentUnavailableView`) and the cosmetic modifiers. Reuse them;
+  never call the macOS 14+ originals.
+- **Observation is swift-perception.** Models are `@Perceptible` (`@PerceptionIgnored`,
+  `withPerceptionTracking`, `@Perception.Bindable`). Every `View` and `ViewModifier` body is wrapped in
+  `WithPerceptionTracking`, and so is lazily built content that reads models (`GeometryReader`, lazy
+  stacks and grids, `List` content, popovers, sheets, context menus). A missing wrapper only shows on
+  macOS 13, where Perception logs an untracked-access warning in Debug builds. On macOS 14+ Perception
+  delegates to native Observation.
+- **SF Symbols must exist in SF Symbols 4** (macOS 13); newer names render blank.
+- **One appearance:** classic blur materials (`GlassEffectView` is an `NSVisualEffectView`,
+  `Theme.frosted(in:)` a SwiftUI material). No Liquid Glass.
+- The rest of upstream's style stays: prefer Swift Concurrency, `SMAppService`, structured concurrency;
+  no migration code inside the app (the one-time `Scripts/migrate-from-official.sh` is external).
 
 Carbon is a deliberate capability-gap dependency rather than inertia: nothing modern registers a
-system-wide chord, and HIToolbox's TIS APIs remain the public input-source mechanism. Full reasoning in
-[standards.md](docs/standards.md#posture).
+system-wide chord, and HIToolbox's TIS APIs remain the public input-source mechanism.
+
+## Fork identity and removed features
+
+- Release: `com.tinycast.app.fork`, "Tinycast Fork". Debug: `com.tinycast.app.fork.dev`,
+  "Tinycast Fork Dev". Every persisted path, preference domain and Keychain service derives from the
+  bundle id, so the fork never touches the official app's data. Keep it that way.
+- No self-update code exists; the palette's "Changelog" opens the fork's commit history.
+- Removed and not to be reintroduced without an OpenSpec change: Apple Intelligence provider, Translate
+  quick action, Updates, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
+  Snippets, Support reminder, Onboarding, WindowSwitcher, MenuSearch (Navigation pane).
+- Link opening shared by window layouts, clipboard drag and "open in browser" lives in
+  `Platform/LinkDestination.swift` and `Platform/LinkLauncher.swift`. `TextInjector` only serves quick
+  actions (replace and copy selection).
 
 ## Where things are
 
@@ -77,8 +99,8 @@ feature's doc, under its own `## Invariants`.
 - **A networked feature fetches on a private `.ephemeral`, `urlCache = nil` session**, never
   `URLSession.shared`, so its own cache file stays the only copy on disk. `CurrencyRateStore` is the
   reference — copy it rather than inventing a second shape. A flag that grants a capability is never
-  carried by a backup or by `settings.json`: `snippetsEnabled` is excluded from settings backups so an
-  import cannot grant keystroke listening.
+  carried by a backup or by `settings.json`: `extensionsEnabled` is excluded from settings backups so
+  an import cannot grant extension execution.
 - **Extensions stay inside `Features/Extensions/`.** Every view, row, menu, geometry and sizing
   constant an extension needs is written and owned there — never added to `DesignSystem/`, never bolted
   onto `Theme`, and never lifted somewhere another feature can build on it. Another surface may render
@@ -99,9 +121,9 @@ feature's doc, under its own `## Invariants`.
   `CountryZoneData.generated.swift` from `node Scripts/gen-countries.js`, and
   `Resources/RaycastRuntime.generated.js` from `Scripts/raycast-runtime/build.mjs` — the runtime is
   committed so building the app never needs Node.
-- **`DesignSystem/Scrolling/EdgeDissolve.swift` and `ThinScrollbar.swift` are off-limits.** Both are
-  tuned by eye against the palette's floating bars, so any edit is a visual regression. Needing to touch
-  one to fix a scroll bug means the real fix belongs elsewhere.
+- **`DesignSystem/Scrolling/EdgeDissolve.swift` and `ThinScrollbar.swift` are tuned by eye** against
+  the palette's floating bars. On macOS 13 they read scroll state from the backing `NSScrollView`
+  (`onScrollMetricsChange`); change them only for a scroll bug that lives there.
 
 ## Conventions worth knowing up front
 
@@ -118,18 +140,20 @@ feature's doc, under its own `## Invariants`.
   constant or type instead. Cap 100 characters, delete rather than update, and never comment a change
   you just made. Nothing lints this; get it right the first time.
   Full rules: [standards.md#comments](docs/standards.md#comments).
-- **Debug builds are their own channel** — `Tinycast Dev.app` / `com.tinycast.app.dev` — so a local run
+- **Debug builds are their own channel** — `Tinycast Fork Dev.app` / `com.tinycast.app.fork.dev` — so a local run
   never shares prefs, caches, TCC grants or the login item with an installed copy. Anything newly
   persisted must stay keyed by `Bundle.main.bundleIdentifier`.
 - **XcodeGen owns the project.** `Tinycast.xcodeproj` is committed but generated from `project.yml`;
-  after editing it, run `xcodegen generate` and commit both. No SwiftPM, and never `Bundle.module`.
+  after editing it, run `./.tools/xcodegen/bin/xcodegen generate` and commit both. The only Swift
+  package is swift-perception; never `Bundle.module`. Command-line builds pass `-skipMacroValidation`.
 
 ## Before you finish
 
 Each item is explained in [testing.md](docs/testing.md#definition-of-done).
 
-- `./Scripts/run-tests.sh` passes.
-- The Debug build compiles with **no new warnings**.
-- `./Scripts/lint.sh` is clean.
+- `./Scripts/run-tests.sh` passes (it builds swift-perception once into `.build/harness-perception/`).
+- The Debug build and the universal Release build (`./Scripts/build-dmg.sh`) compile with **no errors and
+  no new warnings** for the 13.0 deployment target.
+- `./Scripts/lint.sh` is clean (requires SwiftLint).
 - `grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/` returns nothing.
 - Any doc your change made wrong is fixed in the same commit.

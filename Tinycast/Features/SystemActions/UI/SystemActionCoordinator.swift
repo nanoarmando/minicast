@@ -1,10 +1,11 @@
 import AppKit
+import Perception
 
 /// The one dispatch funnel for system actions, its gates and their feedback.
 @MainActor
 final class SystemActionCoordinator {
     private let paletteCoordinator: PaletteCoordinator
-    @ObservationIgnored private lazy var volumeHUD = VolumeHUDController(settings: core.settings)
+    @PerceptionIgnored private lazy var volumeHUD = VolumeHUDController(settings: core.settings)
     /// Dialog and message-HUD presentation only — never for state this type owns.
     private unowned let core: AppCore
 

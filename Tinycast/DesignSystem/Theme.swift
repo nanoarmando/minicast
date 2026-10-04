@@ -5,7 +5,6 @@ import SwiftUI
 enum Theme {
     enum Spacing {
         static let xxs: CGFloat = 2
-        static let dictationWaveGap: CGFloat = 3
         static let xs: CGFloat = 4
         static let sm: CGFloat = 6
         static let md: CGFloat = 8
@@ -67,26 +66,6 @@ enum Theme {
     enum Size {
         static let panelWidth: CGFloat = 750
         static let panelHeight: CGFloat = 475
-        /// Opening size on a first run and the floor: below it the title bar's own parts collide.
-        static let noteWindow = CGSize(width: 440, height: 180)
-        static let noteEditorInset: CGFloat = 16
-        /// Shorter than the horizontal inset, so the first line sits close under the title bar.
-        static let noteEditorTopInset: CGFloat = 6
-        static let noteSearchHeight: CGFloat = 34
-        /// The switcher popover, sized independently of a note window that can be 180pt tall.
-        static let noteSwitcher = CGSize(width: 300, height: 240)
-        static let noteSwitcherEmptyHeight: CGFloat = 96
-        static let noteSwitcherDrop: CGFloat = 56
-        /// Fixed like every menu's width; the height is exactly four heading rows.
-        static let noteHeadingMenu = CGSize(
-            width: 220, height: menuRowHeight * 4 + menuRowSpacing * 3 + Spacing.sm * 2)
-        static let noteFooterHeight: CGFloat = 28
-        /// Holds the launcher's 36-point action capsule with the same margin its own bar gives it.
-        static let noteTitlebar: CGFloat = 52
-        /// Symmetric, so the title stays centred on the window while clearing lights and capsule.
-        static let noteTitleInset: CGFloat = 120
-        /// Nine points crowds the palette's 26-point corner, so Notes seats its lights further in.
-        static let noteTrafficLightInset: CGFloat = 20
         /// Fraction of visible height above the palette's top edge; it grows downward.
         static let paletteTopMarginFraction: CGFloat = 0.18
         static let headerHeight: CGFloat = 44
@@ -138,8 +117,6 @@ enum Theme {
         static let compactKeyCap: CGFloat = 15
         static let heroKeyCap: CGFloat = 22
         static let menuButton: CGFloat = 36
-        static let noteGlyph: CGFloat = 16
-        static let noteEmptyGlyph: CGFloat = 28
         /// Hit target for a chat message footer glyph; its caption symbol floats inside it.
         static let chatMessageAction: CGFloat = 16
         /// A one-pixel markdown rule and table header separator.
@@ -205,13 +182,14 @@ enum Theme {
         static let settingsRowIcon: CGFloat = 20
         /// A sidebar glyph inside its tinted tile; the tile's inset brings it to the row icon's size.
         static let settingsSidebarGlyph: CGFloat = 14
+        /// A header chevron's square hit target, the size of System Settings' own.
         /// AI Chat's opening size; the user owns it from there, autosaved.
         static let aiChatWindow = CGSize(width: 960, height: 660)
         static let aiChatWindowMinimum = CGSize(width: 680, height: 440)
         static let aiChatSidebarMinimum: CGFloat = 240
         static let aiChatSidebarMaximum: CGFloat = 340
-        /// The sidebar's search capsule, a row's height so it lines up with the list below it.
-        static let aiChatSearchField: CGFloat = 28
+        /// A window sidebar's search capsule, a row's height so it lines up with the list below it.
+        static let sidebarSearchField: CGFloat = 28
         static let aiChatDetailMinimum: CGFloat = 440
         /// The transcript and composer column; past this a line of prose stops being readable.
         static let aiChatReadingWidth: CGFloat = 760
@@ -253,7 +231,7 @@ enum Theme {
         static let aiVariableName: CGFloat = 170
         /// A Codex usage window's meter, beside its "72% left" readout.
         static let aiUsageBar: CGFloat = 110
-        /// Settings editor modals (Custom Commands, Snippets): fixed width, intrinsic height.
+        /// Settings editor modals (Custom Commands, Quick Actions): fixed width, intrinsic height.
         static let editorSheetWidth: CGFloat = 480
         /// The multi-line box inside those modals; it scrolls rather than grows the panel.
         static let editorTextHeight: CGFloat = 120
@@ -270,10 +248,6 @@ enum Theme {
         static let dialogSymbolContainer: CGFloat = 52
         /// Shared measurement for dialog accessories and the volume-HUD glyph.
         static let dialogIcon: CGFloat = 32
-        /// 16:9 at the dialog's own width, so the two surfaces read as siblings.
-        static let cameraPreview = CGSize(width: 420, height: 236)
-        /// 16:9 again, wider: the standalone camera is the surface, not a confirmation on one.
-        static let cameraStage = CGSize(width: 560, height: 315)
         /// Wider than a dialog: a Quick Action's result is prose to read, not a sentence to answer.
         static let quickActionPanel: CGFloat = 520
         /// Matched to the title's cap height; a row-sized glyph beside it reads as an error.
@@ -287,8 +261,6 @@ enum Theme {
         /// Transient volume HUD shown after any volume or mute command.
         static let hudWidth: CGFloat = 200
         static let hudHeight: CGFloat = 100
-        static let dictationPanel = CGSize(width: 144, height: 44)
-        static let dictationWaveBar: CGFloat = 2
         /// Read-only volume bar geometry used by the HUD.
         static let volumeTrackHeight: CGFloat = 6
         /// Fixed slot for the level readout, sized to the widest string it ever holds.
@@ -377,6 +349,7 @@ enum Theme {
         static let sectionHeader = Font.subheadline.weight(.medium)
         /// A borderless panel's own title, which names the surface rather than a section inside it.
         static let panelTitle = Font.headline
+        /// The Settings pane title in the titlebar band, sized as System Settings' is.
         /// The big value line on the calculator answer card (both source and target sides).
         static let calcResult = Font.title
         static let keyCap = Font.caption
@@ -399,7 +372,6 @@ enum Theme {
         static let menuIcon = Font.body
         static let menuSymbolSize: CGFloat = 14
         static let menuSymbolWeight = Font.Weight.medium
-        static let noteTitle = Font.headline
     }
 
     enum Colors {
@@ -458,8 +430,6 @@ enum Theme {
         static let menuSymbol = ramp(dark: 0.70, light: 0.70)
         static let noteText = ramp(dark: 0.90, light: 0.85)
         static let iconPlaceholder = ramp(dark: 0.06, light: 0.06)
-        /// The faint wash behind the Onboarding header.
-        static let sheen = ramp(dark: 0.04, light: 0.04)
         /// The Settings card: a faint surface whose border doubles as the row divider.
         static let cardFill = ramp(dark: 0.05, light: 0.04)
         static let cardStroke = ramp(dark: 0.10, light: 0.10)
@@ -488,7 +458,7 @@ enum Theme {
         /// The two squares of a checkerboard, behind a colour with alpha to show.
         static let checkerLight = Color(nsColor: .srgbInk(1, alpha: 0.22))
         static let checkerDark = Color(nsColor: .srgbInk(0, alpha: 0.22))
-        /// The violet of the app mark, used only to tint the About support callout.
+        /// The violet of the app mark, used to mark a meeting in progress.
         static let brand = Color(red: 0.525, green: 0.231, blue: 1.0)
         /// The palette's drop guides while dragging, and once a release would snap it home.
         static let dropGuide = ramp(dark: 0.35, light: 0.35)
@@ -514,8 +484,8 @@ enum Theme {
 }
 
 extension View {
-    /// A floating glass control surface: regular, interactive Liquid Glass.
+    /// A floating control over the window's own content: a material clipped to `shape`.
     func frosted(in shape: some Shape) -> some View {
-        glassEffect(.regular.interactive(), in: shape)
+        background(.regularMaterial, in: shape)
     }
 }

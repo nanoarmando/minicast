@@ -13,13 +13,13 @@ enum ExtensionListKey: Equatable {
     case stepValue(Int)
     case ignored
 
-    init(press: KeyPress, listOpen: Bool) {
+    init(press: KeyPressEvent, listOpen: Bool) {
         self = ExtensionListKey.resolve(
             key: press.key, characters: press.characters, modifiers: press.modifiers,
             listOpen: listOpen)
     }
 
-    /// Split out so a harness can drive it: `KeyPress` cannot be constructed outside SwiftUI.
+    /// Split out so a harness can drive it without an `NSEvent`.
     static func resolve(
         key: KeyEquivalent, characters: String, modifiers: EventModifiers, listOpen: Bool
     ) -> ExtensionListKey {
@@ -59,7 +59,7 @@ enum ExtensionListKey: Equatable {
 
     /// Both spellings of every delete key: the named equivalents and the scalars they carry.
     private static func isDeletion(key: KeyEquivalent, characters: String) -> Bool {
-        if key == .delete || key == .deleteForward { return true }
+        if key.isSameKey(as: .delete) || key.isSameKey(as: .deleteForward) { return true }
         let deletions: Set<Unicode.Scalar> = ["\u{8}", "\u{7F}"]
         if deletions.contains(key.character.unicodeScalars.first ?? " ") { return true }
         guard characters.unicodeScalars.count == 1, let scalar = characters.unicodeScalars.first

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 extension View {
     /// A pane's `Form`: lets a search result scroll one of its sections into view and pulse it.
@@ -23,16 +24,18 @@ private struct SearchPill: ViewModifier {
     @Environment(SettingsNavigationState.self) private var navigation
 
     func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, Theme.Spacing.sm)
-            .padding(.vertical, Theme.Spacing.xxs)
-            .background(
-                Capsule().fill(navigation.flashing == target ? Theme.Colors.searchFlash : .clear)
-            )
-            // Given back, so the pill's own padding can't shift the label off its row's edge.
-            .padding(.horizontal, -Theme.Spacing.sm)
-            .padding(.vertical, -Theme.Spacing.xxs)
-            .id(target)
+        WithPerceptionTracking {
+            content
+                .padding(.horizontal, Theme.Spacing.sm)
+                .padding(.vertical, Theme.Spacing.xxs)
+                .background(
+                    Capsule().fill(navigation.flashing == target ? Theme.Colors.searchFlash : .clear)
+                )
+                // Given back, so the pill's own padding can't shift the label off its row's edge.
+                .padding(.horizontal, -Theme.Spacing.sm)
+                .padding(.vertical, -Theme.Spacing.xxs)
+                .id(target)
+        }
     }
 }
 
@@ -42,7 +45,9 @@ struct SettingsSectionHeader<Label: View>: View {
     @ViewBuilder var label: Label
 
     var body: some View {
-        label.modifier(SearchPill(target: .section(anchor)))
+        WithPerceptionTracking {
+            label.modifier(SearchPill(target: .section(anchor)))
+        }
     }
 }
 
@@ -65,7 +70,9 @@ struct SettingsRowTitle: View {
     }
 
     var body: some View {
-        Text(title).modifier(SearchPill(target: .row(anchor, title)))
+        WithPerceptionTracking {
+            Text(title).modifier(SearchPill(target: .row(anchor, title)))
+        }
     }
 }
 
@@ -74,10 +81,12 @@ private struct SettingsScrollTarget: ViewModifier {
     @Environment(SettingsNavigationState.self) private var navigation
 
     func body(content: Content) -> some View {
-        ScrollViewReader { proxy in
-            content
-                // Keyed on the request, so a second jump cancels the first mid-pulse.
-                .task(id: navigation.scrollRequest) { await reveal(with: proxy) }
+        WithPerceptionTracking {
+            ScrollViewReader { proxy in
+                content
+                    // Keyed on the request, so a second jump cancels the first mid-pulse.
+                    .task(id: navigation.scrollRequest) { await reveal(with: proxy) }
+            }
         }
     }
 

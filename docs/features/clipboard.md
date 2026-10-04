@@ -430,7 +430,7 @@ what a clip hands over. `ClipboardItem.dragPayload` says in what flavour: the fi
 for an image or a referenced file, a URL and its text for a link, plain text for the rest. It is
 derived and never persisted, like `textForm` beside it, and `textForm` stays the one answer to
 whether an entry is a link, so the drag and the type filter cannot disagree.
-`QuicklinkDestination.detect` builds the URL rather than a second parser.
+`LinkDestination.detect` builds the URL rather than a second parser.
 
 **Copy, always. That is why the drag is AppKit and not `onDrag`.** `imagesDir` lives in Application
 Support, on the boot volume, which is the same volume as almost every drop target. A file-URL drag

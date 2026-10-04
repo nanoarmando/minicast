@@ -72,16 +72,17 @@ nonisolated enum ClipboardTextExtractor {
         _ strip: CGImage, keepingCentresIn rows: Range<Double>
     ) async throws -> String {
         try Task.checkCancellation()
-        var request = RecognizeTextRequest()
+        let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.minimumTextHeightFraction = 0
+        request.minimumTextHeight = 0
         request.automaticallyDetectsLanguage = true
-        let observations = try await request.perform(on: strip)
+        try VNImageRequestHandler(cgImage: strip).perform([request])
         try Task.checkCancellation()
-        let size = CGSize(width: strip.width, height: strip.height)
+        let height = Double(strip.height)
         return
-            observations
-            .filter { rows.contains($0.boundingBox.toImageCoordinates(size, origin: .upperLeft).midY) }
+            (request.results ?? [])
+            // Vision measures from the bottom-left, as a fraction of the strip.
+            .filter { rows.contains((1 - $0.boundingBox.midY) * height) }
             .compactMap { $0.topCandidates(1).first?.string }
             .joined(separator: "\n")
     }

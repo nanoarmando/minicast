@@ -1,0 +1,62 @@
+import AppKit
+
+/// Opens a resolved destination; every platform effect of opening a link lives here.
+@MainActor
+enum LinkLauncher {
+    enum Failure: LocalizedError, Equatable {
+        case unresolvable(String)
+        case missingFile(String)
+        case missingApplication(String)
+        case openFailed(target: String, detail: String)
+
+        var errorDescription: String? {
+            switch self {
+            case .unresolvable(let link):
+                return "“\(link)” isn't a URL, file path, or deeplink."
+            case .missingFile(let path):
+                return "Nothing exists at \(path) any more."
+            case .missingApplication:
+                return "The app this link opens with isn't installed any more."
+            case .openFailed(let target, let detail):
+                return "macOS could not open \(target).\n\n\(detail)"
+            }
+        }
+    }
+
+    /// `openWithBundleID` nil means the system default handler.
+    static func open(_ link: String, openWithBundleID: String?) async throws(Failure) {
+        guard let destination = LinkDestination.detect(link) else {
+            throw .unresolvable(link)
+        }
+        let url: URL
+        switch destination {
+        case .web(let value), .network(let value), .deeplink(let value):
+            url = value
+        case .path(let path):
+            // Checked first so a deleted folder names itself instead of failing as a silent no-op.
+            guard FileManager.default.fileExists(atPath: path) else { throw .missingFile(path) }
+            url = URL(fileURLWithPath: path)
+        }
+
+        let configuration = NSWorkspace.OpenConfiguration()
+
+        var application: URL?
+        if let openWithBundleID {
+            application = NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: openWithBundleID)
+            guard application != nil else { throw .missingApplication(openWithBundleID) }
+        }
+
+        do {
+            if let application {
+                _ = try await NSWorkspace.shared.open(
+                    [url], withApplicationAt: application, configuration: configuration)
+            } else {
+                _ = try await NSWorkspace.shared.open(url, configuration: configuration)
+            }
+        } catch {
+            throw .openFailed(
+                target: destination.displayText, detail: error.localizedDescription)
+        }
+    }
+}

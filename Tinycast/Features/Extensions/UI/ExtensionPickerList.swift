@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The results a picker drops, styled as the ⌘K panel; the control above owns the query.
 struct ExtensionPickerList: View {
@@ -22,24 +23,25 @@ struct ExtensionPickerList: View {
     /// Moves the highlight under the pointer, so mouse and keyboard share one selection.
     let onHighlight: (Int) -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let searchPlaceholder {
-                ExtensionMenuSearchField(
-                    placeholder: searchPlaceholder, height: form.popoverRowHeight,
-                    verticalOffset: 0)
-                Rectangle()
-                    .fill(Theme.Colors.separator)
-                    // One device pixel, matching the actions panel's hairline.
-                    .frame(height: 1 / displayScale)
-                    .accessibilityHidden(true)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: 0) {
+                if let searchPlaceholder {
+                    ExtensionMenuSearchField(
+                        placeholder: searchPlaceholder, height: form.popoverRowHeight,
+                        verticalOffset: 0)
+                    Rectangle()
+                        .fill(Theme.Colors.separator)
+                        // One device pixel, matching the actions panel's hairline.
+                        .frame(height: 1 / displayScale)
+                        .accessibilityHidden(true)
+                }
+                list
+                    .padding(searchPlaceholder == nil ? metrics.spacing.sm : 0)
             }
-            list
-                .padding(searchPlaceholder == nil ? metrics.spacing.sm : 0)
+            .frame(width: width ?? form.controlWidth)
+            .glassSurface(
+                in: RoundedRectangle(cornerRadius: metrics.radius.menuPanel, style: .continuous))
         }
-        .frame(width: width ?? form.controlWidth)
-        .glassEffect(
-            .regular, in: RoundedRectangle(cornerRadius: metrics.radius.menuPanel, style: .continuous)
-        )
     }
 
     @ViewBuilder
@@ -82,17 +84,16 @@ struct ExtensionPickerList: View {
                         rows: items.count, headers: headerCount)
                         + (searchPlaceholder == nil ? 0 : menuListInset * 2)
                 )
-                .scrollBounceBehavior(
-                    form.popoverListContentHeight(rows: items.count, headers: headerCount)
+                .scrollBounce(
+                    always: form.popoverListContentHeight(rows: items.count, headers: headerCount)
                         > form.popoverRowsMaxHeight
-                        ? .always : .basedOnSize
                 )
                 // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
                 .scrollIndicators(.never)
                 .overflowFade(
                     band: form.popoverFadeBand, includingTop: searchPlaceholder == nil
                 )
-                .onChange(of: selection, initial: true) { proxy.scrollTo(selection) }
+                .onValueChange(of: selection, initial: true) { proxy.scrollTo(selection) }
             }
         }
     }
@@ -130,29 +131,31 @@ struct ExtensionMenuSearchField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        @Bindable var palette = palette
-        TextField("", text: $palette.menuQuery)
-            .textFieldStyle(.plain)
-            .font(metrics.typography.menuRow)
-            .foregroundStyle(Theme.Colors.textPrimary)
-            .tint(Theme.Colors.textPrimary)
-            .focused($focused)
-            .lineLimit(1)
-            .background(alignment: .leading) {
-                if palette.menuQuery.isEmpty {
-                    Text(placeholder)
-                        .font(metrics.typography.menuRow)
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                        .lineLimit(1)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+        WithPerceptionTracking {
+            @Perception.Bindable var palette = palette
+            TextField("", text: $palette.menuQuery)
+                .textFieldStyle(.plain)
+                .font(metrics.typography.menuRow)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .tint(Theme.Colors.textPrimary)
+                .focused($focused)
+                .lineLimit(1)
+                .background(alignment: .leading) {
+                    if palette.menuQuery.isEmpty {
+                        Text(placeholder)
+                            .font(metrics.typography.menuRow)
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .lineLimit(1)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                 }
-            }
-            .padding(.horizontal, metrics.spacing.xl + metrics.spacing.sm)
-            .frame(height: height)
-            .offset(y: verticalOffset)
-            .padding(.vertical, metrics.spacing.xxs / 2)
-            .accessibilityLabel(placeholder)
-            .onAppear { focused = true }
+                .padding(.horizontal, metrics.spacing.xl + metrics.spacing.sm)
+                .frame(height: height)
+                .offset(y: verticalOffset)
+                .padding(.vertical, metrics.spacing.xxs / 2)
+                .accessibilityLabel(placeholder)
+                .onAppear { focused = true }
+        }
     }
 }

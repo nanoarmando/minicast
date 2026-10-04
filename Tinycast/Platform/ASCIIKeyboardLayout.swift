@@ -93,6 +93,6 @@ enum ASCIIKeyboardLayout {
     }
 
     @MainActor static func matches(_ key: KeyEquivalent, character: Character) -> Bool {
-        keyEquivalent(fallingBackTo: key) == KeyEquivalent(character)
+        keyEquivalent(fallingBackTo: key).isSameKey(as: KeyEquivalent(character))
     }
 }

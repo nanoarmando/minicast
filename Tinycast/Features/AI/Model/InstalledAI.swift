@@ -84,7 +84,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 extension AIModelSource {
-    /// The installed command behind this source, or `nil` for the two routes Tinycast reaches itself.
+    /// The installed command behind this source, or `nil` for the API route Tinycast reaches itself.
     var installedKind: InstalledAIKind? {
         switch self {
         case .codex: return .codex
@@ -92,7 +92,7 @@ extension AIModelSource {
         case .grok: return .grok
         case .openCode: return .openCode
         case .cursor: return .cursor
-        case .appleIntelligence, .api: return nil
+        case .api: return nil
         }
     }
 }

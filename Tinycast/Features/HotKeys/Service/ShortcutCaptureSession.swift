@@ -1,9 +1,10 @@
 import AppKit
 import Carbon.HIToolbox
+import Perception
 
 /// Local monitors for the one active recording. See docs/features/hotkeys.md#recorder.
 @MainActor
-@Observable
+@Perceptible
 final class ShortcutCaptureSession {
     /// A rejected binding and whoever already holds it.
     struct Conflict: Equatable {
@@ -19,13 +20,13 @@ final class ShortcutCaptureSession {
 
     private static let conflictDwell: Duration = .seconds(1.5)
 
-    @ObservationIgnored private var monitors: [Any] = []
-    @ObservationIgnored private var resignObserver: NSObjectProtocol?
-    @ObservationIgnored private var conflictReset: Task<Void, Never>?
-    @ObservationIgnored private var modifierCommit: Task<Void, Never>?
-    @ObservationIgnored private weak var activeRecorderView: NSView?
+    @PerceptionIgnored private var monitors: [Any] = []
+    @PerceptionIgnored private var resignObserver: NSObjectProtocol?
+    @PerceptionIgnored private var conflictReset: Task<Void, Never>?
+    @PerceptionIgnored private var modifierCommit: Task<Void, Never>?
+    @PerceptionIgnored private weak var activeRecorderView: NSView?
     /// The same recognizer the global monitor uses, so recording needs no tap and no grant.
-    @ObservationIgnored private var detector = ModifierKeyDetector()
+    @PerceptionIgnored private var detector = ModifierKeyDetector()
 
     func start(action: HotKeyAction, hotKeys: HotKeyManager) {
         stop()

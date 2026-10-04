@@ -53,13 +53,11 @@ struct BackupArchiveTest {
         // A binary blob, so a wrong keyset or a text-only path shows up as corruption.
         let png = Data((0..<200_000).map { UInt8($0 % 251) })
         try? bundle.write(png, to: bundle.clipboardImagesDirectory.appendingPathComponent("a.png"))
-        _ = try? bundle.writeDocument(
-            title: "Café — notes/with:separators", extension: "md", contents: "héllo\nwörld",
-            in: bundle.notesDirectory)
-        try? bundle.write(Data(), to: bundle.snippetsDirectory.appendingPathComponent("empty.md"))
+        try? bundle.write(Data("héllo\nwörld".utf8), to: bundle.learningURL(.ranking))
+        try? bundle.write(Data(), to: bundle.learningURL(.emoji))
         let manifest = BackupManifest(
             appVersion: "1.2.3", createdAt: Date(timeIntervalSince1970: 1_700_000_000),
-            counts: ["clipboard": 1, "notes": 1])
+            counts: ["clipboard": 1, "learning": 2])
         try? bundle.writeManifest(manifest)
 
         let archive = root.appendingPathComponent("out.tinycast")
@@ -78,21 +76,17 @@ struct BackupArchiveTest {
             (try? Data(
                 contentsOf: reopened.clipboardImagesDirectory.appendingPathComponent("a.png")))
                 == png)
-        let notes = reopened.documents(in: reopened.notesDirectory, extension: "md")
-        check("a note with separators and non-ASCII survives", notes.first?.contents == "héllo\nwörld")
         check(
-            "a title's path separators never become directories",
-            notes.first.map { !$0.name.contains("/") } ?? false)
+            "non-ASCII text survives",
+            (try? Data(contentsOf: reopened.learningURL(.ranking))) == Data("héllo\nwörld".utf8))
         check(
             "a zero-byte file survives",
-            reopened.documents(
-                in: reopened.snippetsDirectory, extension: "md"
-            ).first?.contents == "")
+            (try? Data(contentsOf: reopened.learningURL(.emoji))) == Data())
         let decoded = try? reopened.readManifest()
         check("the manifest round trips", decoded == manifest)
-        check("an absent category reads as absent", decoded?.categories == [.clipboard, .notes])
+        check("an absent category reads as absent", decoded?.categories == [.clipboard, .learning])
         check("a present category keeps its count", decoded?.count(.clipboard) == 1)
-        check("an absent category counts zero", decoded?.count(.snippets) == 0)
+        check("an absent category counts zero", decoded?.count(.configuration) == 0)
 
         // Ownership must not travel: the extract belongs to whoever opened it.
         let attributes = try? FileManager.default.attributesOfItem(
@@ -133,7 +127,7 @@ struct BackupArchiveTest {
             raw.split(separator: 0x0A, omittingEmptySubsequences: true).count == items.count)
     }
 
-    /// The analogue of settings-backup-test's `snippetsEnabled` check: this file leaves the Mac.
+    /// The analogue of settings-backup-test's privacy checks: this file leaves the Mac.
     static func noAbsolutePathsEscape(in root: URL) {
         let bundle = BackupBundle(root: root.appendingPathComponent("paths"))
         try? bundle.prepare([.clipboard])

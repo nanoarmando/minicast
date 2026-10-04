@@ -682,26 +682,23 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   hidden."); a footer carries a caveat, such as privacy or cost, never a restatement of its header. A
   fact every list would repeat lives once, in a tooltip — `launcherVisibilityHelp()` on each launcher
   checkbox.
-- **Settings is one SwiftUI `NavigationSplitView`** (`SettingsRootView`), hosted with
-  `sceneBridgingOptions = [.toolbars, .title]` so its toolbar, title and search field reach the AppKit
-  window. It was an `NSSplitViewController`; in that sidebar every search bar drew a hard scroll edge
-  with a hairline, which no `scrollEdgeEffectStyle` or accessory style could soften.
-  `.toolbar(removing: .sidebarToggle)` goes *before* `navigationSplitViewColumnWidth`, or the column
-  shrinks to AppKit's default thickness.
-- **The pane's own title is not in the pane.** `.navigationTitle` puts it in the titlebar beside the
-  Back/Forward chevrons. `SettingsWindowChrome` installs *before* the content mounts: the bridged toolbar
-  restores the title flags it mounted over, so a later `titleVisibility = .visible` is undone on the
-  first navigation.
-- **Settings and AI Chat are the windows that keep the system titlebar.** `AppWindowController` builds
-  every window with `titlebarAppearsTransparent = true`, which opts the titlebar out of the system's
-  glass band; `SettingsWindowChrome.install(in:)` and `AIChatWindowChrome.install(in:)` set it back to
-  `false`, so the band and its scroll edge effect are drawn by AppKit as a pane's `Form` or the
-  transcript scrolls under it. `.fullSizeContentView` and `titlebarSeparatorStyle = .none` stay — the
-  content still runs under the bar, and a hairline would split the surface the band unifies. Both also
-  clear `isMovableByWindowBackground`: stock Settings isn't dragged by its content, and a drag across a
-  transcript selects text. Onboarding, Updates, Support and Command Output keep the transparent
-  titlebar they were tuned for. Never hand-draw a header band; a main surface takes the system's
-  material, not `glassEffect`.
+- **Settings is one SwiftUI `NavigationSplitView`** (`SettingsRootView`) with no toolbar bridging, so
+  macOS 13 and 27 draw the same window. It was an `NSSplitViewController`; in that sidebar every search
+  bar drew a hard scroll edge with a hairline.
+- **The titlebar band stays empty.** There is no header, pane title or Back/Forward control; the detail
+  column respects the top safe area, which is the titlebar band. `SettingsWindowChrome` installs an
+  *empty* unified `NSToolbar` only to size that band to 52pt; the title is hidden but still set, the titlebar is
+  transparent and separator-free, and an empty spot in the band drags the window.
+- **AI Chat is the window that keeps the system titlebar.** `AppWindowController` builds every window
+  with `titlebarAppearsTransparent = true`, which opts the titlebar out of the system's glass band;
+  `AIChatWindowChrome.install(in:)` sets it back to `false`, so the band and its scroll edge effect are
+  drawn by AppKit as the transcript scrolls under it. Settings stays transparent, like System Settings:
+  its header row sits in the band and the pane scrolls beneath the header, never under it.
+  `.fullSizeContentView` and `titlebarSeparatorStyle = .none` stay — a hairline would split the
+  surface. Both clear `isMovableByWindowBackground`: a drag on a `Form` shouldn't move the window, and a
+  drag across a transcript selects text. Onboarding, Updates, Support and Command Output keep the
+  transparent titlebar they were tuned for. A main surface takes the system's material, not
+  `glassEffect`.
 - `SettingsComponents.swift` holds only what more than one pane or editor needs: **`SettingsRow`**,
   **`SettingsTabIcon`** (the sidebar tile reused by feature switches),
   **`SettingsFeatureToggleLabel`** (the icon, title and subtitle of a feature's master switch),
@@ -722,11 +719,11 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   scrolls at a stated row count instead — Custom Commands caps its arguments at `visibleArgumentRows` —
   so a panel's height stays a property of the editor, not of what has been typed into it. Extension
   editor visuals stay inside `Features/Extensions/`; the shared presenter treats them as opaque content.
-- **The sidebar searches every pane *and* its rows.** `.searchable(placement: .sidebar)` sits above the list and
+- **The sidebar searches every pane *and* its rows.** `SidebarSearchField` sits above the list (⌘F focuses it, Escape clears it) and
   swaps it for a flat, ranked result list; each result carries the pane's `systemImage`, the row's
   title and a `Pane › Section` breadcrumb, and arrowing through them moves the pane, as System
   Settings does. Selection runs through `SettingsNavigationState.select`, so a result is an ordinary
-  navigation the Back/Forward chevrons can walk. **A row result also reveals its section**: the pane
+  navigation. **A row result also reveals its section**: the pane
   scrolls the matched setting to centre and pulses its own name once (`Colors.searchFlash`) before
   settling; a result no single row answers pulses the section's header instead.
   It is a **second `List`**, keyed by
@@ -769,9 +766,9 @@ system-drawn and a pane reads exactly as macOS System Settings does.
   a cancelled reveal returns *without* ending the pulse, since cancellation means a later jump owns
   the light now; and `scrollRequest` is released only once the pulse is over, because it keys the
   pane's `.task(id:)` and clearing it early cancels the very task doing the revealing.
-- **The sidebar's field is the system's, not `SettingsFilterField`.** That one is borderless because
-  it lives inside a `Form` row; the sidebar's is `.searchable`, which AppKit seats as a split-item
-  accessory with a soft scroll edge — the list blurs out under it, as in System Settings.
+- **The sidebar's field is `SidebarSearchField`, not `SettingsFilterField`.** That one is borderless
+  because it lives inside a `Form` row; the sidebar's is a frosted capsule shared with AI Chat, and from
+  it the arrows walk the results and Return opens the first.
 - **A `Form` realizes every row it is handed, and a lazy stack rebuilds a row's AppKit controls.**
   Handed 400 apps directly, a `Form` took 750 ms and 2040 views; a `LazyVStack` in one Form row
   fixed that, but tears a row's `TextField` and checkbox — both `NSView`s — down when the row scrolls

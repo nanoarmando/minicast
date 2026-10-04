@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// Owns custom sizes' presence, edits and cleanup; observable only for `@Environment`.
 @MainActor
-@Observable
+@Perceptible
 final class CustomWindowSizeCoordinator {
     private let store: CustomWindowSizeStore
     private let settings: AppSettings

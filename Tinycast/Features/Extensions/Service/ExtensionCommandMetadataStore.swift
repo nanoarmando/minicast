@@ -1,13 +1,14 @@
 import Foundation
+import Perception
 
 /// Every command's row metadata in one small file, deliberately not in `extension-data`: drawing a
 /// launcher row must never fault in an extension's whole `LocalStorage` and `Cache`.
 @MainActor
-@Observable
+@Perceptible
 final class ExtensionCommandMetadataStore {
-    @ObservationIgnored private let fileURL: URL
-    @ObservationIgnored private var isDirty = false
-    @ObservationIgnored private var flushTask: Task<Void, Never>?
+    @PerceptionIgnored private let fileURL: URL
+    @PerceptionIgnored private var isDirty = false
+    @PerceptionIgnored private var flushTask: Task<Void, Never>?
 
     private var records: [String: [String: ExtensionCommandMetadata]]
 

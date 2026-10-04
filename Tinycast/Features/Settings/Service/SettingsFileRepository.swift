@@ -1,5 +1,5 @@
 import Foundation
-import Observation
+import Perception
 
 /// Mirrors the stores bound to it into settings.json, and applies the file's edits back to them.
 @MainActor
@@ -85,7 +85,7 @@ final class SettingsFileRepository {
 
     /// Renders with every bound value tracked, so the next change anywhere schedules a save.
     private func renderObserved() -> Data {
-        withObservationTracking {
+        withPerceptionTracking {
             render()
         } onChange: { [weak self] in
             Task { @MainActor in self?.scheduleSave() }

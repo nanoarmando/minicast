@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// A single keycap chip: `.outline` for hotkey hints on rows, `.filled` for footer shortcuts.
 struct KeyCapChip: View {
@@ -8,13 +9,15 @@ struct KeyCapChip: View {
         var spacing: CGFloat = Theme.Spacing.xxs
 
         var body: some View {
-            if let prefix {
-                HStack(spacing: spacing) {
-                    Text(prefix).textScale(.secondary)
+            WithPerceptionTracking {
+                if let prefix {
+                    HStack(spacing: spacing) {
+                        Text(prefix).secondaryTextScale()
+                        Text(text)
+                    }
+                } else {
                     Text(text)
                 }
-            } else {
-                Text(text)
             }
         }
     }
@@ -58,18 +61,20 @@ struct KeyCapChip: View {
     private static let returnGlyphDrop: CGFloat = 1.1
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: metrics.radius.keyCap, style: .continuous)
-        Label(text: text, prefix: prefix, spacing: metrics.spacing.xxs)
-            .font(scale.font(metrics))
-            .foregroundStyle(Theme.Colors.textSecondary)
-            .offset(y: text == "↵" ? Self.returnGlyphDrop : 0)
-            .padding(.horizontal, metrics.spacing.xs)
-            .frame(minWidth: scale.side(metrics), minHeight: scale.side(metrics))
-            .background {
-                switch style {
-                case .filled: shape.fill(Theme.Colors.controlSurface)
-                case .outline: shape.strokeBorder(Theme.Colors.border, lineWidth: 1)
+        WithPerceptionTracking {
+            let shape = RoundedRectangle(cornerRadius: metrics.radius.keyCap, style: .continuous)
+            Label(text: text, prefix: prefix, spacing: metrics.spacing.xxs)
+                .font(scale.font(metrics))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .offset(y: text == "↵" ? Self.returnGlyphDrop : 0)
+                .padding(.horizontal, metrics.spacing.xs)
+                .frame(minWidth: scale.side(metrics), minHeight: scale.side(metrics))
+                .background {
+                    switch style {
+                    case .filled: shape.fill(Theme.Colors.controlSurface)
+                    case .outline: shape.strokeBorder(Theme.Colors.border, lineWidth: 1)
+                    }
                 }
-            }
+        }
     }
 }

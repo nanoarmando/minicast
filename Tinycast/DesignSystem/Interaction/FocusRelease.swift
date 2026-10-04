@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// A field holds first responder until another claims it, and blank form space claims nothing.
 private struct FocusReleaseOnOutsideClick: ViewModifier {
@@ -8,20 +9,22 @@ private struct FocusReleaseOnOutsideClick: ViewModifier {
     @State private var host = HostWindowBox()
 
     func body(content: Content) -> some View {
-        content
-            .background(HostWindowReader { host.window = $0 })
-            .onAppear {
-                guard monitor == nil else { return }
-                // A monitor, not a gesture: a gesture would swallow the click or steal focus.
-                monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { event in
-                    release(on: event)
-                    return event
+        WithPerceptionTracking {
+            content
+                .background(HostWindowReader { host.window = $0 })
+                .onAppear {
+                    guard monitor == nil else { return }
+                    // A monitor, not a gesture: a gesture would swallow the click or steal focus.
+                    monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { event in
+                        release(on: event)
+                        return event
+                    }
                 }
-            }
-            .onDisappear {
-                if let monitor { NSEvent.removeMonitor(monitor) }
-                monitor = nil
-            }
+                .onDisappear {
+                    if let monitor { NSEvent.removeMonitor(monitor) }
+                    monitor = nil
+                }
+        }
     }
 
     private func release(on event: NSEvent) {

@@ -1,9 +1,9 @@
 import Foundation
-import Observation
+import Perception
 
 /// Which live chat each surface shows; a chat is live in one place, and leaving never cancels it.
 @MainActor
-@Observable
+@Perceptible
 final class AIChatSurfacesState {
     /// The palette's conversation.
     private(set) var quickAI: AIChatState
@@ -15,7 +15,7 @@ final class AIChatSurfacesState {
     private let history: ChatHistoryStore
 
     /// Handed to every state, so a chat that finishes its first answer can be named wherever it is.
-    @ObservationIgnored var onReplyFinished: (@MainActor (AIChatState) -> Void)? {
+    @PerceptionIgnored var onReplyFinished: (@MainActor (AIChatState) -> Void)? {
         didSet {
             for state in [quickAI, window] + answeringElsewhere.values {
                 state.onReplyFinished = onReplyFinished

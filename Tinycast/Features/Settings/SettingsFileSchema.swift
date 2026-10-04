@@ -33,7 +33,6 @@ enum SettingsFileSchema {
         case .popToRootTimeout: return bind(settings, \.popToRootTimeout)
         case .escapeKeyBehavior: return bind(settings, \.escapeKeyBehavior)
         case .autoSwitchInputSource: return bind(settings, \.autoSwitchInputSourceID)
-        case .supportReminders: return bind(settings, \.supportRemindersEnabled)
         case .appearance: return bind(settings, \.appearance)
         case .interfaceSize: return bind(settings, \.interfaceSize)
         case .compactMode: return bind(settings, \.compactMode)
@@ -49,11 +48,6 @@ enum SettingsFileSchema {
         case .searchScopes: return bind(settings, \.searchScopes) { SearchScopes.normalize($0) }
         case .customCommandsEnabled: return bind(settings, \.customCommandsEnabled)
         case .customCommandsShowInLauncher: return bind(settings, \.customCommandsShowInLauncher)
-        case .quicklinksEnabled: return bind(settings, \.quicklinksEnabled)
-        case .quicklinksShowInLauncher: return bind(settings, \.quicklinksShowInLauncher)
-        case .quicklinkOpensNewWindow: return bind(settings, \.quicklinkOpensNewWindow)
-        case .quicklinkSelectionFallback: return bind(settings, \.quicklinkSelectionFallback)
-        case .quicklinkConfirmsBeforeDelete: return bind(settings, \.quicklinkConfirmsBeforeDelete)
         case .appleShortcutsEnabled: return bind(settings, \.appleShortcutsEnabled)
         case .aiEnabled: return bind(settings, \.aiEnabled)
         case .aiWebSearch: return bind(ai, \.webSearchEnabled)
@@ -63,30 +57,9 @@ enum SettingsFileSchema {
         case .aiOpensTo: return bind(ai, \.opensTo)
         case .aiNewChatAfter: return bind(ai, \.newChatAfter)
         case .aiToolRounds: return bind(ai, \.toolRounds)
-        case .quickActionLanguage: return bind(quickActions, \.settings.targetLanguage)
         case .fileSearchEnabled: return bind(settings, \.fileSearchEnabled)
         case .fileSearchScopes: return bind(settings, \.fileSearchScopes)
         case .fileSearchIgnorePatterns: return bind(settings, \.fileSearchIgnorePatterns)
-        case .notesEnabled: return bind(settings, \.notesEnabled)
-        case .notesRendersMarkdown: return bind(settings, \.notesRendersMarkdown)
-        case .notesShowsFormattingBar: return bind(settings, \.notesShowsFormattingBar)
-        case .notesFolder: return bind(settings, \.notesFolder, accept: folder)
-        case .dictationMode: return bind(settings, \.dictationMode)
-        case .dictationModel: return bind(settings, \.dictationModel)
-        case .dictationMicrophone: return bind(settings, \.dictationMicrophone)
-        case .dictationDestination: return bind(settings, \.dictationDestination)
-        case .dictationAdaptsCapitalization: return bind(settings, \.dictationAdaptsCapitalization)
-        case .dictationIdleRelease: return bind(settings, \.dictationIdleRelease)
-        case .dictationLanguage:
-            return bind(settings, \.dictationLanguage) { language in
-                guard let language else { return .some(nil) }
-                return DictationLanguage(rawValue: language) == nil ? nil : .some(language)
-            }
-        case .snippetsShowInLauncher: return bind(settings, \.snippetsShowInLauncher)
-        case .snippetsFolder: return bind(settings, \.snippetsFolder, accept: folder)
-        case .navigationEnabled: return bind(settings, \.navigationEnabled)
-        case .menuSearchShowsAppleMenu: return bind(settings, \.menuSearchShowsAppleMenu)
-        case .menuSearchDisabledApps: return bind(settings, \.menuSearchDisabledApps)
         case .windowManagementEnabled: return bind(settings, \.windowManagementEnabled)
         case .windowManagementShowInLauncher:
             return bind(settings, \.windowManagementShowInLauncher)
@@ -121,12 +94,6 @@ enum SettingsFileSchema {
         case .extensionsShowInLauncher: return bind(settings, \.extensionsShowInLauncher)
         }
     }
-
-    /// A folder is absolute or under `~/`; null puts it back in Application Support.
-    private static func folder(_ path: String?) -> String?? {
-        guard let path else { return .some(nil) }
-        return AppPaths.isFolderPath(path) ? path : nil
-    }
 }
 
 extension PopToRootTimeout: SettingsFileRawValue {}
@@ -137,15 +104,10 @@ extension HyperKeyPhysicalKey: SettingsFileRawValue {}
 extension HyperKeyQuickPress: SettingsFileRawValue {}
 extension CalcNumberStyle: SettingsFileRawValue {}
 extension SearchSensitivity: SettingsFileRawValue {}
-extension QuicklinkSelectionFallback: SettingsFileRawValue {}
 extension WindowCycle: SettingsFileRawValue {}
 extension ClipboardDefaultAction: SettingsFileRawValue {}
 extension EmojiSkinTone: SettingsFileRawValue {}
 extension EmojiGridColumns: SettingsFileRawValue {}
-extension DictationModel: SettingsFileRawValue {}
-extension DictationMode: SettingsFileRawValue {}
-extension DictationDestination: SettingsFileRawValue {}
-extension DictationIdleRelease: SettingsFileRawValue {}
 extension JoinWindow: SettingsFileRawValue {}
 
 extension ClipboardRetention: SettingsFileToken {

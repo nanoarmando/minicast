@@ -191,7 +191,7 @@ enum WindowCommandCatalog {
         case .moveDown: return "arrow.down"
         case .nextDisplay: return "rectangle.on.rectangle.angled"
         case .previousDisplay: return "rectangle.on.rectangle.angled"
-        case .toggleFullscreen: return "arrow.up.left.and.arrow.down.right.square"
+        case .toggleFullscreen: return "arrow.up.left.and.arrow.down.right"
         case .previousSpace: return "chevron.backward.2"
         case .nextSpace: return "chevron.forward.2"
         }

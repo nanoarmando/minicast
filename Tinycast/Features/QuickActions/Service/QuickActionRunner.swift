@@ -10,7 +10,7 @@ final class QuickActionRunner {
     static func selection(
         in targetApp: NSRunningApplication?, using injector: TextInjector
     ) async throws -> String {
-        // A shortcut press is an explicit gesture, so it may prompt, as snippet expansion does.
+        // A shortcut press is an explicit gesture, so it may prompt.
         guard Permissions.ensureAccessibility() else { throw QuickActionFailure.needsAccessibility }
         guard let targetApp,
             targetApp.bundleIdentifier != Bundle.main.bundleIdentifier
@@ -63,7 +63,7 @@ final class QuickActionRunner {
         return trimmed
     }
 
-    /// The on-device window counts the prompt and the reply against one budget, so both need a cap.
+    /// A small context window counts the prompt and the reply against one budget, so both need a cap.
     private static func maxOutputTokens(for action: QuickAction, selection: String) -> Int {
         let approximateTokens = max(selection.count / 3, 64)
         return action == .summarize

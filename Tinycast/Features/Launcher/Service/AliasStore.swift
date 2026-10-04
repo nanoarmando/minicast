@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The user's per-entry aliases, keyed like favorites and ranking by `preferenceKey`.
 @MainActor
-@Observable
+@Perceptible
 final class AliasStore {
     private let defaults = UserDefaults.standard
     private let defaultsKey = "launcherAliases"

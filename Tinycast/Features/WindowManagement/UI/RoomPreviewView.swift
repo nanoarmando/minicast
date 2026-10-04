@@ -1,6 +1,7 @@
 // Adapted from Rooms (MIT): https://github.com/saragordic/rooms/blob/main/LICENSE
 import AppKit
 import SwiftUI
+import Perception
 
 /// One display's share of the preview: the desk blurred and dimmed, the room's cards on top.
 struct RoomPreviewView: View {
@@ -14,21 +15,23 @@ struct RoomPreviewView: View {
     private var bounds: CGRect { CGRect(origin: origin, size: size) }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Theme.Colors.roomPreviewDim
-            ForEach(model.cards.filter { $0.frame.intersects(bounds) }) { card in
-                RoomPreviewCardView(
-                    card: card,
-                    avoiding: model.avoiding.map { $0.offsetBy(dx: -card.frame.minX, dy: -card.frame.minY) }
-                )
-                .frame(width: card.frame.width, height: card.frame.height)
-                .offset(x: card.frame.minX - origin.x, y: card.frame.minY - origin.y)
-                .transition(cardTransition)
+        WithPerceptionTracking {
+            ZStack(alignment: .topLeading) {
+                Theme.Colors.roomPreviewDim
+                ForEach(model.cards.filter { $0.frame.intersects(bounds) }) { card in
+                    RoomPreviewCardView(
+                        card: card,
+                        avoiding: model.avoiding.map { $0.offsetBy(dx: -card.frame.minX, dy: -card.frame.minY) }
+                    )
+                    .frame(width: card.frame.width, height: card.frame.height)
+                    .offset(x: card.frame.minX - origin.x, y: card.frame.minY - origin.y)
+                    .transition(cardTransition)
+                }
             }
+            .frame(width: size.width, height: size.height, alignment: .topLeading)
+            .background(DeskBlur())
+            .accessibilityHidden(true)
         }
-        .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .background(DeskBlur())
-        .accessibilityHidden(true)
     }
 
     private var cardTransition: AnyTransition {
@@ -50,18 +53,20 @@ private struct RoomPreviewCardView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            titleBar
-            Divider()
-            Color.clear
+        WithPerceptionTracking {
+            VStack(spacing: 0) {
+                titleBar
+                Divider()
+                Color.clear
+            }
+            .overlay(alignment: .top) { icon }
+            .background(shape.fill(Theme.Colors.roomCardFill))
+            .overlay(shape.strokeBorder(Theme.Colors.roomCardStroke, lineWidth: Theme.Size.roomCardStroke))
+            .clipShape(shape)
+            .shadow(
+                color: Theme.Colors.roomCardShadow, radius: Theme.Size.roomCardShadowRadius,
+                y: Theme.Size.roomCardShadowOffset)
         }
-        .overlay(alignment: .top) { icon }
-        .background(shape.fill(Theme.Colors.roomCardFill))
-        .overlay(shape.strokeBorder(Theme.Colors.roomCardStroke, lineWidth: Theme.Size.roomCardStroke))
-        .clipShape(shape)
-        .shadow(
-            color: Theme.Colors.roomCardShadow, radius: Theme.Size.roomCardShadowRadius,
-            y: Theme.Size.roomCardShadowOffset)
     }
 
     private var titleBar: some View {

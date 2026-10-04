@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import Perception
 
 /// A movie or a recording, played by AVKit.
 struct FileSearchMediaPlayer: View {
@@ -16,15 +17,17 @@ struct FileSearchMediaPlayer: View {
     }
 
     var body: some View {
-        PlayerSurface(player: player)
-            .task(id: PlaybackKey(url: url, isVisible: palette.isVisible)) {
-                stop()
-                guard palette.isVisible else { return }
-                let player = AVPlayer(url: url)
-                if autoplays { player.play() }
-                self.player = player
-            }
-            .onDisappear(perform: stop)
+        WithPerceptionTracking {
+            PlayerSurface(player: player)
+                .task(id: PlaybackKey(url: url, isVisible: palette.isVisible)) {
+                    stop()
+                    guard palette.isVisible else { return }
+                    let player = AVPlayer(url: url)
+                    if autoplays { player.play() }
+                    self.player = player
+                }
+                .onDisappear(perform: stop)
+        }
     }
 
     /// Dropping the item too: a paused player still holds its asset reader and decoder open.

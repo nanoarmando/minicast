@@ -266,7 +266,7 @@ nothing the index holds answers a typed address better. There is one today: typi
 a bare host puts **Open in Browser** on top, and activating it hands the URL to the system's default
 handler through `AppLauncher.open`.
 
-The shape a query has to have is `QuicklinkDestination.detect` returning `.web`, reused rather than
+The shape a query has to have is `LinkDestination.detect` returning `.web`, reused rather than
 re-written so `github.com` and `https://…` mean the same thing here as they do in a quicklink. The
 entry is an ordinary `.command`, so `VisibilityStore` still gates it — Commands off hides the row —
 and its `url` carries the destination instead of the catalog's `tinycast://` placeholder. Nothing
@@ -299,7 +299,7 @@ order name a live row across a rename or a reinstall.
 | a quicklink | its first `{argument}` | `quicklinksEnabled`, and the link has a placeholder |
 
 **A quicklink earns a fallback row by declaring a placeholder**, nothing else —
-`QuicklinkDestination.containsPlaceholder`. `openQuicklink(id:filling:)` assigns the query to the
+`LinkDestination.containsPlaceholder`. `openQuicklink(id:filling:)` assigns the query to the
 first declared argument and opens at once when that was the only one owed; anything still missing
 sends the row to Search Quicklinks with its header fields pre-filled (see
 [quicklinks.md](quicklinks.md#arguments)). The seed never fills the **selection** field: that one is

@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Reading the coordinator here scopes Observation to the calendar label rather than either scene.
 struct CalendarMenuBarLabel: View {
@@ -8,23 +9,25 @@ struct CalendarMenuBarLabel: View {
     private var meeting: MeetingEvent? { AppCore.shared.calendarCoordinator.menuBarEvent }
 
     var body: some View {
-        switch (display, meeting) {
-        case (.disabled, _):
-            EmptyView()
-        case (.meetingIcon, let meeting?):
-            icon(meeting.link?.provider.sfSymbol ?? "calendar", describing: meeting.title)
-        case (.meetingTitle, let meeting?):
-            HStack(spacing: Theme.Spacing.xs) {
-                if let color = meeting.calendarColor {
-                    Image(nsImage: color.menuBarDot).accessibilityHidden(true)
+        WithPerceptionTracking {
+            switch (display, meeting) {
+            case (.disabled, _):
+                EmptyView()
+            case (.meetingIcon, let meeting?):
+                icon(meeting.link?.provider.sfSymbol ?? "calendar", describing: meeting.title)
+            case (.meetingTitle, let meeting?):
+                HStack(spacing: Theme.Spacing.xs) {
+                    if let color = meeting.calendarColor {
+                        Image(nsImage: color.menuBarDot).accessibilityHidden(true)
+                    }
+                    title(summary(for: meeting))
                 }
-                title(summary(for: meeting))
+            case (.meetingTitle, nil)
+            where !AppCore.shared.calendarCoordinator.hasUpcomingMenuBarEvent:
+                title("No upcoming events")
+            case (_, nil):
+                icon("calendar", describing: "no current meeting")
             }
-        case (.meetingTitle, nil)
-        where !AppCore.shared.calendarCoordinator.hasUpcomingMenuBarEvent:
-            title("No upcoming events")
-        case (_, nil):
-            icon("calendar", describing: "no current meeting")
         }
     }
 
@@ -46,56 +49,60 @@ struct CalendarMenuBarLabel: View {
 /// Calendar actions only: the launcher item carries the app's menu, and neither repeats the other.
 struct CalendarMenuBarMenu: View {
     var body: some View {
-        // A macOS menu drops a label's icon unless the style asks for it.
-        Group {
-            let coordinator = AppCore.shared.calendarCoordinator
-            if let meeting = coordinator.menuBarEvent {
-                Section {
-                    if let link = meeting.link {
-                        Button("Join \(meeting.title)", systemImage: link.provider.sfSymbol) {
-                            coordinator.join(meeting)
+        WithPerceptionTracking {
+            // A macOS menu drops a label's icon unless the style asks for it.
+            Group {
+                let coordinator = AppCore.shared.calendarCoordinator
+                if let meeting = coordinator.menuBarEvent {
+                    Section {
+                        if let link = meeting.link {
+                            Button("Join \(meeting.title)", systemImage: link.provider.sfSymbol) {
+                                coordinator.join(meeting)
+                            }
+                        }
+                        Button("Open in Calendar", systemImage: "calendar") {
+                            coordinator.openInCalendar(meeting)
+                        }
+                        Button("Dismiss Event", systemImage: "xmark.circle") {
+                            coordinator.dismissMenuBarEvent(meeting)
                         }
                     }
-                    Button("Open in Calendar", systemImage: "calendar") {
-                        coordinator.openInCalendar(meeting)
+                }
+                MenuBarAgenda()
+                Section {
+                    Button("My Schedule", systemImage: "calendar.day.timeline.left") {
+                        coordinator.showSchedule()
                     }
-                    Button("Dismiss Event", systemImage: "xmark.circle") {
-                        coordinator.dismissMenuBarEvent(meeting)
+                    .keyboardShortcut("o")
+                    Button("Calendar Settings…", systemImage: "gearshape") {
+                        AppCore.shared.settingsCoordinator.showSettings(tab: .calendar)
                     }
+                    .keyboardShortcut(",")
                 }
             }
-            MenuBarAgenda()
-            Section {
-                Button("My Schedule", systemImage: "calendar.day.timeline.left") {
-                    coordinator.showSchedule()
-                }
-                .keyboardShortcut("o")
-                Button("Calendar Settings…", systemImage: "gearshape") {
-                    AppCore.shared.settingsCoordinator.showSettings(tab: .calendar)
-                }
-                .keyboardShortcut(",")
-            }
+            .labelStyle(.titleAndIcon)
         }
-        .labelStyle(.titleAndIcon)
     }
 }
 
 /// The span's remaining meetings by day; a click joins, or opens a linkless one in Calendar.
 private struct MenuBarAgenda: View {
     var body: some View {
-        let now = AppCore.shared.meetingClock.now
-        ForEach(AppCore.shared.calendarCoordinator.menuBarAgenda) { group in
-            Section(group.day.title(calendar: .current)) {
-                ForEach(group.meetings) { meeting in
-                    Button {
-                        AppCore.shared.calendarCoordinator.join(meeting)
-                    } label: {
-                        Label {
-                            Text("\(MeetingTimeFormat.range(of: meeting)) \(meeting.title)")
-                        } icon: {
-                            CalendarSymbol(
-                                name: meeting.isInProgress(now: now) ? "circle.fill" : "circle",
-                                color: meeting.calendarColor)
+        WithPerceptionTracking {
+            let now = AppCore.shared.meetingClock.now
+            ForEach(AppCore.shared.calendarCoordinator.menuBarAgenda) { group in
+                Section(group.day.title(calendar: .current)) {
+                    ForEach(group.meetings) { meeting in
+                        Button {
+                            AppCore.shared.calendarCoordinator.join(meeting)
+                        } label: {
+                            Label {
+                                Text("\(MeetingTimeFormat.range(of: meeting)) \(meeting.title)")
+                            } icon: {
+                                CalendarSymbol(
+                                    name: meeting.isInProgress(now: now) ? "circle.fill" : "circle",
+                                    color: meeting.calendarColor)
+                            }
                         }
                     }
                 }
@@ -110,10 +117,12 @@ private struct CalendarSymbol: View {
     let color: MeetingEvent.CalendarColor?
 
     var body: some View {
-        if let image = color?.menuSymbol(name) {
-            Image(nsImage: image)
-        } else {
-            Image(systemName: name)
+        WithPerceptionTracking {
+            if let image = color?.menuSymbol(name) {
+                Image(nsImage: image)
+            } else {
+                Image(systemName: name)
+            }
         }
     }
 }

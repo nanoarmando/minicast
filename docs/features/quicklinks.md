@@ -16,7 +16,7 @@ every shortcut without re-registering.
   **reported, never discarded** — `ClipboardStore`'s delete-and-recreate is only sound because history is
   regenerable, and a link library is not. The database lives in **Application Support**, not Caches.
 - **`Model/` stays Foundation-only (plus SQLite3) and pure** for `quicklink-test` — the home directory is
-  injected, never read. `Service/QuicklinkLauncher` owns every `NSWorkspace` call.
+  injected, never read. `Service/LinkLauncher` owns every `NSWorkspace` call.
 - **Drawing an argument field reads nothing.** The header's chips come from
   `SnippetTemplateEngine.declaredArguments(in:)`, a parse of the template alone, so moving the
   selection never touches the clipboard or the frontmost app's selection. Only opening does.
@@ -34,7 +34,7 @@ every shortcut without re-registering.
 
 ## Destinations
 
-`QuicklinkDestination.detect` decides what a link is from its shape alone — no filesystem or Launch
+`LinkDestination.detect` decides what a link is from its shape alone — no filesystem or Launch
 Services read — which is what keeps it pure and covered by `Tests/quicklink-test.swift`. In order:
 
 | Shape                                                  | Result                                                            |
@@ -78,7 +78,7 @@ itself — `| raw` opts out, `| percent-encode` has done it once already. A loca
 encoded: `%20` in a path is a literal, not a space.
 
 `| raw` opts out of more than the escaping. Whether a link is a website, a path or a deeplink is
-decided by `QuicklinkDestination.detect` on the **expanded** text, so an unencoded substituted value
+decided by `LinkDestination.detect` on the **expanded** text, so an unencoded substituted value
 that begins with a scheme picks the destination kind — a `{clipboard | raw}` holding `file:///…`
 resolves to a local path rather than to the web link the template looked like. Encoding is what
 normally prevents that, which is why `| raw` is a deliberate authoring choice and not a default.
@@ -141,7 +141,7 @@ Quicklinks** decides what happens: substitute the clipboard, or ask for it throu
 
 ## Opening
 
-`QuicklinkLauncher` owns every platform effect. A path destination is checked with `fileExists`
+`LinkLauncher` owns every platform effect. A path destination is checked with `fileExists`
 first, so a deleted folder names itself instead of failing as a silent no-op. `Open With` resolves a
 stored bundle ID through Launch Services; an app that has since been uninstalled reports a failure
 with an **Open with Default** recovery button rather than silently falling back.

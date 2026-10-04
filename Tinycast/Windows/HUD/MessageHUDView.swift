@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The message pill, led by its tone's mark or a spinner. See docs/ui.md#dialogs--hud.
 struct MessageHUDView: View {
@@ -18,21 +19,23 @@ struct MessageHUDView: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        Group {
-            if let onCancel {
-                Button(action: onCancel) {
+        WithPerceptionTracking {
+            Group {
+                if let onCancel {
+                    Button(action: onCancel) {
+                        content
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Cancel \(message)")
+                } else {
                     content
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cancel \(message)")
-            } else {
-                content
             }
-        }
-        .onHover { isHovered in
-            if onCancel != nil {
-                withAnimation(.easeOut(duration: Theme.Duration.hover)) {
-                    hovered = isHovered
+            .onHover { isHovered in
+                if onCancel != nil {
+                    withAnimation(.easeOut(duration: Theme.Duration.hover)) {
+                        hovered = isHovered
+                    }
                 }
             }
         }
@@ -60,20 +63,22 @@ struct MessageHUDView: View {
         .background { glow }
         // Not glass: with nothing to lens it falls back to an opaque backing and shows.
         .background(hovered ? Theme.Colors.controlHover : Theme.Colors.panelScrim)
-        .background(GlassEffectView())
+        .background(GlassEffectView(material: .hudWindow))
         .clipShape(Capsule())
         .overlay { rim }
     }
 
     private var glow: some View {
         GeometryReader { proxy in
-            Capsule().fill(
-                RadialGradient(
-                    colors: [tint.opacity(Self.glowOpacity), tint.opacity(0.03), .clear],
-                    center: UnitPoint(
-                        x: (metrics.spacing.xl + metrics.size.menuIcon / 2) / proxy.size.width,
-                        y: 0.5),
-                    startRadius: 0, endRadius: Self.glowRadius))
+            WithPerceptionTracking {
+                Capsule().fill(
+                    RadialGradient(
+                        colors: [tint.opacity(Self.glowOpacity), tint.opacity(0.03), .clear],
+                        center: UnitPoint(
+                            x: (metrics.spacing.xl + metrics.size.menuIcon / 2) / proxy.size.width,
+                            y: 0.5),
+                        startRadius: 0, endRadius: Self.glowRadius))
+            }
         }
     }
 
@@ -114,9 +119,9 @@ struct MessageHUDView: View {
                 .foregroundStyle(tone.tint)
         case .progress:
             // A `ProgressView` spinner is drawn by AppKit and ignores every tint it is given.
-            Image(systemName: "progress.indicator")
+            Image(systemName: "slowmo")
                 .foregroundStyle(Theme.Colors.progress)
-                .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing)
+                .progressSymbolPulse()
         }
     }
 }

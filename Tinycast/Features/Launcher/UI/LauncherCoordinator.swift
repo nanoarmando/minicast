@@ -9,14 +9,9 @@ final class LauncherCoordinator {
     private let settingsCoordinator: SettingsCoordinator
     private let customCommandCoordinator: CustomCommandCoordinator
     private let systemActionCoordinator: SystemActionCoordinator
-    private let quicklinkCoordinator: QuicklinkCoordinator
     private let windowCommandCoordinator: WindowCommandCoordinator
     private let windowLayoutCoordinator: WindowLayoutCoordinator
-    private let snippetCoordinator: SnippetCoordinator
     private let fileSearchCoordinator: FileSearchCoordinator
-    private let menuSearchCoordinator: MenuSearchCoordinator
-    private let windowSwitchCoordinator: WindowSwitchCoordinator
-    private let notesCoordinator: NotesCoordinator
     private let extensionCoordinator: ExtensionCoordinator
     private let calendarCoordinator: CalendarCoordinator
     /// The backup commands only, which need the live stores to gather from and apply to.
@@ -29,14 +24,9 @@ final class LauncherCoordinator {
         settingsCoordinator: SettingsCoordinator,
         customCommandCoordinator: CustomCommandCoordinator,
         systemActionCoordinator: SystemActionCoordinator,
-        quicklinkCoordinator: QuicklinkCoordinator,
         windowCommandCoordinator: WindowCommandCoordinator,
         windowLayoutCoordinator: WindowLayoutCoordinator,
-        snippetCoordinator: SnippetCoordinator,
         fileSearchCoordinator: FileSearchCoordinator,
-        menuSearchCoordinator: MenuSearchCoordinator,
-        windowSwitchCoordinator: WindowSwitchCoordinator,
-        notesCoordinator: NotesCoordinator,
         extensionCoordinator: ExtensionCoordinator,
         calendarCoordinator: CalendarCoordinator,
         core: AppCore
@@ -47,14 +37,9 @@ final class LauncherCoordinator {
         self.settingsCoordinator = settingsCoordinator
         self.customCommandCoordinator = customCommandCoordinator
         self.systemActionCoordinator = systemActionCoordinator
-        self.quicklinkCoordinator = quicklinkCoordinator
         self.windowCommandCoordinator = windowCommandCoordinator
         self.windowLayoutCoordinator = windowLayoutCoordinator
-        self.snippetCoordinator = snippetCoordinator
         self.fileSearchCoordinator = fileSearchCoordinator
-        self.menuSearchCoordinator = menuSearchCoordinator
-        self.windowSwitchCoordinator = windowSwitchCoordinator
-        self.notesCoordinator = notesCoordinator
         self.extensionCoordinator = extensionCoordinator
         self.calendarCoordinator = calendarCoordinator
         self.core = core
@@ -132,18 +117,11 @@ final class LauncherCoordinator {
             calendarCoordinator.activateMeeting(id: id)
             return
         }
-        // Before the palette hides: an unfilled quicklink stays up to ask first.
-        if app.kind == .quicklink {
-            guard let id = Quicklink.id(fromEntryID: app.id) else { return }
-            quicklinkCoordinator.openQuicklink(id: id, values: arguments)
-            return
-        }
         if app.kind == .appleShortcut {
             guard let id = AppleShortcut.id(fromEntryID: app.id) else { return }
             core.appleShortcutCoordinator.run(id: id)
             return
         }
-        let previous = windowController.previousTarget
         paletteCoordinator.hidePalette(restoreFocus: false)
         switch app.kind {
         case .application:
@@ -151,11 +129,8 @@ final class LauncherCoordinator {
         case .systemSettings:
             guard let bundleID = app.bundleID else { return }
             AppLauncher.openSettingsPane(bundleID: bundleID)
-        case .snippet:
-            guard let snippetID = StoredSnippet.id(fromEntryID: app.id) else { return }
-            snippetCoordinator.expandSnippet(id: snippetID, target: previous)
         case .command, .quickAction, .customCommand, .systemAction, .windowCommand, .windowLayout,
-            .windowRoom, .quicklink, .appleShortcut, .extensionCommand, .meeting:
+            .windowRoom, .appleShortcut, .extensionCommand, .meeting:
             break  // handled above
         }
     }
@@ -172,8 +147,6 @@ final class LauncherCoordinator {
             core.quickActionCoordinator.run(.fixGrammar)
         case .rewrite:
             core.quickActionCoordinator.run(.rewrite)
-        case .translate:
-            core.quickActionCoordinator.run(.translate)
         case .summarize:
             core.quickActionCoordinator.run(.summarize)
         case .calculatorHistory:
@@ -186,13 +159,6 @@ final class LauncherCoordinator {
             paletteCoordinator.togglePalette(mode: .emoji)
         case .searchFiles:
             fileSearchCoordinator.show()
-        case .searchMenuItems:
-            menuSearchCoordinator.show()
-        case .switchWindows:
-            windowSwitchCoordinator.show()
-        case .openCamera:
-            dismissPalette()
-            Task { await core.cameraCoordinator.show() }
         case .define:
             core.dictionaryCoordinator.show()
         case .openInBrowser, .runShellCommand:
@@ -207,22 +173,6 @@ final class LauncherCoordinator {
             calendarCoordinator.openNextMeetingInCalendar()
         case .createEvent:
             calendarCoordinator.createEvent()
-        case .showNotes:
-            dismissPalette()
-            notesCoordinator.toggle()
-        case .createNote:
-            dismissPalette()
-            notesCoordinator.createNote()
-        case .searchNotes:
-            dismissPalette()
-            notesCoordinator.searchNotes()
-        case .searchQuicklinks:
-            paletteCoordinator.togglePalette(mode: .quicklinks)
-        case .searchSnippets:
-            snippetCoordinator.showSnippets()
-        case .createSnippet:
-            dismissPalette()
-            snippetCoordinator.editSnippet(nil)
         case .createWindowLayout:
             dismissPalette()
             windowLayoutCoordinator.editWindowLayout(nil)
@@ -233,15 +183,6 @@ final class LauncherCoordinator {
             core.roomCoordinator.showRooms()
         case .createRoom:
             core.roomCoordinator.createRoom()
-        case .createQuicklink:
-            dismissPalette()
-            quicklinkCoordinator.editQuicklink(nil)
-        case .importQuicklinks:
-            dismissPalette()
-            Task { await quicklinkCoordinator.importQuicklinks() }
-        case .exportQuicklinks:
-            dismissPalette()
-            Task { await quicklinkCoordinator.exportQuicklinks() }
         case .exportSettings:
             dismissPalette()
             Task { await BackupActions.runExportCommand(core: core) }
@@ -251,18 +192,12 @@ final class LauncherCoordinator {
         case .importFromRaycast:
             dismissPalette()
             settingsCoordinator.showBackupSettings()
-        case .checkForUpdates:
-            dismissPalette()
-            core.updateCoordinator.checkForUpdates()
         case .settings:
             dismissPalette()
             settingsCoordinator.showSettings()
         case .about:
             dismissPalette()
             settingsCoordinator.showAbout()
-        case .support:
-            dismissPalette()
-            core.supportCoordinator.showSupport()
         case .quit:
             NSApp.terminate(nil)
         }

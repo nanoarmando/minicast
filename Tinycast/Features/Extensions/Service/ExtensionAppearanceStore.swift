@@ -1,11 +1,12 @@
 import Foundation
+import Perception
 
 /// Keyed by manifest name like preferences, so a reinstall keeps the choice.
 @MainActor
-@Observable
+@Perceptible
 final class ExtensionAppearanceStore {
-    @ObservationIgnored private let defaults = UserDefaults.standard
-    @ObservationIgnored private let key = "extensionAppearances"
+    @PerceptionIgnored private let defaults = UserDefaults.standard
+    @PerceptionIgnored private let key = "extensionAppearances"
 
     private(set) var overrides: [String: ExtensionAppearance]
 

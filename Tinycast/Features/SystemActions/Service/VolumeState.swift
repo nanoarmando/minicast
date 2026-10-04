@@ -1,7 +1,8 @@
 import Foundation
+import Perception
 
 /// The live level behind the slider and bar, published so a repeat refreshes in place.
-@Observable
+@Perceptible
 final class VolumeState {
     var level: Double
     var muted: Bool

@@ -1,16 +1,16 @@
 import Foundation
-import Observation
+import Perception
 
 @MainActor
-@Observable
+@Perceptible
 final class InstalledAIManager {
     private(set) var statuses = Dictionary(
         uniqueKeysWithValues: InstalledAIKind.allCases.map { ($0, InstalledAIStatus()) })
 
-    @ObservationIgnored private let workspace: URL
-    @ObservationIgnored private var refreshTasks: [InstalledAIKind: Task<Void, Never>] = [:]
+    @PerceptionIgnored private let workspace: URL
+    @PerceptionIgnored private var refreshTasks: [InstalledAIKind: Task<Void, Never>] = [:]
     /// The reader's command path and variables, asked at each launch so an edit takes the next one.
-    @ObservationIgnored var launchSettings: (InstalledAIKind) -> InstalledAILaunch = { _ in
+    @PerceptionIgnored var launchSettings: (InstalledAIKind) -> InstalledAILaunch = { _ in
         InstalledAILaunch()
     }
 

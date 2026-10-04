@@ -66,23 +66,23 @@ struct QuickActionTests {
         let defaults = isolatedDefaults(suite)
         defer { discardSuite(suite, defaults) }
 
+        let chatDefault = AIModelSelection.codex(model: "default", effort: nil)
         let store = QuickActionSettingsStore(defaults: defaults)
         expect(store.model == nil, "a fresh store names no route until one is resolved")
 
-        // Nothing configured takes the route that needs no account, like chat's own default.
-        store.resolveModel(appleIntelligenceAvailable: true, fallback: nil)
-        expect(store.model == .appleIntelligence, "on-device is what an unconfigured Mac resolves to")
+        // Nothing configured takes chat's own default.
+        store.resolveModel(fallback: chatDefault)
+        expect(store.model == chatDefault, "an unconfigured store resolves to the chat default")
 
         // Resolution never overrides a choice, and never re-runs over one.
         let connectionID = UUID()
         store.select(.api(connection: connectionID, model: "m", effort: nil))
-        store.resolveModel(appleIntelligenceAvailable: true, fallback: nil)
+        store.resolveModel(fallback: chatDefault)
         expect(
             store.model == .api(connection: connectionID, model: "m", effort: nil),
             "resolution leaves a route the reader chose alone")
 
         store.settings.setPreviewsResult(true, for: .fixGrammar)
-        store.settings.targetLanguage = "de"
         store.settings.setInstructionOverride("Use British English.", for: .fixGrammar)
 
         let reopened = QuickActionSettingsStore(defaults: defaults)
@@ -92,50 +92,49 @@ struct QuickActionTests {
         expect(
             reopened.settings.previewsResult(BuiltInQuickAction.fixGrammar),
             "a preview choice survives a relaunch")
-        expect(reopened.settings.targetLanguage == "de", "the target language survives a relaunch")
         expect(
             reopened.settings.instructionOverride(for: BuiltInQuickAction.fixGrammar)
                 == "Use British English.",
             "an action's instructions survive a relaunch")
 
         // A removed connection must not leave this pointing at a route that cannot answer.
-        reopened.repairModel(against: [], fallback: .appleIntelligence)
+        reopened.repairModel(against: [], fallback: chatDefault)
         expect(
-            reopened.model == .appleIntelligence,
+            reopened.model == chatDefault,
             "a removed connection falls forward rather than failing at press time")
 
-        let onDevice = QuickActionSettingsStore(defaults: defaults)
-        onDevice.repairModel(against: [], fallback: nil)
+        let reloaded = QuickActionSettingsStore(defaults: defaults)
+        reloaded.repairModel(against: [], fallback: nil)
         expect(
-            onDevice.model == .appleIntelligence,
+            reloaded.model == chatDefault,
             "repair leaves a route that names no connection untouched")
 
-        onDevice.select(.claude(model: "old", effort: nil))
-        onDevice.repairInstalledModel(
+        reloaded.select(.claude(model: "old", effort: nil))
+        reloaded.repairInstalledModel(
             available: [.claude(model: "sonnet", effort: nil)], unavailableSources: [],
-            fallback: .appleIntelligence)
+            fallback: chatDefault)
         expect(
-            onDevice.model == .claude(model: "sonnet", effort: nil),
+            reloaded.model == .claude(model: "sonnet", effort: nil),
             "an installed model removed from the catalog moves to that command's first model")
-        onDevice.select(.openCode(model: "provider/old", effort: nil))
-        onDevice.repairInstalledModel(
-            available: [], unavailableSources: [.openCode], fallback: .appleIntelligence)
+        reloaded.select(.openCode(model: "provider/old", effort: nil))
+        reloaded.repairInstalledModel(
+            available: [], unavailableSources: [.openCode], fallback: chatDefault)
         expect(
-            onDevice.model == .appleIntelligence,
+            reloaded.model == chatDefault,
             "an unavailable installed command does not leave Quick Actions on a dead route")
-        onDevice.select(.claude(model: "haiku", effort: nil))
-        onDevice.repairInstalledModel(
+        reloaded.select(.claude(model: "haiku", effort: nil))
+        reloaded.repairInstalledModel(
             available: [], unavailableSources: [.claude],
             fallback: .claude(model: "sonnet", effort: nil))
         expect(
-            onDevice.model == nil,
+            reloaded.model == nil,
             "an unavailable installed command is not replaced by another dead model")
-        onDevice.select(.codex(model: "gpt", effort: "high"))
+        reloaded.select(.codex(model: "gpt", effort: "high"))
         let withEffort = QuickActionSettingsStore(defaults: defaults)
         expect(
             withEffort.model == .codex(model: "gpt", effort: "high"),
             "Quick Actions persist their own Codex reasoning effort")
-        onDevice.select(.openCode(model: "provider/model", effort: "max"))
+        reloaded.select(.openCode(model: "provider/model", effort: "max"))
         let withOpenCodeEffort = QuickActionSettingsStore(defaults: defaults)
         expect(
             withOpenCodeEffort.model == .openCode(model: "provider/model", effort: "max"),
@@ -150,18 +149,17 @@ struct QuickActionTests {
         let connectionID = UUID()
         let api = AIModelSelection.api(connection: connectionID, model: "m", effort: "low")
         let custom = QuickAction.custom(CustomQuickAction(name: "Snark", instructions: "Bite."))
+        let chatDefault = AIModelSelection.codex(model: "default", effort: nil)
         let store = QuickActionSettingsStore(defaults: defaults)
-        store.select(.appleIntelligence)
+        store.select(chatDefault)
         store.setModelOverride(.claude(model: "opus", effort: "high"), for: .summarize)
         store.setModelOverride(api, for: custom)
-        store.setModelOverride(.codex(model: "gpt", effort: nil), for: .translate)
 
         expect(
             store.model(for: .summarize) == .claude(model: "opus", effort: "high"),
             "an action with its own route uses it")
-        expect(store.model(for: .rewrite) == .appleIntelligence, "an action without one follows")
+        expect(store.model(for: .rewrite) == chatDefault, "an action without one follows")
         expect(store.model(for: custom) == api, "a custom action keeps a route of its own")
-        expect(store.modelOverride(for: .translate) == nil, "Translate never takes a model")
 
         let reopened = QuickActionSettingsStore(defaults: defaults)
         expect(
@@ -173,12 +171,12 @@ struct QuickActionTests {
         expect(
             reopened.modelOverride(for: custom) == nil,
             "a route through a removed connection is dropped, not rerouted to chat's model")
-        expect(reopened.model == .appleIntelligence, "and the shared route is left alone")
+        expect(reopened.model == chatDefault, "and the shared route is left alone")
 
         reopened.setModelOverride(.openCode(model: "old", effort: nil), for: .rewrite)
         reopened.repairInstalledModel(
             available: [.claude(model: "sonnet", effort: "medium")],
-            unavailableSources: [.openCode], fallback: .appleIntelligence)
+            unavailableSources: [.openCode], fallback: chatDefault)
         expect(
             reopened.modelOverride(for: .summarize) == .claude(model: "sonnet", effort: "medium"),
             "a model removed from its catalog moves to that command's first model")
@@ -213,12 +211,6 @@ struct QuickActionTests {
         expect(
             !BuiltInQuickAction.rewrite.replacesDirectlyByDefault,
             "a rewrite changes the voice, so it is previewed by default")
-        expect(
-            BuiltInQuickAction.translate.usesTranslationFramework,
-            "Translate goes to Apple's translator, not the model")
-        expect(
-            BuiltInQuickAction.allCases.filter(\.usesTranslationFramework) == [.translate],
-            "nothing else claims the translator")
         expect(
             BuiltInQuickAction.summarize.showsDiff == false,
             "a summary is not the input edited, so a diff would be noise")
@@ -259,23 +251,15 @@ struct QuickActionTests {
         expect(
             QuickActionPrompt.instructions(for: BuiltInQuickAction.rewrite, override: "").isEmpty,
             "an empty override deliberately sends no instructions")
-        expect(
-            QuickActionPrompt.instructions(for: BuiltInQuickAction.translate, override: "My instructions")
-                == QuickActionPrompt.instructions(for: BuiltInQuickAction.translate),
-            "Translate never accepts model instructions")
 
         var settings = QuickActionSettings()
         settings.setInstructionOverride("Custom", for: .rewrite)
-        settings.setInstructionOverride("Ignored", for: .translate)
         expect(
             settings.instructionOverride(for: BuiltInQuickAction.rewrite) == "Custom",
             "each model-backed action keeps its own instructions")
         expect(
             settings.instructionOverride(for: BuiltInQuickAction.fixGrammar) == nil,
             "customizing one action leaves the others on their defaults")
-        expect(
-            settings.instructionOverride(for: BuiltInQuickAction.translate) == nil,
-            "Translate cannot persist model instructions")
     }
 
     static func previewChoicesRememberOnlyWhatWasChosen() {
@@ -373,9 +357,6 @@ struct QuickActionTests {
         expect(action.progressTitle == "Make Snarky…", "the pill names the action the reader pressed")
         expect(!action.alwaysPreviews, "nothing forces a custom action into a panel")
         expect(!action.showsDiff, "an arbitrary prompt is not the input edited, so no diff")
-        expect(
-            !action.usesTranslationFramework,
-            "only the shipped Translate reaches Apple's translator")
         expect(action.id == record.entryID, "a custom action keys everything on its entry id")
         expect(
             CustomQuickAction.id(fromEntryID: record.entryID) == record.id,

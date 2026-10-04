@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 private enum TooltipLabel {
     case text(String)
@@ -15,20 +16,22 @@ private struct TooltipModifier: ViewModifier {
     @State private var visible = false
 
     func body(content: Content) -> some View {
-        content
-            .onHover {
-                hovered = label != nil && $0
-                if !hovered { visible = false }
-            }
-            .task(id: hovered) {
-                guard hovered else { return }
-                try? await Task.sleep(for: .seconds(Theme.Duration.tooltipDelay))
-                guard !Task.isCancelled, hovered else { return }
-                withAnimation(.easeOut(duration: Theme.Duration.tooltip)) { visible = true }
-            }
-            .overlay(alignment: Alignment(horizontal: alignment, vertical: side)) {
-                if let label, visible { tile(label) }
-            }
+        WithPerceptionTracking {
+            content
+                .onHover {
+                    hovered = label != nil && $0
+                    if !hovered { visible = false }
+                }
+                .task(id: hovered) {
+                    guard hovered else { return }
+                    try? await Task.sleep(for: .seconds(Theme.Duration.tooltipDelay))
+                    guard !Task.isCancelled, hovered else { return }
+                    withAnimation(.easeOut(duration: Theme.Duration.tooltip)) { visible = true }
+                }
+                .overlay(alignment: Alignment(horizontal: alignment, vertical: side)) {
+                    if let label, visible { tile(label) }
+                }
+        }
     }
 
     private var side: VerticalAlignment { edge == .top ? .top : .bottom }

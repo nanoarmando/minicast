@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 // How every borderless surface arrives and leaves, so a dialog and a HUD read alike.
 
@@ -56,11 +57,13 @@ private struct PanelEntrance: ViewModifier {
     @State private var appeared = false
 
     func body(content: Content) -> some View {
-        content
-            .scaleEffect(appeared ? 1 : Self.entryScale)
-            .onAppear {
-                withAnimation(.easeOut(duration: Theme.Duration.enter)) { appeared = true }
-            }
+        WithPerceptionTracking {
+            content
+                .scaleEffect(appeared ? 1 : Self.entryScale)
+                .onAppear {
+                    withAnimation(.easeOut(duration: Theme.Duration.enter)) { appeared = true }
+                }
+        }
     }
 
     private static let entryScale: CGFloat = 0.94

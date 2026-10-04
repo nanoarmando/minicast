@@ -1,31 +1,18 @@
 import SwiftUI
+import Perception
 
-/// A SwiftUI split, not `NSSplitViewController`: only its sidebar gives `.searchable` a soft edge.
+/// A SwiftUI split, not `NSSplitViewController`: its sidebar keeps the system's source-list material.
 struct SettingsRootView: View {
-    @Environment(SettingsNavigationState.self) private var navigation
-
     var body: some View {
-        NavigationSplitView {
-            SettingsSidebarView()
-                // Ahead of the width: applied after it, the column shrinks to AppKit's default.
-                .toolbar(removing: .sidebarToggle)
-                .navigationSplitViewColumnWidth(
-                    min: Theme.Size.settingsSidebar, ideal: Theme.Size.settingsSidebar,
-                    max: Theme.Size.settingsSidebar)
-        } detail: {
-            SettingsDetailView()
-                .frame(minWidth: Theme.Size.settingsDetailMinimum)
-        }
-        .navigationTitle(navigation.tab.title)
-        .toolbar {
-            ToolbarItem(placement: .navigation) {
-                ControlGroup {
-                    Button("Back", systemImage: "chevron.backward") { navigation.goBack() }
-                        .disabled(!navigation.canGoBack)
-                    Button("Forward", systemImage: "chevron.forward") { navigation.goForward() }
-                        .disabled(!navigation.canGoForward)
-                }
-                .controlGroupStyle(.navigation)
+        WithPerceptionTracking {
+            NavigationSplitView {
+                SettingsSidebarView()
+                    .navigationSplitViewColumnWidth(
+                        min: Theme.Size.settingsSidebar, ideal: Theme.Size.settingsSidebar,
+                        max: Theme.Size.settingsSidebar)
+            } detail: {
+                SettingsDetailView()
+                    .frame(minWidth: Theme.Size.settingsDetailMinimum)
             }
         }
     }

@@ -1,8 +1,9 @@
 import AppKit
+import Perception
 
 /// Owns the Apple Shortcuts flow: discovery into the launcher slice, and the one run funnel.
 @MainActor
-@Observable
+@Perceptible
 final class AppleShortcutCoordinator {
     /// Every row draws the Shortcuts app's icon, so one cached bitmap serves the whole list.
     static let applicationURL =
@@ -22,8 +23,8 @@ final class AppleShortcutCoordinator {
     private let paletteCoordinator: PaletteCoordinator
     private unowned let core: AppCore
     /// Nil until a read succeeds, so the first one after launch always sweeps.
-    @ObservationIgnored private var shortcuts: [AppleShortcut]?
-    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @PerceptionIgnored private var shortcuts: [AppleShortcut]?
+    @PerceptionIgnored private var refreshTask: Task<Void, Never>?
 
     init(
         settings: AppSettings, appIndex: AppIndex, hotKeys: HotKeyManager,

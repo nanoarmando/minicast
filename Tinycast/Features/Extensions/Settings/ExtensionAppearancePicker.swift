@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Swatches and a searchable symbol grid. Changes apply at once: the launcher is the real preview.
 struct ExtensionAppearancePicker: View {
@@ -44,93 +45,99 @@ struct ExtensionAppearancePicker: View {
         repeating: GridItem(.fixed(Metrics.tile), spacing: Metrics.gap), count: Metrics.columns)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            LazyVGrid(columns: swatches, alignment: .leading, spacing: Metrics.gap) {
-                ForEach(ExtensionTint.allCases) { tint in
-                    Button {
-                        onPick(ExtensionAppearance(symbol: current.symbol, tint: tint))
-                    } label: {
-                        Circle()
-                            .fill(tint.color.gradient)
-                            .frame(width: Metrics.swatch, height: Metrics.swatch)
-                            .overlay(
-                                Circle().strokeBorder(
-                                    .white.opacity(tint == current.tint ? 0.9 : 0), lineWidth: 2)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .help(tint.title)
-                }
-            }
-
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("", text: $query, prompt: Text("Search symbols…"))
-                    .textFieldStyle(.plain)
-                    .labelsHidden()
-                    .pointerStyle(.horizontalText)
-                Picker("", selection: $category) {
-                    ForEach(catalog.categories) { item in
-                        Text(item.title).tag(item)
-                    }
-                }
-                .labelsHidden()
-                .fixedSize()
-            }
-
-            let results = catalog.search(query, in: category)
-            if results.isEmpty {
-                Text("No symbols match \u{201C}\(query)\u{201D}.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    // Whole rows: a half one clipped by the footer reads as a rendering bug.
-                    .frame(width: Metrics.contentWidth, height: Metrics.gridHeight)
-            } else {
-                ScrollView {
-                    // Leading: a fixed-column `LazyVGrid` centres itself in spare width otherwise.
-                    LazyVGrid(columns: icons, alignment: .leading, spacing: Metrics.gap) {
-                        ForEach(results, id: \.self) { symbol in
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                LazyVGrid(columns: swatches, alignment: .leading, spacing: Metrics.gap) {
+                    WithPerceptionTracking {
+                        ForEach(ExtensionTint.allCases) { tint in
                             Button {
-                                onPick(ExtensionAppearance(symbol: symbol, tint: current.tint))
+                                onPick(ExtensionAppearance(symbol: current.symbol, tint: tint))
                             } label: {
-                                SymbolTile(symbol: symbol, tint: current.tint, side: Metrics.tile)
-                                    .opacity(symbol == current.symbol ? 1 : 0.55)
+                                Circle()
+                                    .fill(tint.color.gradient)
+                                    .frame(width: Metrics.swatch, height: Metrics.swatch)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                            .strokeBorder(
-                                                .white.opacity(symbol == current.symbol ? 0.9 : 0),
-                                                lineWidth: 2)
+                                        Circle().strokeBorder(
+                                            .white.opacity(tint == current.tint ? 0.9 : 0), lineWidth: 2)
                                     )
                             }
                             .buttonStyle(.plain)
-                            .help(symbol)
+                            .help(tint.title)
                         }
                     }
-                    .frame(width: Metrics.contentWidth, alignment: .leading)
-                    .hideNativeScrollers()
                 }
-                .overflowFade()
-                .thinScrollbar()
-                // The column's width, never the popover's, or the grid overhangs the shared inset.
-                .frame(width: Metrics.contentWidth, height: Metrics.gridHeight)
-            }
 
-            HStack {
-                Text(footnote(results.count))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Use Original Icon", action: onReset)
-                    .disabled(!isCustom)
-                    .help("Go back to the icon the extension ships.")
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("", text: $query, prompt: Text("Search symbols…"))
+                        .textFieldStyle(.plain)
+                        .labelsHidden()
+                        .textCursorOnHover()
+                    Picker("", selection: $category) {
+                        ForEach(catalog.categories) { item in
+                            Text(item.title).tag(item)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+
+                let results = catalog.search(query, in: category)
+                if results.isEmpty {
+                    Text("No symbols match \u{201C}\(query)\u{201D}.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        // Whole rows: a half one clipped by the footer reads as a rendering bug.
+                        .frame(width: Metrics.contentWidth, height: Metrics.gridHeight)
+                } else {
+                    ScrollView {
+                        // Leading: a fixed-column `LazyVGrid` centres itself in spare width otherwise.
+                        LazyVGrid(columns: icons, alignment: .leading, spacing: Metrics.gap) {
+                            WithPerceptionTracking {
+                                ForEach(results, id: \.self) { symbol in
+                                    Button {
+                                        onPick(ExtensionAppearance(symbol: symbol, tint: current.tint))
+                                    } label: {
+                                        SymbolTile(symbol: symbol, tint: current.tint, side: Metrics.tile)
+                                            .opacity(symbol == current.symbol ? 1 : 0.55)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                                    .strokeBorder(
+                                                        .white.opacity(symbol == current.symbol ? 0.9 : 0),
+                                                        lineWidth: 2)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(symbol)
+                                }
+                            }
+                        }
+                        .frame(width: Metrics.contentWidth, alignment: .leading)
+                        .hideNativeScrollers()
+                    }
+                    .overflowFade()
+                    .thinScrollbar()
+                    // The column's width, never the popover's, or the grid overhangs the shared inset.
+                    .frame(width: Metrics.contentWidth, height: Metrics.gridHeight)
+                }
+
+                HStack {
+                    Text(footnote(results.count))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Use Original Icon", action: onReset)
+                        .disabled(!isCustom)
+                        .help("Go back to the icon the extension ships.")
+                }
             }
-        }
-        .padding(Metrics.inset)
-        .frame(width: Metrics.popoverWidth)
-        .task {
-            // Only the fallback has a single category; don't re-read the real catalog.
-            guard catalog.categories.count == 1 else { return }
-            catalog = await Task.detached(priority: .userInitiated) { SymbolCatalog.load() }.value
+            .padding(Metrics.inset)
+            .frame(width: Metrics.popoverWidth)
+            .task {
+                // Only the fallback has a single category; don't re-read the real catalog.
+                guard catalog.categories.count == 1 else { return }
+                catalog = await Task.detached(priority: .userInitiated) { SymbolCatalog.load() }.value
+            }
         }
     }
 
@@ -164,9 +171,11 @@ struct SymbolTile: View {
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: side * 0.23, style: .continuous)
-            .fill(tint.color)
-            .frame(width: side, height: side)
-            .overlay(glyph)
+        WithPerceptionTracking {
+            RoundedRectangle(cornerRadius: side * 0.23, style: .continuous)
+                .fill(tint.color)
+                .frame(width: side, height: side)
+                .overlay(glyph)
+        }
     }
 }

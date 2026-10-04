@@ -1,8 +1,9 @@
 import Foundation
+import Perception
 
 /// The Rooms screens' state while one is open: the desk read once, and the picker's choice.
 @MainActor
-@Observable
+@Perceptible
 final class RoomSession {
     /// An app a room holds without naming a window: opened on entry, kept visible.
     struct App: Hashable, Sendable {
@@ -27,7 +28,7 @@ final class RoomSession {
     /// The picker's search field filters, so the room's name is held here.
     private(set) var roomName = ""
     /// Live AX handles, so they are never observed and never outlive the screen.
-    @ObservationIgnored private(set) var snapshot: RoomWindowSweep.Snapshot?
+    @PerceptionIgnored private(set) var snapshot: RoomWindowSweep.Snapshot?
 
     func present(_ snapshot: RoomWindowSweep.Snapshot, parked: Set<UInt32>) {
         self.snapshot = snapshot

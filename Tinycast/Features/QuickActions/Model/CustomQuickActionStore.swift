@@ -1,12 +1,13 @@
 import Foundation
+import Perception
 
 @MainActor
-@Observable
+@Perceptible
 final class CustomQuickActionStore {
     private(set) var actions: [CustomQuickAction] = []
     /// False when the file wouldn't read; every mutation then refuses rather than pretends.
     private(set) var isAvailable = true
-    @ObservationIgnored var onChange: (([CustomQuickAction]) -> Void)?
+    @PerceptionIgnored var onChange: (([CustomQuickAction]) -> Void)?
 
     private let fileURL: URL
 

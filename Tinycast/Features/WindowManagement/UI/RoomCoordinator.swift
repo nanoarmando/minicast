@@ -1,36 +1,37 @@
 // Adapted from Rooms (MIT): https://github.com/saragordic/rooms/blob/main/LICENSE
 import AppKit
+import Perception
 
 /// Owns rooms: presence, the one enter funnel with its gate, the preview, the picker, cleanup.
 @MainActor
-@Observable
+@Perceptible
 final class RoomCoordinator {
-    @ObservationIgnored private let store: RoomStore
-    @ObservationIgnored private let minimums: RoomMinimumSizeStore
-    @ObservationIgnored private let ledger: RoomParkingLedger
-    @ObservationIgnored private let session: RoomSession
-    @ObservationIgnored private let settings: AppSettings
-    @ObservationIgnored private let appIndex: AppIndex
-    @ObservationIgnored private let hotKeys: HotKeyManager
-    @ObservationIgnored private let favorites: FavoritesStore
-    @ObservationIgnored private let visibility: VisibilityStore
-    @ObservationIgnored private let ranking: LauncherRankingStore
-    @ObservationIgnored private let aliases: AliasStore
-    @ObservationIgnored private let palette: PaletteState
-    @ObservationIgnored private let paletteCoordinator: PaletteCoordinator
+    @PerceptionIgnored private let store: RoomStore
+    @PerceptionIgnored private let minimums: RoomMinimumSizeStore
+    @PerceptionIgnored private let ledger: RoomParkingLedger
+    @PerceptionIgnored private let session: RoomSession
+    @PerceptionIgnored private let settings: AppSettings
+    @PerceptionIgnored private let appIndex: AppIndex
+    @PerceptionIgnored private let hotKeys: HotKeyManager
+    @PerceptionIgnored private let favorites: FavoritesStore
+    @PerceptionIgnored private let visibility: VisibilityStore
+    @PerceptionIgnored private let ranking: LauncherRankingStore
+    @PerceptionIgnored private let aliases: AliasStore
+    @PerceptionIgnored private let palette: PaletteState
+    @PerceptionIgnored private let paletteCoordinator: PaletteCoordinator
     /// Dialog and message-HUD presentation. Never state this type owns.
-    @ObservationIgnored private unowned let core: AppCore
-    @ObservationIgnored private let preview = RoomPreviewController()
+    @PerceptionIgnored private unowned let core: AppCore
+    @PerceptionIgnored private let preview = RoomPreviewController()
     /// Window work runs one at a time, in order: two passes at once would undo each other.
-    @ObservationIgnored private var work: Task<Void, Never>?
+    @PerceptionIgnored private var work: Task<Void, Never>?
     /// Set while ↵ has handed the preview to the windows moving in under it.
-    @ObservationIgnored private var isEntering = false
+    @PerceptionIgnored private var isEntering = false
     /// The room whose windows the picker starts with, held until the desk has been read.
-    @ObservationIgnored private var pendingPreselection: Room?
+    @PerceptionIgnored private var pendingPreselection: Room?
     /// Apps rooms hid since the feature was last switched off; a ⌘H of the user's is never here.
-    @ObservationIgnored private var hiddenByRooms = Set<pid_t>()
+    @PerceptionIgnored private var hiddenByRooms = Set<pid_t>()
     /// The desk read in flight, so two openings in one turn sweep once.
-    @ObservationIgnored private var loading: Task<Void, Never>?
+    @PerceptionIgnored private var loading: Task<Void, Never>?
 
     /// The room last entered and not yet left, which the Rooms screen marks.
     private(set) var currentRoomID: UUID?

@@ -1,15 +1,15 @@
 import Foundation
-import Observation
+import Perception
 
 /// Every running server's lifecycle. Whether a call may run is the coordinator's decision.
 @MainActor
-@Observable
+@Perceptible
 final class MCPServerManager {
     private(set) var connections: [UUID: MCPServerConnection] = [:]
 
-    @ObservationIgnored private let oauth: MCPOAuthManager?
-    @ObservationIgnored private let secrets: MCPSecretStore
-    @ObservationIgnored private var idleTask: Task<Void, Never>?
+    @PerceptionIgnored private let oauth: MCPOAuthManager?
+    @PerceptionIgnored private let secrets: MCPSecretStore
+    @PerceptionIgnored private var idleTask: Task<Void, Never>?
 
     /// Servers outlive one summon but not an afternoon; a resident helper is the memory budget.
     private static let idleTimeout: Duration = .seconds(600)

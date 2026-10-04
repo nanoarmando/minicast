@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// The Layout row: an add button beside the dropdown naming the entry every field below edits.
 struct WindowLayoutEntryPicker: View {
@@ -11,9 +12,11 @@ struct WindowLayoutEntryPicker: View {
     @State private var showingEntries = false
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            addButton
-            entryButton
+        WithPerceptionTracking {
+            HStack(spacing: Theme.Spacing.sm) {
+                addButton
+                entryButton
+            }
         }
     }
 
@@ -29,10 +32,12 @@ struct WindowLayoutEntryPicker: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Add an app to this layout")
         .popover(isPresented: $showingAppPicker, arrowEdge: .bottom) {
-            AppPickerPopover { bundleID in
-                showingAppPicker = false
-                guard let bundleID, let display = targetDisplay else { return }
-                draft.addEntry(bundleID: bundleID, on: display)
+            WithPerceptionTracking {
+                AppPickerPopover { bundleID in
+                    showingAppPicker = false
+                    guard let bundleID, let display = targetDisplay else { return }
+                    draft.addEntry(bundleID: bundleID, on: display)
+                }
             }
         }
     }

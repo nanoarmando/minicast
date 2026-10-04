@@ -375,7 +375,7 @@ struct FuzzTest {
             ("微信", "微信", "a Chinese name typed in Chinese"), ("weixin", "微信", "…as pinyin"),
             ("wx", "微信", "…as pinyin initials"), ("wyyyl", "网易云音乐", "…initials of a longer name"),
             ("telegram", "Телеграм", "a Cyrillic name typed in Latin"),
-            ("sig", "Signature Block", "a snippet's keyword"),
+            ("sig", "Signature Block", "an alternate title"),
             ("brew", "Search", "an extension's title lists its commands")
         ]
         for test in cases {

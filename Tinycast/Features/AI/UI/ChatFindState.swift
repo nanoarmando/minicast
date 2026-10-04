@@ -1,16 +1,16 @@
 import Foundation
-import Observation
+import Perception
 
 /// Find in the open chat: what the toolbar's field holds, and which match of it is current.
 @MainActor
-@Observable
+@Perceptible
 final class ChatFindState {
     var query = "" {
         didSet { if query != oldValue { current = 0 } }
     }
     private(set) var current = 0
     /// Per message, so a streaming flush searches only the reply that changed.
-    @ObservationIgnored private var cache: [UUID: Cached] = [:]
+    @PerceptionIgnored private var cache: [UUID: Cached] = [:]
 
     private typealias Cached = (needle: String, message: ChatMessage, found: [ChatFindOccurrence])
 

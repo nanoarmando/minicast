@@ -35,8 +35,6 @@ final class SettingsCoordinator {
                 core: core, navigation: navigation, editorPresenter: editorPresenter))
         // Keep the window's size authoritative: an unconstrained fill would drive the frame.
         hosting.sizingOptions = []
-        // The back/forward chevrons, the pane title and the sidebar's search field all ride on it.
-        hosting.sceneBridgingOptions = [.toolbars, .title]
         window.show(chrome: SettingsWindowChrome()) { hosting }
         editorPresenter.attach(to: hosting.view.window)
     }

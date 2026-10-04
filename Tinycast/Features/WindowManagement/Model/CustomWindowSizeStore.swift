@@ -1,14 +1,15 @@
 import Foundation
+import Perception
 
 /// The custom-size library, as JSON in `UserDefaults`. Authored data, so a bad record is cleaned.
 @MainActor
-@Observable
+@Perceptible
 final class CustomWindowSizeStore {
     private static let defaultsKey = "customWindowSizes"
 
     private let defaults: UserDefaults
     private(set) var sizes: [CustomWindowSize]
-    @ObservationIgnored var onChange: (([CustomWindowSize]) -> Void)?
+    @PerceptionIgnored var onChange: (([CustomWindowSize]) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

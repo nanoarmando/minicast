@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// Find in chat's matches and the one to show; the transcript marks them and scrolls to it.
 struct ChatFindHighlight: Equatable {
@@ -39,85 +40,87 @@ struct ChatTranscriptView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                // Not lazy: every anchored jump and the end test measure an estimated height
-                VStack(spacing: metrics.spacing.xl) {
-                    ForEach(messages) { message in
-                        let isLast = message.id == messages.last?.id
-                        ChatMessageView(
-                            message: message,
-                            status: isLast ? status : nil,
-                            onRegenerate: isLast && message.role == .assistant
-                                ? onRegenerate : nil,
-                            // Only the latest reply's choices still answer anything.
-                            onChoose: isLast && message.state == .complete ? onChoose : nil
-                        )
-                        .equatable()
-                        .environment(\.chatTextHighlight, highlight(for: message.id))
-                        .id(message.id)
+        WithPerceptionTracking {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    // Not lazy: every anchored jump and the end test measure an estimated height
+                    VStack(spacing: metrics.spacing.xl) {
+                        ForEach(messages) { message in
+                            let isLast = message.id == messages.last?.id
+                            ChatMessageView(
+                                message: message,
+                                status: isLast ? status : nil,
+                                onRegenerate: isLast && message.role == .assistant
+                                    ? onRegenerate : nil,
+                                // Only the latest reply's choices still answer anything.
+                                onChoose: isLast && message.state == .complete ? onChoose : nil
+                            )
+                            .equatable()
+                            .environment(\.chatTextHighlight, highlight(for: message.id))
+                            .id(message.id)
+                        }
+                        if let total = usage?.totalTokens {
+                            Text("\(total.formatted()) tokens")
+                                .font(metrics.typography.rowTrailing)
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                        Color.clear
+                            .frame(height: metrics.spacing.xxs)
+                            .id("ai-transcript-tail")
                     }
-                    if let total = usage?.totalTokens {
-                        Text("\(total.formatted()) tokens")
-                            .font(metrics.typography.rowTrailing)
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    Color.clear
-                        .frame(height: metrics.spacing.xxs)
-                        .id("ai-transcript-tail")
+                    .padding(.horizontal, metrics.spacing.xxl)
+                    .padding(.top, metrics.spacing.xl)
+                    .padding(
+                        .bottom,
+                        surface == .palette ? metrics.spacing.chatTranscriptBottom : metrics.spacing.xl
+                    )
+                    .lineSpacing(metrics.spacing.chatLine)
+                    // A window can be any width; a line of prose past this stops being readable.
+                    .frame(maxWidth: surface == .window ? Theme.Size.aiChatReadingWidth : nil)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, metrics.spacing.xxl)
-                .padding(.top, metrics.spacing.xl)
-                .padding(
-                    .bottom,
-                    surface == .palette ? metrics.spacing.chatTranscriptBottom : metrics.spacing.xl
-                )
-                .lineSpacing(metrics.spacing.chatLine)
-                // A window can be any width; a line of prose past this stops being readable.
-                .frame(maxWidth: surface == .window ? Theme.Size.aiChatReadingWidth : nil)
-                .frame(maxWidth: .infinity)
-            }
-            .modifier(TranscriptScrollChrome(surface: surface))
-            // Reopened chats start at the latest message; other anchor roles fight the reader.
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .onScrollGeometryChange(for: ScrollMark.self) { geometry in
-                ScrollMark(
-                    offset: geometry.contentOffset.y,
-                    // The offset rests at `-insetTop`, so the end is that far past offset plus band
-                    atEnd: geometry.contentOffset.y + geometry.containerSize.height
-                        + geometry.contentInsets.top
-                        >= geometry.contentSize.height - metrics.spacing.chatFollowTailSlack)
-            } action: { old, new in
-                // The offset is the only signal every device gives; the end wins, tested first
-                if new.atEnd {
-                    followsTail = true
-                } else if new.offset < old.offset - Self.deliberateScroll {
+                .modifier(TranscriptScrollChrome(surface: surface))
+                // Reopened chats start at the latest message, once the transcript has laid out.
+                .onAppear { Task { @MainActor in follow(proxy, always: true) } }
+                .onScrollMetricsChange(for: ScrollMark.self) { geometry in
+                    ScrollMark(
+                        offset: geometry.contentOffset.y,
+                        // The offset rests at `-insetTop`, so the end is that far past offset plus band
+                        atEnd: geometry.contentOffset.y + geometry.containerSize.height
+                            + geometry.contentInsets.top
+                            >= geometry.contentSize.height - metrics.spacing.chatFollowTailSlack)
+                } action: { old, new in
+                    // The offset is the only signal every device gives; the end wins, tested first
+                    if new.atEnd {
+                        followsTail = true
+                    } else if new.offset < old.offset - Self.deliberateScroll {
+                        followsTail = false
+                    }
+                }
+                .onValueChange(of: messages.count) { follow(proxy, always: true) }
+                .onValueChange(of: find?.current) { _, current in
+                    guard current != nil else { return }
                     followsTail = false
-                }
-            }
-            .onChange(of: messages.count) { follow(proxy, always: true) }
-            .onChange(of: find?.current) { _, current in
-                guard current != nil else { return }
-                followsTail = false
-                // Next turn: the text holding the match takes its anchor in this same update.
-                Task { @MainActor in
-                    withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) {
-                        proxy.scrollTo(ChatTextHighlight.currentAnchor, anchor: .center)
+                    // Next turn: the text holding the match takes its anchor in this same update.
+                    Task { @MainActor in
+                        withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) {
+                            proxy.scrollTo(ChatTextHighlight.currentAnchor, anchor: .center)
+                        }
                     }
                 }
-            }
-            .onChange(of: messages) { follow(proxy, always: false) }
-            .onChange(of: usage) { follow(proxy, always: false) }
-            .overlay(alignment: .bottom) {
-                ResumeFollowingButton {
-                    followsTail = true
-                    follow(proxy, always: true)
+                .onValueChange(of: messages) { follow(proxy, always: false) }
+                .onValueChange(of: usage) { follow(proxy, always: false) }
+                .overlay(alignment: .bottom) {
+                    ResumeFollowingButton {
+                        followsTail = true
+                        follow(proxy, always: true)
+                    }
+                    .padding(.bottom, metrics.spacing.lg)
+                    .opacity(followsTail ? 0 : 1)
+                    .allowsHitTesting(!followsTail)
+                    .animation(.easeOut(duration: Theme.Duration.chatFooter), value: followsTail)
                 }
-                .padding(.bottom, metrics.spacing.lg)
-                .opacity(followsTail ? 0 : 1)
-                .allowsHitTesting(!followsTail)
-                .animation(.easeOut(duration: Theme.Duration.chatFooter), value: followsTail)
             }
         }
     }
@@ -140,9 +143,11 @@ private struct TranscriptScrollChrome: ViewModifier {
     let surface: ChatSurface
 
     func body(content: Content) -> some View {
-        switch surface {
-        case .palette: content.edgeDissolve().thinScrollbar()
-        case .window: content
+        WithPerceptionTracking {
+            switch surface {
+            case .palette: content.edgeDissolve().thinScrollbar()
+            case .window: content
+            }
         }
     }
 }
@@ -153,16 +158,18 @@ private struct ResumeFollowingButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Label("Jump to Latest", systemImage: "arrow.down")
-                .font(metrics.typography.rowTrailing)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .padding(.horizontal, metrics.spacing.lg)
-                .padding(.vertical, metrics.spacing.sm)
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(Theme.Colors.border))
+        WithPerceptionTracking {
+            Button(action: action) {
+                Label("Jump to Latest", systemImage: "arrow.down")
+                    .font(metrics.typography.rowTrailing)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .padding(.horizontal, metrics.spacing.lg)
+                    .padding(.vertical, metrics.spacing.sm)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Theme.Colors.border))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -190,23 +197,25 @@ private struct ChatMessageView: View, @MainActor Equatable {
     }
 
     var body: some View {
-        HStack {
-            if message.role == .user { Spacer(minLength: metrics.spacing.xxl) }
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: metrics.spacing.xxs) {
-                content
-                if message.state != .streaming { footer }
-            }
-            .contentShape(Rectangle())
-            .onHover { isHovered in
-                if isHovered {
-                    withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) {
-                        hovered = true
-                    }
-                } else {
-                    hovered = false
+        WithPerceptionTracking {
+            HStack {
+                if message.role == .user { Spacer(minLength: metrics.spacing.xxl) }
+                VStack(alignment: message.role == .user ? .trailing : .leading, spacing: metrics.spacing.xxs) {
+                    content
+                    if message.state != .streaming { footer }
                 }
+                .contentShape(Rectangle())
+                .onHover { isHovered in
+                    if isHovered {
+                        withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) {
+                            hovered = true
+                        }
+                    } else {
+                        hovered = false
+                    }
+                }
+                if message.role == .assistant { Spacer(minLength: metrics.spacing.xxl) }
             }
-            if message.role == .assistant { Spacer(minLength: metrics.spacing.xxl) }
         }
     }
 
@@ -332,17 +341,19 @@ private struct ChatSourcesView: View {
     let references: [ChatReference]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            Text("Sources")
-                .font(metrics.typography.rowTrailing.weight(.semibold))
-                .foregroundStyle(Theme.Colors.textTertiary)
-            ChatFlowLayout(spacing: metrics.spacing.sm) {
-                ForEach(Array(references.enumerated()), id: \.element) { index, reference in
-                    ChatSourceChip(index: index + 1, reference: reference)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                Text("Sources")
+                    .font(metrics.typography.rowTrailing.weight(.semibold))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                ChatFlowLayout(spacing: metrics.spacing.sm) {
+                    ForEach(Array(references.enumerated()), id: \.element) { index, reference in
+                        ChatSourceChip(index: index + 1, reference: reference)
+                    }
                 }
             }
+            .padding(.top, metrics.spacing.xs)
         }
-        .padding(.top, metrics.spacing.xs)
     }
 }
 
@@ -352,31 +363,33 @@ private struct ChatSourceChip: View {
     let reference: ChatReference
 
     var body: some View {
-        Button {
-            NSWorkspace.shared.open(reference.url)
-        } label: {
-            HStack(spacing: metrics.spacing.xs) {
-                Text("\(index)")
-                    .font(metrics.typography.keyCap)
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.Colors.textTertiary)
-                Text(reference.title)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: Theme.Size.chatSourceTitle, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
-                if reference.title != reference.host {
-                    Text(reference.host)
+        WithPerceptionTracking {
+            Button {
+                NSWorkspace.shared.open(reference.url)
+            } label: {
+                HStack(spacing: metrics.spacing.xs) {
+                    Text("\(index)")
+                        .font(metrics.typography.keyCap)
+                        .monospacedDigit()
                         .foregroundStyle(Theme.Colors.textTertiary)
+                    Text(reference.title)
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: Theme.Size.chatSourceTitle, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
+                    if reference.title != reference.host {
+                        Text(reference.host)
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                            .lineLimit(1)
+                    }
                 }
+                .font(metrics.typography.rowTrailing)
+                .padding(.horizontal, metrics.spacing.xs)
             }
-            .font(metrics.typography.rowTrailing)
-            .padding(.horizontal, metrics.spacing.xs)
+            .buttonStyle(.bordered)
+            .help(reference.url.absoluteString)
+            .accessibilityLabel("Source \(index): \(reference.title), \(reference.host)")
         }
-        .buttonStyle(.glass)
-        .help(reference.url.absoluteString)
-        .accessibilityLabel("Source \(index): \(reference.title), \(reference.host)")
     }
 }
 
@@ -385,16 +398,18 @@ private struct RegenerateButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: "arrow.clockwise")
-                .font(metrics.typography.keyCap)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .frame(width: metrics.size.chatMessageAction, height: metrics.size.chatMessageAction)
-                .contentShape(Rectangle())
+        WithPerceptionTracking {
+            Button(action: action) {
+                Image(systemName: "arrow.clockwise")
+                    .font(metrics.typography.keyCap)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .frame(width: metrics.size.chatMessageAction, height: metrics.size.chatMessageAction)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Regenerate Response")
+            .accessibilityLabel("Regenerate Response")
         }
-        .buttonStyle(.plain)
-        .help("Regenerate Response")
-        .accessibilityLabel("Regenerate Response")
     }
 }
 
@@ -423,42 +438,44 @@ private struct ChatReasoningBlock: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            Button {
-                withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: metrics.spacing.xs) {
-                    if isThinking {
-                        ProgressView().controlSize(.mini)
-                    } else {
-                        Image(systemName: "brain")
-                            .symbolRenderingMode(.hierarchical)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                Button {
+                    withAnimation(.easeOut(duration: Theme.Duration.chatFooter)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: metrics.spacing.xs) {
+                        if isThinking {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "brain")
+                                .symbolRenderingMode(.hierarchical)
+                        }
+                        Text(title)
+                        Image(systemName: "chevron.right")
+                            .font(metrics.typography.keyCap)
+                            .rotationEffect(.degrees(isOpen ? 90 : 0))
                     }
-                    Text(title)
-                    Image(systemName: "chevron.right")
-                        .font(metrics.typography.keyCap)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
-                }
-                .font(metrics.typography.rowTrailing)
-                .foregroundStyle(Theme.Colors.textSecondary)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isOpen ? "Hide reasoning" : "Show reasoning")
-            if isOpen {
-                Text(highlight?.attributed(block.text, leaf: path) ?? AttributedString(block.text))
-                    .findAnchor(highlight, leaf: path)
                     .font(metrics.typography.rowTrailing)
                     .foregroundStyle(Theme.Colors.textSecondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, metrics.spacing.md)
-                    .overlay(alignment: .leading) {
-                        Rectangle()
-                            .fill(Theme.Colors.border)
-                            .frame(width: metrics.size.markdownQuoteBar)
-                    }
-                    .transition(.opacity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isOpen ? "Hide reasoning" : "Show reasoning")
+                if isOpen {
+                    Text(highlight?.attributed(block.text, leaf: path) ?? AttributedString(block.text))
+                        .findAnchor(highlight, leaf: path)
+                        .font(metrics.typography.rowTrailing)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, metrics.spacing.md)
+                        .overlay(alignment: .leading) {
+                            Rectangle()
+                                .fill(Theme.Colors.border)
+                                .frame(width: metrics.size.markdownQuoteBar)
+                        }
+                        .transition(.opacity)
+                }
             }
         }
     }
@@ -472,19 +489,21 @@ private struct ChatDocumentChip: View {
     private var isPDF: Bool { document.mimeType == AIAttachmentPolicy.pdfMIMEType }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.xs) {
-            Image(systemName: isPDF ? "doc.richtext" : "doc.plaintext")
-                .font(metrics.typography.chip)
-                .symbolRenderingMode(.hierarchical)
-            Text(document.name)
-                .font(metrics.typography.chip)
-                .lineLimit(1)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.xs) {
+                Image(systemName: isPDF ? "doc.richtext" : "doc.plaintext")
+                    .font(metrics.typography.chip)
+                    .symbolRenderingMode(.hierarchical)
+                Text(document.name)
+                    .font(metrics.typography.chip)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .padding(.horizontal, metrics.spacing.sm)
+            .padding(.vertical, metrics.spacing.xxs)
+            .background(Capsule().fill(Theme.Colors.controlSurface))
+            .accessibilityLabel("Attached file \(document.name)")
         }
-        .foregroundStyle(Theme.Colors.textSecondary)
-        .padding(.horizontal, metrics.spacing.sm)
-        .padding(.vertical, metrics.spacing.xxs)
-        .background(Capsule().fill(Theme.Colors.controlSurface))
-        .accessibilityLabel("Attached file \(document.name)")
     }
 }
 
@@ -496,18 +515,20 @@ struct ChatImageThumbnail: View {
     @State private var decoded: NSImage?
 
     var body: some View {
-        Group {
-            if let decoded {
-                Image(nsImage: decoded)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                Color.clear
+        WithPerceptionTracking {
+            Group {
+                if let decoded {
+                    Image(nsImage: decoded)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    Color.clear
+                }
             }
+            .frame(width: edge, height: edge)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
+            .task(id: image) { decoded = NSImage(data: image.data) }
         }
-        .frame(width: edge, height: edge)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
-        .task(id: image) { decoded = NSImage(data: image.data) }
     }
 }
 
@@ -519,56 +540,58 @@ private struct ChatToolRun: View {
     @State private var isExpanded = false
 
     var body: some View {
-        if uses.count == 1, let use = uses.first {
-            ChatToolRow(use: use)
-        } else {
-            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-                if let running = uses.runningCall {
-                    ChatToolRow(use: running)
-                } else {
-                    Button {
-                        isExpanded.toggle()
-                    } label: {
-                        HStack(spacing: metrics.spacing.sm) {
-                            Image(
-                                systemName: uses.failedCount > 0
-                                    ? "exclamationmark.triangle" : "wrench.and.screwdriver"
-                            )
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(
-                                uses.failedCount > 0
-                                    ? Theme.Colors.destructive : Theme.Colors.textSecondary)
-                            Text(uses.completedLabel)
-                                .lineLimit(1)
-                            Image(systemName: "chevron.down")
-                                .font(metrics.typography.disclosure)
-                                .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                                .animation(
-                                    reduceMotion ? nil : Theme.MenuMotion.chevronAnimation,
-                                    value: isExpanded)
-                        }
-                        .font(metrics.typography.rowTrailing)
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(uses.completedLabel)
-                    .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-                    if isExpanded {
-                        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-                            ForEach(uses, id: \.callID) { use in
-                                ChatToolRow(use: use)
+        WithPerceptionTracking {
+            if uses.count == 1, let use = uses.first {
+                ChatToolRow(use: use)
+            } else {
+                VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                    if let running = uses.runningCall {
+                        ChatToolRow(use: running)
+                    } else {
+                        Button {
+                            isExpanded.toggle()
+                        } label: {
+                            HStack(spacing: metrics.spacing.sm) {
+                                Image(
+                                    systemName: uses.failedCount > 0
+                                        ? "exclamationmark.triangle" : "wrench.and.screwdriver"
+                                )
+                                .symbolRenderingMode(.hierarchical)
+                                .foregroundStyle(
+                                    uses.failedCount > 0
+                                        ? Theme.Colors.destructive : Theme.Colors.textSecondary)
+                                Text(uses.completedLabel)
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.down")
+                                    .font(metrics.typography.disclosure)
+                                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                                    .animation(
+                                        reduceMotion ? nil : Theme.MenuMotion.chevronAnimation,
+                                        value: isExpanded)
                             }
+                            .font(metrics.typography.rowTrailing)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.leading, metrics.spacing.xxl)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(uses.completedLabel)
+                        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                        if isExpanded {
+                            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                                ForEach(uses, id: \.callID) { use in
+                                    ChatToolRow(use: use)
+                                }
+                            }
+                            .padding(.leading, metrics.spacing.xxl)
+                        }
                     }
                 }
+                .animation(
+                    reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses
+                )
+                .animation(
+                    reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
             }
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses
-            )
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
         }
     }
 }
@@ -579,22 +602,24 @@ private struct ChatToolRow: View {
     let use: ChatToolUse
 
     var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            switch use.state {
-            case .running:
-                ProgressView().controlSize(.small)
-            case .completed:
-                glyph("wrench.and.screwdriver")
-            case .failed:
-                glyph("exclamationmark.triangle")
-                    .foregroundStyle(Theme.Colors.destructive)
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.sm) {
+                switch use.state {
+                case .running:
+                    ProgressView().controlSize(.small)
+                case .completed:
+                    glyph("wrench.and.screwdriver")
+                case .failed:
+                    glyph("exclamationmark.triangle")
+                        .foregroundStyle(Theme.Colors.destructive)
+                }
+                Text(use.label)
+                    .font(metrics.typography.rowTrailing)
+                    .lineLimit(1)
             }
-            Text(use.label)
-                .font(metrics.typography.rowTrailing)
-                .lineLimit(1)
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .animation(.easeOut(duration: Theme.Duration.chatFooter), value: use.state)
         }
-        .foregroundStyle(Theme.Colors.textSecondary)
-        .animation(.easeOut(duration: Theme.Duration.chatFooter), value: use.state)
     }
 
     /// Sized by the row's own font, like the search row beside it, not by a symbol point size.
@@ -611,24 +636,26 @@ private struct ChatSearchRow: View {
     let search: ChatSearch
 
     var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            if search.isComplete {
-                Image(systemName: "globe")
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.sm) {
+                if search.isComplete {
+                    Image(systemName: "globe")
+                        .font(metrics.typography.rowTrailing)
+                        .symbolRenderingMode(.hierarchical)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+                Text(search.isComplete ? "Searched web" : "Searching web")
                     .font(metrics.typography.rowTrailing)
-                    .symbolRenderingMode(.hierarchical)
-            } else {
-                ProgressView().controlSize(.small)
+                if let query = search.query, !query.isEmpty {
+                    Text("· \(query)")
+                        .font(metrics.typography.rowTrailing)
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .lineLimit(1)
+                }
             }
-            Text(search.isComplete ? "Searched web" : "Searching web")
-                .font(metrics.typography.rowTrailing)
-            if let query = search.query, !query.isEmpty {
-                Text("· \(query)")
-                    .font(metrics.typography.rowTrailing)
-                    .foregroundStyle(Theme.Colors.textTertiary)
-                    .lineLimit(1)
-            }
+            .foregroundStyle(Theme.Colors.textSecondary)
+            .animation(.easeOut(duration: Theme.Duration.chatFooter), value: search.isComplete)
         }
-        .foregroundStyle(Theme.Colors.textSecondary)
-        .animation(.easeOut(duration: Theme.Duration.chatFooter), value: search.isComplete)
     }
 }

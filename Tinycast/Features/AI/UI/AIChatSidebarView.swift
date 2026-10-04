@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// Every saved conversation, pinned first and then by day; selecting one opens it on the right.
 struct AIChatSidebarView: View {
@@ -36,15 +37,18 @@ struct AIChatSidebarView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ChatSearchField(query: $query, focused: $searchFocused)
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.bottom, Theme.Spacing.md)
-            list
+        WithPerceptionTracking {
+            VStack(spacing: 0) {
+                SidebarSearchField(
+                    query: $query, focused: $searchFocused, accessibilityLabel: "Search chats")
+                    .padding(.horizontal, Theme.Spacing.lg)
+                    .padding(.bottom, Theme.Spacing.md)
+                list
+            }
+            // The field sits under the toolbar's material, so it needs its own clearance from the top.
+            .padding(.top, Theme.Spacing.md)
+            .onExitCommand { query = "" }
         }
-        // The field sits under the toolbar's material, so it needs its own clearance from the top.
-        .padding(.top, Theme.Spacing.md)
-        .onExitCommand { query = "" }
     }
 
     @ViewBuilder private var list: some View {
@@ -55,22 +59,26 @@ struct AIChatSidebarView: View {
             emptyState.frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: selection) {
-                ForEach(sections) { section in
-                    Section(section.title) {
-                        ForEach(section.conversations) { conversation in
-                            row(
-                                conversation, isAnswering: answering.contains(conversation.id),
-                                isSelected: conversation.id == openID
-                            )
-                            .tag(conversation.id)
+                WithPerceptionTracking {
+                    ForEach(sections) { section in
+                        Section(section.title) {
+                            ForEach(section.conversations) { conversation in
+                                row(
+                                    conversation, isAnswering: answering.contains(conversation.id),
+                                    isSelected: conversation.id == openID
+                                )
+                                .tag(conversation.id)
+                            }
                         }
                     }
                 }
             }
             .listStyle(.sidebar)
             .contextMenu(forSelectionType: UUID.self) { ids in
-                if let id = ids.first, let conversation = history.conversation(id: id) {
-                    menu(for: conversation)
+                WithPerceptionTracking {
+                    if let id = ids.first, let conversation = history.conversation(id: id) {
+                        menu(for: conversation)
+                    }
                 }
             }
             .onDeleteCommand {
@@ -83,15 +91,15 @@ struct AIChatSidebarView: View {
 
     @ViewBuilder private var emptyState: some View {
         if !history.isAvailable {
-            ContentUnavailableView(
-                "History Unavailable", systemImage: "exclamationmark.triangle",
-                description: Text("Chats can't be saved on this Mac right now."))
+            EmptyStateView(
+                title: "History Unavailable", systemImage: "exclamationmark.triangle",
+                description: "Chats can't be saved on this Mac right now.")
         } else if !query.isEmpty {
-            ContentUnavailableView.search(text: query)
+            EmptyStateView.search(text: query)
         } else {
-            ContentUnavailableView(
-                "No Chats Yet", systemImage: "bubble.left.and.bubble.right",
-                description: Text("Conversations stay on this Mac."))
+            EmptyStateView(
+                title: "No Chats Yet", systemImage: "bubble.left.and.bubble.right",
+                description: "Conversations stay on this Mac.")
         }
     }
 
@@ -104,7 +112,7 @@ struct AIChatSidebarView: View {
                 .focused($renameFocused)
                 .onSubmit { commitRename(conversation.id) }
                 .onExitCommand { renaming = nil }
-                .onChange(of: renameFocused) { _, focused in
+                .onValueChange(of: renameFocused) { _, focused in
                     if !focused { commitRename(conversation.id) }
                 }
         } else {
@@ -168,29 +176,31 @@ private struct ChatSidebarRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Text(conversation.displayTitle)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 0)
-            if isAnswering {
-                ProgressView()
-                    .controlSize(.mini)
-                    .accessibilityLabel("Answering")
-            } else if conversation.isPinned {
-                Image(systemName: "pin.fill")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityLabel("Pinned")
+        WithPerceptionTracking {
+            HStack(spacing: Theme.Spacing.sm) {
+                Text(conversation.displayTitle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+                if isAnswering {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .accessibilityLabel("Answering")
+                } else if conversation.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .accessibilityLabel("Pinned")
+                }
             }
+            // The whole cell, so the pointer never crosses a gap where no row is hovered.
+            .frame(maxHeight: .infinity)
+            .listRowInsets(EdgeInsets())
+            .contentShape(.rect)
+            .onHover { isHovered = $0 }
+            .listRowBackground(hoverFill)
+            .help(conversation.displayTitle)
         }
-        // The whole cell, so the pointer never crosses a gap where no row is hovered.
-        .frame(maxHeight: .infinity)
-        .listRowInsets(EdgeInsets())
-        .contentShape(.rect)
-        .onHover { isHovered = $0 }
-        .listRowBackground(hoverFill)
-        .help(conversation.displayTitle)
     }
 
     /// Inset and rounded as the system's selection is, so the two read as one shape.
@@ -200,39 +210,5 @@ private struct ChatSidebarRow: View {
                 .fill(Theme.Colors.rowHover)
                 .padding(.horizontal, Theme.Spacing.lg)
         }
-    }
-}
-
-/// The sidebar's search field, drawn the way Settings' own is so the two windows match.
-private struct ChatSearchField: View {
-    @Binding var query: String
-    @FocusState.Binding var focused: Bool
-
-    var body: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("", text: $query, prompt: Text("Search"))
-                .textFieldStyle(.plain)
-                .labelsHidden()
-                .focused($focused)
-                .pointerStyle(.horizontalText)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.lg)
-        .frame(height: Theme.Size.aiChatSearchField)
-        .background { Color.clear.frosted(in: Capsule()) }
-        .contentShape(.rect)
-        .onTapGesture { focused = true }
-        .accessibilityLabel("Search chats")
     }
 }

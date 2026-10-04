@@ -52,13 +52,6 @@ struct SettingsBackupTest {
         check(
             "user ignore patterns ride the settings backup",
             mirrored["fileSearchIgnorePatterns"] == .fileSearchIgnorePatterns)
-        check("notes enablement rides the settings backup", mirrored["notesEnabled"] == .notesEnabled)
-        check(
-            "Markdown rendering rides the settings backup",
-            mirrored["notesRendersMarkdown"] == .notesRendersMarkdown)
-        check(
-            "the formatting bar rides the settings backup",
-            mirrored["notesShowsFormattingBar"] == .notesShowsFormattingBar)
         check(
             "clipboard enablement rides the settings backup",
             mirrored["clipboardEnabled"] == .clipboardEnabled)
@@ -68,8 +61,7 @@ struct SettingsBackupTest {
 
         // Named one by one: a backup now carries content, so it is far likelier to be sent on.
         for key: AppSettingsKey in [
-            .snippetsEnabled, .extensionsEnabled, .calendarEnabled, .autoJoinMeetings,
-            .cameraPreview, .quickActionsEnabled
+            .extensionsEnabled, .calendarEnabled, .autoJoinMeetings, .quickActionsEnabled
         ] {
             check(
                 "\(key.rawValue) stays out of a backup",
@@ -84,14 +76,6 @@ struct SettingsBackupTest {
         check(
             naming("every exclusion carries a real reason", Array(emptyReasons)),
             emptyReasons.isEmpty)
-
-        // The privacy property this whole harness exists to protect.
-        check(
-            "snippetsEnabled stays out of a backup",
-            excluded[AppSettingsKey.snippetsEnabled.rawValue] != nil)
-        check(
-            "snippetsEnabled is not backed up under another field",
-            !mirroredKeys.contains(AppSettingsKey.snippetsEnabled.rawValue))
 
         let claimedTwice = external.keys.filter { mirrored[$0] != nil }
         check(

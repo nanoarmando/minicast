@@ -1,4 +1,5 @@
 import SwiftUI
+import Perception
 
 /// The file, by whichever surface suits it. Shared by the preview pane and the ⌘Y overlay.
 struct FileSearchSurface: View {
@@ -17,7 +18,9 @@ struct FileSearchSurface: View {
     private nonisolated static let headLimit = 256 * 1024
 
     var body: some View {
-        surface.task(id: url) { await sniff() }
+        WithPerceptionTracking {
+            surface.task(id: url) { await sniff() }
+        }
     }
 
     @ViewBuilder private var surface: some View {

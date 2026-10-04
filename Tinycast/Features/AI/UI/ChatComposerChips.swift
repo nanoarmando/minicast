@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// The MCP `@server` pill: its glyph alone, since the handle it confirms is already in the text.
 struct ComposerChip: View {
@@ -13,16 +14,18 @@ struct ComposerChip: View {
     }
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(metrics.typography.chip)
-            .symbolRenderingMode(.hierarchical)
-            .frame(width: metrics.size.chatAttachmentGlyph)
-            .foregroundStyle(Theme.Colors.textSecondary)
-            .padding(.horizontal, metrics.spacing.sm)
-            .padding(.vertical, metrics.spacing.xxs)
-            .background(Capsule().fill(Theme.Colors.controlSurface))
-            .tooltip("Offers only \(label)'s tools", edge: .bottom)
-            .accessibilityLabel("Addressed to \(label)")
+        WithPerceptionTracking {
+            Image(systemName: symbol)
+                .font(metrics.typography.chip)
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: metrics.size.chatAttachmentGlyph)
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .padding(.horizontal, metrics.spacing.sm)
+                .padding(.vertical, metrics.spacing.xxs)
+                .background(Capsule().fill(Theme.Colors.controlSurface))
+                .tooltip("Offers only \(label)'s tools", edge: .bottom)
+                .accessibilityLabel("Addressed to \(label)")
+        }
     }
 }
 
@@ -44,35 +47,37 @@ struct AttachmentChip: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            leading
-            Text(Self.shortened(attachment.name))
-                .font(metrics.typography.chip)
-                .lineLimit(1)
-                .foregroundStyle(Theme.Colors.textSecondary)
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .semibold))
-                    .frame(
-                        width: metrics.size.chatAttachmentRemove,
-                        height: metrics.size.chatAttachmentRemove
-                    )
-                    .foregroundStyle(hovered ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
-                    .contentShape(Rectangle())
+        WithPerceptionTracking {
+            HStack(spacing: metrics.spacing.sm) {
+                leading
+                Text(Self.shortened(attachment.name))
+                    .font(metrics.typography.chip)
+                    .lineLimit(1)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .frame(
+                            width: metrics.size.chatAttachmentRemove,
+                            height: metrics.size.chatAttachmentRemove
+                        )
+                        .foregroundStyle(hovered ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Remove \(attachment.name)")
             }
-            .buttonStyle(.plain)
-            .help("Remove \(attachment.name)")
+            // Inset under the inner gap, so the thumbnail reads as filling the pill.
+            .padding(.horizontal, metrics.size.chatAttachmentInset)
+            .padding(.vertical, metrics.size.chatAttachmentInset)
+            .background(
+                RoundedRectangle(cornerRadius: metrics.radius.attachmentChip, style: .continuous)
+                    .fill(Theme.Colors.controlSurface)
+            )
+            .onHover { hovered = $0 }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Attached \(attachment.name)")
         }
-        // Inset under the inner gap, so the thumbnail reads as filling the pill.
-        .padding(.horizontal, metrics.size.chatAttachmentInset)
-        .padding(.vertical, metrics.size.chatAttachmentInset)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.attachmentChip, style: .continuous)
-                .fill(Theme.Colors.controlSurface)
-        )
-        .onHover { hovered = $0 }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Attached \(attachment.name)")
     }
 
     @ViewBuilder private var leading: some View {
@@ -100,17 +105,19 @@ private struct ComposerThumbnail: View {
     @State private var image: NSImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image).resizable().scaledToFill()
-            } else {
-                Image(systemName: "photo")
-                    .font(metrics.typography.chip)
-                    .symbolRenderingMode(.hierarchical)
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    Image(nsImage: image).resizable().scaledToFill()
+                } else {
+                    Image(systemName: "photo")
+                        .font(metrics.typography.chip)
+                        .symbolRenderingMode(.hierarchical)
+                }
             }
+            .frame(width: metrics.size.chatAttachmentThumb, height: metrics.size.chatAttachmentThumb)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
+            .task(id: id) { image = data.flatMap(NSImage.init(data:)) }
         }
-        .frame(width: metrics.size.chatAttachmentThumb, height: metrics.size.chatAttachmentThumb)
-        .clipShape(RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
-        .task(id: id) { image = data.flatMap(NSImage.init(data:)) }
     }
 }

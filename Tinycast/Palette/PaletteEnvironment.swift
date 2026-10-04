@@ -1,11 +1,14 @@
 import SwiftUI
+import Perception
 
 /// A stored environment value would freeze at panel-build time; a body re-reads under Observation.
 private struct InterfaceMetricsScope: ViewModifier {
     let settings: AppSettings
 
     func body(content: Content) -> some View {
-        content.environment(\.metrics, settings.interfaceSize.metrics)
+        WithPerceptionTracking {
+            content.environment(\.metrics, settings.interfaceSize.metrics)
+        }
     }
 }
 
@@ -29,13 +32,9 @@ extension View {
             .environment(core.frequentEmoji)
             .environment(core.fileSearch)
             .environment(core.dictionary)
-            .environment(core.menuSearch)
-            .environment(core.windowSwitch)
             .environment(core.runningApps)
             .environment(core.hotKeys)
             .environment(core.uninstall)
-            .environment(core.quicklinks)
-            .environment(core.snippetsStore)
             .environment(core.extensions)
             .environment(core.calendarStore)
             .environment(core.meetingClock)

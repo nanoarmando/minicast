@@ -19,14 +19,9 @@ enum RaycastImportReader {
         let (clipboard, missing) = RaycastClipboardImport.parse(
             json["clipboardHistory"], now: Date.init,
             fileExists: { FileManager.default.fileExists(atPath: $0) })
-        let snippets = RaycastSnippetImport.parse(
-            (json["snippets"] as? [String: Any])?["snippets"])
-        let quicklinks = RaycastQuicklinkImport.parse(json["quicklinks"])
         return RaycastImport.Result(
             backup: backup,
             clipboard: clipboard,
-            snippets: snippets,
-            quicklinks: quicklinks,
             missingImages: missing)
     }
 

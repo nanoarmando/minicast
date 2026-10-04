@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 struct ClipboardList: View {
 
@@ -51,46 +52,50 @@ struct ClipboardList: View {
     }
 
     var body: some View {
-        let rows = rows
-        return ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(rows) { row in
-                        switch row {
-                        case .header(let title):
-                            SectionHeader(title: title, isFirst: row.id == rows.first?.id)
-                        case .item(let item, let slot):
-                            ClipboardRow(
-                                item: item, selected: item.id == selectedID,
-                                imageURL: store.imageURL(for: item), slot: slot
-                            )
-                            .selectionFrame(item.id == selectedID)
-                            .contentShape(Rectangle())
-                            // The light catcher: `.contextMenu` stalls.
-                            .onRightClick { onActions(item) }
-                            .onRowClick(
-                                select: { onSelect(item) },
-                                activate: {
-                                    onSelect(item)
-                                    onActivate()
-                                },
-                                drag: RowDrag(
-                                    item: { onDragPayload(item)?.dragItem }, dropped: onDropped)
-                            )
+        WithPerceptionTracking {
+            let rows = rows
+            return ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        WithPerceptionTracking {
+                            ForEach(rows) { row in
+                                switch row {
+                                case .header(let title):
+                                    SectionHeader(title: title, isFirst: row.id == rows.first?.id)
+                                case .item(let item, let slot):
+                                    ClipboardRow(
+                                        item: item, selected: item.id == selectedID,
+                                        imageURL: store.imageURL(for: item), slot: slot
+                                    )
+                                    .selectionFrame(item.id == selectedID)
+                                    .contentShape(Rectangle())
+                                    // The light catcher: `.contextMenu` stalls.
+                                    .onRightClick { onActions(item) }
+                                    .onRowClick(
+                                        select: { onSelect(item) },
+                                        activate: {
+                                            onSelect(item)
+                                            onActivate()
+                                        },
+                                        drag: RowDrag(
+                                            item: { onDragPayload(item)?.dragItem }, dropped: onDropped)
+                                    )
+                                }
+                            }
                         }
                     }
+                    .padding(.horizontal, metrics.spacing.md)
+                    .padding(.top, metrics.spacing.xs)
+                    .padding(.bottom, metrics.spacing.md)
+                    .hideNativeScrollers()
+                    .scrollOriginAnchor()
                 }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.top, metrics.spacing.xs)
-                .padding(.bottom, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
+                .edgeDissolve()
+                .thinScrollbar()
+                // Snap to the origin on the first row so its section header shows too.
+                .scrollFollowsSelection(
+                    scroll, row: selectedID?.uuidString, atOrigin: firstRowSelected, proxy: proxy)
             }
-            .edgeDissolve()
-            .thinScrollbar()
-            // Snap to the origin on the first row so its section header shows too.
-            .scrollFollowsSelection(
-                scroll, row: selectedID?.uuidString, atOrigin: firstRowSelected, proxy: proxy)
         }
     }
 }
@@ -143,29 +148,31 @@ private struct ClipboardRow: View {
     }
 
     var body: some View {
-        IconCache.observeStyle()
-        return HStack(spacing: metrics.spacing.lg) {
-            thumbnail(item.colorValue)
-                .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
-            Text(previewText)
-                .font(metrics.typography.menuRow)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 0)
-            if let slot, palette.commandHeld {
-                HStack(spacing: metrics.spacing.xxs) {
-                    KeyCapChip(text: "⌘", style: .outline)
-                    KeyCapChip(text: String(slot), style: .outline)
+        WithPerceptionTracking {
+            IconCache.observeStyle()
+            return HStack(spacing: metrics.spacing.lg) {
+                thumbnail(item.colorValue)
+                    .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
+                Text(previewText)
+                    .font(metrics.typography.menuRow)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: 0)
+                if let slot, palette.commandHeld {
+                    HStack(spacing: metrics.spacing.xxs) {
+                        KeyCapChip(text: "⌘", style: .outline)
+                        KeyCapChip(text: String(slot), style: .outline)
+                    }
                 }
             }
+            .padding(.horizontal, metrics.spacing.md)
+            .padding(.vertical, metrics.spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
+                    .fill(fill)
+            )
+            .armedHover($hovered)
         }
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
-                .fill(fill)
-        )
-        .armedHover($hovered)
     }
 
     private var previewText: String {
@@ -262,24 +269,26 @@ private struct AsyncThumbnail<Content: View, Placeholder: View>: View {
     @State private var image: NSImage?
 
     var body: some View {
-        Group {
-            if let image {
-                content(Image(nsImage: image))
-            } else {
-                placeholder()
+        WithPerceptionTracking {
+            Group {
+                if let image {
+                    content(Image(nsImage: image))
+                } else {
+                    placeholder()
+                }
             }
-        }
-        .task(id: url) {
-            guard let url else {
-                image = nil
-                return
+            .task(id: url) {
+                guard let url else {
+                    image = nil
+                    return
+                }
+                if let hit = source.cached(url, maxPixel: maxPixel) {
+                    image = hit
+                    return
+                }
+                image = nil  // show the placeholder while a new image decodes
+                image = await source.loadAsync(url, maxPixel: maxPixel)
             }
-            if let hit = source.cached(url, maxPixel: maxPixel) {
-                image = hit
-                return
-            }
-            image = nil  // show the placeholder while a new image decodes
-            image = await source.loadAsync(url, maxPixel: maxPixel)
         }
     }
 }
@@ -291,15 +300,17 @@ struct ClipboardPreview: View {
     @Environment(ClipboardStore.self) private var store
 
     var body: some View {
-        if let item {
-            VStack(alignment: .leading, spacing: 0) {
-                content(for: item)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                ClipboardInfoSection(item: item, imageURL: store.imageURL(for: item))
+        WithPerceptionTracking {
+            if let item {
+                VStack(alignment: .leading, spacing: 0) {
+                    content(for: item)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    ClipboardInfoSection(item: item, imageURL: store.imageURL(for: item))
+                }
+                .padding(.horizontal, 12)
+            } else {
+                Color.clear
             }
-            .padding(.horizontal, 12)
-        } else {
-            Color.clear
         }
     }
 
@@ -373,31 +384,33 @@ private struct ClipboardInfoSection: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-            Text("Information")
-                .font(metrics.typography.sectionHeader)
-                .foregroundStyle(.secondary)
-            VStack(spacing: 0) {
-                let rows = self.rows
-                ForEach(rows) { row in
-                    if row.id != rows.first?.id { Divider() }
-                    HStack(spacing: metrics.spacing.sm) {
-                        Text(row.label).foregroundStyle(.secondary)
-                        Spacer(minLength: metrics.spacing.lg)
-                        if let icon = row.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .frame(width: 20, height: 20)
+        WithPerceptionTracking {
+            VStack(alignment: .leading, spacing: metrics.spacing.sm) {
+                Text("Information")
+                    .font(metrics.typography.sectionHeader)
+                    .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    let rows = self.rows
+                    ForEach(rows) { row in
+                        if row.id != rows.first?.id { Divider() }
+                        HStack(spacing: metrics.spacing.sm) {
+                            Text(row.label).foregroundStyle(.secondary)
+                            Spacer(minLength: metrics.spacing.lg)
+                            if let icon = row.icon {
+                                Image(nsImage: icon)
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                            }
+                            Text(row.value).lineLimit(1).truncationMode(.middle)
                         }
-                        Text(row.value).lineLimit(1).truncationMode(.middle)
+                        .font(.callout)
+                        .padding(.vertical, metrics.spacing.sm)
                     }
-                    .font(.callout)
-                    .padding(.vertical, metrics.spacing.sm)
                 }
             }
+            .padding(.top, metrics.spacing.xl)
+            .task(id: item.id) { await loadDetails() }
         }
-        .padding(.top, metrics.spacing.xl)
-        .task(id: item.id) { await loadDetails() }
     }
 
     private var rows: [InfoRow] {

@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Perception
 
 /// One stack per Settings window: bindings own presentation state, this owns only AppKit edges.
 @MainActor
@@ -23,26 +24,28 @@ final class SettingsEditorPresenter: NSObject {
         @State private var presentationID = UUID()
 
         func body(content: Content) -> some View {
-            content
-                .onChange(of: isPresented, initial: true) { _, presented in
-                    guard let presenter else { return }
-                    if presented {
-                        let binding = $isPresented
-                        presenter.present(
-                            id: presentationID,
-                            onDismiss: {
-                                binding.wrappedValue = false
+            WithPerceptionTracking {
+                content
+                    .onValueChange(of: isPresented, initial: true) { _, presented in
+                        guard let presenter else { return }
+                        if presented {
+                            let binding = $isPresented
+                            presenter.present(
+                                id: presentationID,
+                                onDismiss: {
+                                    binding.wrappedValue = false
+                                }
+                            ) {
+                                panelContent()
                             }
-                        ) {
-                            panelContent()
+                        } else {
+                            presenter.dismiss(id: presentationID, notifying: false)
                         }
-                    } else {
-                        presenter.dismiss(id: presentationID, notifying: false)
                     }
-                }
-                .onDisappear {
-                    presenter?.dismiss(id: presentationID)
-                }
+                    .onDisappear {
+                        presenter?.dismiss(id: presentationID)
+                    }
+            }
         }
     }
 
@@ -53,26 +56,28 @@ final class SettingsEditorPresenter: NSObject {
         @State private var presentationID = UUID()
 
         func body(content: Content) -> some View {
-            content
-                .onChange(of: item?.id, initial: true) { _, _ in
-                    guard let presenter else { return }
-                    presenter.dismiss(id: presentationID, notifying: false)
-                    guard let presentedItem = item else { return }
-                    let binding = $item
-                    let itemID = presentedItem.id
-                    presenter.present(
-                        id: presentationID,
-                        onDismiss: {
-                            guard binding.wrappedValue?.id == itemID else { return }
-                            binding.wrappedValue = nil
+            WithPerceptionTracking {
+                content
+                    .onValueChange(of: item?.id, initial: true) { _, _ in
+                        guard let presenter else { return }
+                        presenter.dismiss(id: presentationID, notifying: false)
+                        guard let presentedItem = item else { return }
+                        let binding = $item
+                        let itemID = presentedItem.id
+                        presenter.present(
+                            id: presentationID,
+                            onDismiss: {
+                                guard binding.wrappedValue?.id == itemID else { return }
+                                binding.wrappedValue = nil
+                            }
+                        ) {
+                            panelContent(presentedItem)
                         }
-                    ) {
-                        panelContent(presentedItem)
                     }
-                }
-                .onDisappear {
-                    presenter?.dismiss(id: presentationID)
-                }
+                    .onDisappear {
+                        presenter?.dismiss(id: presentationID)
+                    }
+            }
         }
     }
 
@@ -409,15 +414,12 @@ extension View {
             .environment(navigation)
             .environment(core)
             .environment(core.settings)
-            .environment(core.dictationCoordinator)
             .environment(core.appIndex)
             .environment(core.hotKeys)
             .environment(core.visibility)
             .environment(core.aliases)
             .environment(core.fallbacks)
             .environment(core.customCommands)
-            .environment(core.snippetsStore)
-            .environment(core.quicklinks)
             .environment(core.windowLayouts)
             .environment(core.rooms)
             .environment(core.roomCoordinator)
