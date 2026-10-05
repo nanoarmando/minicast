@@ -91,7 +91,8 @@ driven imperatively from AppKit. Extension menu extras are dynamic `NSStatusItem
 - **Settings** — a titled `NSWindow` through `Windows/AppWindowController.swift`, owned by
   `SettingsCoordinator`. SwiftUI `Settings` and `Window` scenes are unreliable for accessory apps, so
   this is deliberate. Its lifecycle is independent of the palette's in both directions. About is a
-  Settings pane (`Windows/About/AboutView.swift`), not a window of its own.
+  Settings pane (`Windows/About/AboutView.swift`), not a window of its own; its Updates section is
+  `UpdateCoordinator`'s. See [features/updates.md](features/updates.md).
 - **AI Chat** — a titled `AppWindowController` window owned by `AIChatCoordinator`: an
   `NSSplitViewController` with a collapsible sidebar of saved chats beside the open conversation, as
   Settings is built. The conversation lives on `AppCore.aiChats`, not the window, so closing it cancels
@@ -181,7 +182,7 @@ Tinycast/
     PaletteRowIndex.swift   the flat selection index — palette-owned, so it sits at the top
     Launcher/ Clipboard/ Calculator/ Calendar/ Emoji/ Dictionary/ FileSearch/ AppleShortcuts/
     Uninstall/ SystemActions/ CustomCommands/ HotKeys/ Backup/ WindowManagement/ AI/ MCP/
-    QuickActions/ TextInjection/ Settings/
+    QuickActions/ TextInjection/ Updates/ Settings/
     Extensions/
         Model/      pure — the harness inputs
         Service/    effects — stores, monitors, runners, AppKit glue

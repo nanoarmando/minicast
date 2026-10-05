@@ -57,10 +57,11 @@ system-wide chord, and HIToolbox's TIS APIs remain the public input-source mecha
 - Links: `minicast://`, `raycast://` and `com.raycast://`, never `tinycast://`. Backups export as
   `.minicast` (`com.minicast.backup`) and still import `.tinycast`. Shell commands get `MINICAST=1` and
   `TINYCAST=1`.
-- No self-update code exists; the palette's "Changelog" opens the commit history of
-  `github.com/nanoarmando/minicast` on `main`.
+- Updates come only from `github.com/nanoarmando/minicast` releases, checked when About opens or on
+  request, never in the background; see [updates.md](docs/features/updates.md). The palette's
+  "Changelog" opens the commit history on `main`.
 - Removed and not to be reintroduced without an OpenSpec change: Apple Intelligence provider, Translate
-  quick action, Updates, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
+  quick action, Dictation (and the `DictationHelper` target), Notes, Quicklinks, Camera preview,
   Snippets, Support reminder, Onboarding, WindowSwitcher, MenuSearch (Navigation pane).
 - **Few new features; a feature request is answered with a Raycast extension.** The built-in feature
   set is close to final. Before adding a feature, check whether a Raycast extension can do it — if it

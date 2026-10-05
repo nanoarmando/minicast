@@ -76,6 +76,7 @@ final class AppCore {
     @PerceptionIgnored private(set) lazy var settingsCoordinator = SettingsCoordinator(core: self)
     /// The Import & Export window; the launcher commands and Settings › Backup both open it.
     @PerceptionIgnored private(set) lazy var backupCoordinator = BackupCoordinator(core: self)
+    @PerceptionIgnored private(set) lazy var updateCoordinator = UpdateCoordinator(core: self)
     @PerceptionIgnored private(set) lazy var systemActionCoordinator = SystemActionCoordinator(
         paletteCoordinator: paletteCoordinator, core: self)
     @PerceptionIgnored private(set) lazy var uninstallCoordinator = UninstallCoordinator(
@@ -203,6 +204,7 @@ final class AppCore {
             }
 
             appIndex.start(settings: settings)
+            updateCoordinator.reportFailedSwap()
             clipboardCoordinator.applyEnabled()
             extensions.start(appIndex: appIndex, coordinator: extensionCoordinator)
             extensionCoordinator.applyEnabled()

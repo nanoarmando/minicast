@@ -48,7 +48,9 @@ Now local builds (Xcode, `xcodebuild`, `build-dmg.sh`) sign with it, and you gra
 
 If the identity is lost, create it again with the steps above. Its key is new, so macOS treats the next
 build as a different app: grant Accessibility (and any other permission) once more, and it is stable
-again from then on.
+again from then on. The in-app updater also refuses any release signed by the new identity, because
+it checks downloads against the running app's designated requirement, so install that one version by
+hand.
 
 ## Hardened runtime
 

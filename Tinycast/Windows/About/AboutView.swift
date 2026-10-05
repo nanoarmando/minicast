@@ -3,6 +3,7 @@ import SwiftUI
 import Perception
 
 struct AboutView: View {
+    @Environment(UpdateCoordinator.self) private var updates
 
     private static var version: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -39,6 +40,7 @@ struct AboutView: View {
                             .padding(.vertical, Theme.Spacing.lg)
                     }
                     .settingsAnchor(.aboutAbout)
+                    AboutUpdatesSection()
                     links
                 }
                 .formStyle(.grouped)
@@ -48,6 +50,7 @@ struct AboutView: View {
                 footer
                     .padding(.bottom, Theme.Spacing.xxl)
             }
+            .onAppear { updates.check() }
         }
     }
 

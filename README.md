@@ -16,12 +16,12 @@ All credit for the original app goes to its author. Minicast keeps the AGPL-3.0 
 | Appearance | Liquid Glass | Classic macOS blur materials on every version |
 | Identity | `com.tinycast.app`, "Tinycast" | `com.minicast.app`, "Minicast" |
 | Link scheme | `tinycast://` | `minicast://` |
-| Updates | Self-updates from GitHub releases | No self-update; rebuild from source |
+| Updates | Self-updates from GitHub releases | Updates from its own GitHub releases, on request, from About |
 | Observation | Apple Observation | [swift-perception](https://github.com/pointfreeco/swift-perception) back-port |
 
 **Removed features:** Apple Intelligence as an AI provider, the Translate quick action, Dictation, Notes,
 Quicklinks, the camera preview, Snippets, the Support reminder, Onboarding, the window switcher and menu
-bar search (the Navigation pane), and updates.
+bar search (the Navigation pane).
 
 ## Features
 
@@ -172,6 +172,14 @@ app; if it was transferred through a download, clear the quarantine flag once:
 ```sh
 xattr -dr com.apple.quarantine /Applications/Minicast.app
 ```
+
+### Updating
+
+Open **About** in Settings. Minicast checks the latest release on GitHub and, when a newer version
+exists, shows its notes and an **Update** button. Minicast downloads the DMG, checks that the new app
+is signed with the same certificate as the running one, asks for confirmation, then quits, replaces
+itself and reopens. An update installed this way is not quarantined, so macOS does not ask again.
+Minicast never checks for updates in the background, and the Debug build never offers them.
 
 ## Data and the official Tinycast
 

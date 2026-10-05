@@ -47,12 +47,17 @@ The same DMG runs on the Intel Mac on macOS 13. Copy the app, clear the quaranti
 run the migration on that Mac too (see the README). Because both Macs run the same signed build, a later
 rebuild signed with the same identity keeps the Accessibility grant on each.
 
+Once a Mac runs a version with the updater (0.3.0 or later), later versions install from **About**
+instead: Minicast downloads the DMG itself, so nothing is quarantined. See
+[updates.md](features/updates.md).
+
 ## Publishing a release
 
 1. Set `MARKETING_VERSION` in `project.yml` (and bump `CURRENT_PROJECT_VERSION`), regenerate with
    `./.tools/xcodegen/bin/xcodegen generate`, and commit both.
 2. Run the whole bar in [testing.md](testing.md#definition-of-done), then `./Scripts/build-dmg.sh`.
-3. Tag and publish with the GitHub CLI:
+3. Tag and publish with the GitHub CLI. The updater reads only this tag and asset naming
+   (`minicast-v<version>`, `Minicast-<version>.dmg`), so keep both exactly:
    ```sh
    gh release create minicast-v<version> build/Minicast-<version>.dmg \
        --repo nanoarmando/minicast --title "Minicast <version>" --generate-notes

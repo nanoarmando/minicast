@@ -484,6 +484,7 @@ run ext-refresh-test       $E/Model/ExtensionManifest.swift \
 run ext-metadata-test      $E/Model/ExtensionCommandMetadata.swift \
                            $E/Model/ExtensionMenuBarSnapshot.swift \
                            $E/Service/ExtensionCommandMetadataStore.swift
+run updates-test           Tinycast/Features/Updates/Model/*.swift
 run ext-version-test       $E/Model/ExtensionListing.swift \
                            $E/Service/ExtensionVersionStore.swift
 run ext-store-test         $E/Model/ExtensionGitHubSource.swift \
