@@ -175,3 +175,12 @@ Each item is explained in [testing.md](docs/testing.md#definition-of-done).
   the project-local binary in `.tools/swiftlint/` (not committed); never install it with `brew`.
 - `grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/` returns nothing.
 - Any doc your change made wrong is fixed in the same commit.
+
+## Shipping a version
+
+**A version bump is not done until its GitHub release exists.** Pushing commits is not a release:
+the second Mac installs from GitHub, so a version that only lives in `main` never reaches it. Every
+time `MARKETING_VERSION` changes, follow [release.md](docs/release.md#publishing-a-release) to the
+end: bump `project.yml` and regenerate, build `./Scripts/build-dmg.sh`, commit and push, then
+`gh release create minicast-v<version> build/Minicast-<version>.dmg` on `nanoarmando/minicast`, and
+confirm it is listed as **Latest** with the DMG attached.
