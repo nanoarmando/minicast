@@ -10,14 +10,14 @@ enum SelectionReveal {
     /// Rounding alone must not provoke a scroll, so a row flush with an edge counts as inside.
     private static let tolerance: CGFloat = 0.5
 
-    /// The edge to align the row to, or nil once it sits inside the band and nothing need move.
-    static func edge(rowTop: CGFloat, rowBottom: CGFloat, band: CGFloat) -> Edge? {
+    /// The edge to align the row to, or nil once it sits inside the clear band `top...bottom`.
+    static func edge(rowTop: CGFloat, rowBottom: CGFloat, top: CGFloat, bottom: CGFloat) -> Edge? {
         // A row taller than the band can only ever show its start, so its top is as good as inside.
-        if rowBottom - rowTop >= band {
-            return rowTop < -tolerance || rowTop > tolerance ? .top : nil
+        if rowBottom - rowTop >= bottom - top {
+            return abs(rowTop - top) > tolerance ? .top : nil
         }
-        if rowTop < -tolerance { return .top }
-        if rowBottom > band + tolerance { return .bottom }
+        if rowTop < top - tolerance { return .top }
+        if rowBottom > bottom + tolerance { return .bottom }
         return nil
     }
 }

@@ -1,29 +1,4 @@
-# scroll-edge-effects Specification
-
-## Purpose
-Keeps scrolled content legible under the palette's floating bars and keeps scroll-driven effects working on
-macOS 13 and newer, matching upstream Tinycast behavior.
-## Requirements
-### Requirement: Content dissolves under the floating bars
-In every palette list, rows that scroll under the top search bar or the bottom action bar SHALL fade out as
-they approach the bar, so the bar's text and controls stay readable, on macOS 13 and macOS 27.
-
-#### Scenario: Scrolling the launcher
-- **WHEN** the launcher list is longer than the palette and the user scrolls it
-- **THEN** rows fade near the search bar and near the action bar, and no row text overlaps the bars'
-  text at full opacity
-
-#### Scenario: Other palette screens
-- **WHEN** the user scrolls clipboard history, file search, emoji, chat history or an extension list
-- **THEN** the same fading applies near both bars
-
-#### Scenario: Short list
-- **WHEN** a list fits entirely in the palette
-- **THEN** no row is faded
-
-#### Scenario: Before scroll measurements are available
-- **WHEN** a list has just appeared and its scroll measurements are not available yet
-- **THEN** the bands near the bars are already faded, never fully opaque
+## MODIFIED Requirements
 
 ### Requirement: Scroll-driven effects follow the scroll position
 The thin scrollbar, overflow fades, keyboard selection following and the AI transcript's follow-the-latest
@@ -68,6 +43,8 @@ the faded bands that extend past each bar into the list.
 - **WHEN** a Settings list or popup menu has more content than fits
 - **THEN** the overflowing edge fades as in upstream
 
+## ADDED Requirements
+
 ### Requirement: List ends leave room for the bars
 Every palette list that dissolves under the floating bars SHALL leave enough room before its first row
 and after its last row that either row, when selected, can be fully opaque and clear of both bars.
@@ -86,4 +63,3 @@ and after its last row that either row, when selected, can be fully opaque and c
 - **WHEN** the user changes the interface size in Settings
 - **THEN** the room at the list ends and the selection clearance scale with the bars, and the first and
   last rows still reach the clear area
-

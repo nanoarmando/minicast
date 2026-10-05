@@ -93,8 +93,7 @@ struct CalculatorHistoryList: View {
                         }
                     }
                     .padding(.horizontal, metrics.spacing.md)
-                    .padding(.top, metrics.spacing.xs)
-                    .padding(.bottom, metrics.spacing.md)
+                    .dissolvePadding(top: metrics.spacing.xs, bottom: metrics.spacing.md)
                     .hideNativeScrollers()
                     .scrollOriginAnchor()
                 }

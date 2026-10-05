@@ -269,6 +269,9 @@ the `ScrollView`, **before `.thinScrollbar()`** (so the scrollbar overlay stays 
 - Alpha floors mid-scroll (not to 0): **top 0.15, bottom 0.25**, eased by how much content is hidden past the edge (`1 − (1 − floor)·clamp(dist/band, 0, 1)`).
 - Only masks when the list is scrollable; the edge stop stays transparent so rubber-band bounces still dissolve. A list that fits gets no mask.
 - The mask spans the scroll view's **full** frame (`.ignoresSafeArea()`) — otherwise the bars' safe-area insets shift the gradient onto at-rest rows.
+- The band lengths live in one place, `InterfaceMetrics.dissolveBands`, read by the mask, by selection following and by the end padding, so they scale together.
+- **Keyboard selection lands clear of both bands.** `scrollFollowsSelection` treats only the area between the two fade bands, measured on the same full frame, as visible. A row inside a band, or under a bar, scrolls until its edge sits on the band's limit, so the selected row is always fully opaque. A row taller than that area shows its top.
+- **List content pads its ends with `.dissolvePadding(top:bottom:)`**, never a bare `.padding`: the list's own spacing plus the 32/28 overshoot, so the first and last rows can reach the clear area.
 
 **Palette only.** Every one of its call sites is a palette screen, and the bands above are measured
 against the palette's bars. A Settings list underlaps nothing, so it uses `.overflowFade()` instead.

@@ -1,15 +1,16 @@
 import CoreGraphics
 import Foundation
 
-/// A row inside the band may not scroll; one behind the bottom bar must.
+/// A row inside the clear band may not scroll; one faded or under a bar must.
 @main
 @MainActor
 struct SelectionRevealTests {
     static var failures = 0
     static var passes = 0
 
-    /// The palette's real proportions: a 369pt band between the bars, 36pt rows.
-    static let band: CGFloat = 369
+    /// The palette's real proportions: a 469pt frame, 96pt faded on top, 64pt at the bottom.
+    static let top: CGFloat = 96
+    static let bottom: CGFloat = 469 - 64
     static let rowHeight: CGFloat = 36
 
     static func expect(
@@ -23,56 +24,57 @@ struct SelectionRevealTests {
         }
     }
 
-    /// A row `rowHeight` tall whose top sits at `top`, the way a list row reports itself.
-    static func edge(rowTop top: CGFloat, height: CGFloat = rowHeight) -> SelectionReveal.Edge? {
-        SelectionReveal.edge(rowTop: top, rowBottom: top + height, band: band)
+    /// A row `rowHeight` tall whose top sits at `top`, measured from the full frame's top.
+    static func edge(rowTop row: CGFloat, height: CGFloat = rowHeight) -> SelectionReveal.Edge? {
+        SelectionReveal.edge(rowTop: row, rowBottom: row + height, top: top, bottom: bottom)
     }
 
     static func main() {
-        rowsInsideTheBandStayPut()
-        rowsPastAnEdgeAlignToIt()
-        theStripBehindTheBottomBar()
-        aRowTallerThanTheBand()
+        rowsInsideTheClearBandStayPut()
+        rowsInAFadedBandScroll()
+        rowsUnderABarScroll()
+        aRowTallerThanTheClearBand()
 
         print("\(passes) passed, \(failures) failed")
         if failures > 0 { exit(1) }
     }
 
-    // MARK: - Leaving a visible row alone
+    // MARK: - Leaving a clear row alone
 
-    static func rowsInsideTheBandStayPut() {
-        expect(edge(rowTop: 0), nil, "the first row at the band's top edge needs no scroll")
-        expect(edge(rowTop: 180), nil, "nor does a row in the middle")
-        expect(edge(rowTop: band - rowHeight), nil, "nor one flush with the bottom edge")
+    static func rowsInsideTheClearBandStayPut() {
+        expect(edge(rowTop: top), nil, "a row flush with the band's top needs no scroll")
+        expect(edge(rowTop: 220), nil, "nor does a row in the middle")
+        expect(edge(rowTop: bottom - rowHeight), nil, "nor one flush with the bottom limit")
         // Rounding must not churn: geometry arrives in fractional points.
-        expect(edge(rowTop: -0.3), nil, "a third of a point over the top edge is still inside")
-        expect(edge(rowTop: band - rowHeight + 0.3), nil, "and so is a third of a point under")
+        expect(edge(rowTop: top - 0.3), nil, "a third of a point into the top fade is still clear")
+        expect(edge(rowTop: bottom - rowHeight + 0.3), nil, "and so is a third into the bottom")
     }
 
-    // MARK: - Moving a row that has left the band
+    // MARK: - Rows the dissolve still fades
 
-    static func rowsPastAnEdgeAlignToIt() {
-        expect(edge(rowTop: -1), .top, "a row a point above the band aligns to the top")
-        expect(edge(rowTop: -rowHeight), .top, "so does one scrolled a full row above it")
+    static func rowsInAFadedBandScroll() {
+        expect(edge(rowTop: top - 1), .top, "a row a point into the top fade aligns to the top")
+        expect(edge(rowTop: 70), .top, "so does one past the header, inside the overshoot")
+        expect(edge(rowTop: bottom - rowHeight + 1), .bottom, "a point into the bottom fade aligns")
+        expect(edge(rowTop: bottom - 10), .bottom, "and so does one inside the bottom overshoot")
+    }
+
+    // MARK: - Rows hidden by a bar
+
+    static func rowsUnderABarScroll() {
+        expect(edge(rowTop: 10), .top, "a row under the header aligns to the top")
         expect(edge(rowTop: -4000), .top, "and one far above, after a jump to the list's start")
-        expect(edge(rowTop: band - rowHeight + 1), .bottom, "a row a point below aligns to the bottom")
-        expect(edge(rowTop: band + 4000), .bottom, "and so does one far below it")
-    }
-
-    // MARK: - The strip the bug lived in
-
-    static func theStripBehindTheBottomBar() {
-        // Measured from the app: the band ends at 369, and 369…405 is visible but hidden.
-        expect(edge(rowTop: 369), .bottom, "the row that lands in the strip is moved into the band")
-        expect(edge(rowTop: 333), nil, "while the row flush above the strip is left alone")
+        expect(edge(rowTop: 440), .bottom, "a row under the bottom bar aligns to the bottom")
+        expect(edge(rowTop: 4000), .bottom, "and so does one far below it")
     }
 
     // MARK: - Rows that cannot fit
 
-    static func aRowTallerThanTheBand() {
+    static func aRowTallerThanTheClearBand() {
+        let tall = bottom - top + 100
         // Only its start can show, so aligning the top is the end state, not the start of a loop.
-        expect(edge(rowTop: 0, height: band + 100), nil, "a too-tall row pinned at the top is settled")
-        expect(edge(rowTop: -50, height: band + 100), .top, "one scrolled past its top is pulled back")
-        expect(edge(rowTop: 20, height: band + 100), .top, "and one hanging below the top is too")
+        expect(edge(rowTop: top, height: tall), nil, "a too-tall row pinned at the top is settled")
+        expect(edge(rowTop: top - 50, height: tall), .top, "one scrolled past its top is pulled back")
+        expect(edge(rowTop: top + 20, height: tall), .top, "and one hanging below the top is too")
     }
 }

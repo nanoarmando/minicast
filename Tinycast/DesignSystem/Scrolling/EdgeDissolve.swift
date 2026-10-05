@@ -3,11 +3,8 @@ import Perception
 
 /// Scroll-driven edge mask for a list underlapping the palette's floating bars. See `docs/ui.md`.
 struct EdgeDissolveMask: ViewModifier {
-    /// Band lengths: the bar's height plus its overshoot into the list — 32px top, 28px bottom.
-    private var topFade: CGFloat {
-        metrics.size.headerHeight + metrics.size.headerPadding + metrics.scaled(32)
-    }
-    private var bottomFade: CGFloat { metrics.size.bottomBarHeight + metrics.scaled(28) }
+    private var topFade: CGFloat { metrics.dissolveBands.top }
+    private var bottomFade: CGFloat { metrics.dissolveBands.bottom }
     private static let topMinAlpha: CGFloat = 0.15
     private static let bottomMinAlpha: CGFloat = 0.25
     @Environment(\.metrics) private var metrics
@@ -70,9 +67,49 @@ struct EdgeDissolveMask: ViewModifier {
     }
 }
 
+/// The faded lengths at each end of the full frame: a bar plus its overshoot into the list.
+struct DissolveBands: Equatable {
+    let topOvershoot: CGFloat
+    let bottomOvershoot: CGFloat
+    let top: CGFloat
+    let bottom: CGFloat
+}
+
+extension InterfaceMetrics {
+    /// Tuned by eye: 32px past the header, 28px past the bottom bar.
+    var dissolveBands: DissolveBands {
+        let topOvershoot = scaled(32)
+        let bottomOvershoot = scaled(28)
+        return DissolveBands(
+            topOvershoot: topOvershoot, bottomOvershoot: bottomOvershoot,
+            top: size.headerHeight + size.headerPadding + topOvershoot,
+            bottom: size.bottomBarHeight + bottomOvershoot)
+    }
+}
+
+/// Pads a list's ends past the dissolve overshoot, so the first and last rows can sit clear.
+private struct DissolvePadding: ViewModifier {
+    let top: CGFloat
+    let bottom: CGFloat
+    @Environment(\.metrics) private var metrics
+
+    func body(content: Content) -> some View {
+        WithPerceptionTracking {
+            content
+                .padding(.top, top + metrics.dissolveBands.topOvershoot)
+                .padding(.bottom, bottom + metrics.dissolveBands.bottomOvershoot)
+        }
+    }
+}
+
 extension View {
     /// Attach to a `ScrollView` that underlaps the palette's floating bars (before `thinScrollbar`, so the scrollbar overlay stays unmasked).
     func edgeDissolve() -> some View {
         modifier(EdgeDissolveMask())
+    }
+
+    /// The scroll content's own end padding, extended past the `edgeDissolve` overshoot.
+    func dissolvePadding(top: CGFloat, bottom: CGFloat) -> some View {
+        modifier(DissolvePadding(top: top, bottom: bottom))
     }
 }

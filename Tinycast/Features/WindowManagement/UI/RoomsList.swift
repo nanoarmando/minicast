@@ -31,7 +31,7 @@ struct RoomsList: View {
                         }
                     }
                     .padding(.horizontal, metrics.spacing.md)
-                    .padding(.vertical, metrics.spacing.md)
+                    .dissolvePadding(top: metrics.spacing.md, bottom: metrics.spacing.md)
                     .hideNativeScrollers()
                     .scrollOriginAnchor()
                 }
