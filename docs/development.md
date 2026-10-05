@@ -8,8 +8,9 @@ verifying a change is [testing.md](testing.md).
 - A Mac with Xcode 27 — it provides the SDK and the Swift 6 toolchain. The app itself targets
   macOS 13 Ventura and later, Intel and Apple silicon.
 - XcodeGen, from a project-local binary in `.tools/xcodegen/` (not committed): download the official
-  release from [XcodeGen](https://github.com/yonaskolb/XcodeGen/releases) into that folder. For linting:
-  `brew install swiftlint`.
+  release from [XcodeGen](https://github.com/yonaskolb/XcodeGen/releases) into that folder. SwiftLint
+  lives the same way in `.tools/swiftlint/` (not committed); run the linter as
+  `PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh`.
 - Node and pnpm, for the generators, the extension runtime build and the two stub servers
   `run-tests.sh` drives. Building the app needs none of it: every generated file is committed.
 - The only Swift package is [swift-perception](https://github.com/pointfreeco/swift-perception),

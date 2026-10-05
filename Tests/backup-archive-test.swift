@@ -167,7 +167,7 @@ struct BackupArchiveTest {
             "the extension's data travels, password values included",
             (try? Data(
                 contentsOf: ExtensionBundle.dataURL("@owner/demo", in: reopened.extensionsDirectory)))
-                .map { String(decoding: $0, as: UTF8.self).contains("token") } == true)
+                .map { String(bytes: $0, encoding: .utf8)?.contains("token") } == true)
 
         let attributes = try? FileManager.default.attributesOfItem(
             atPath: reopened.clipboardImagesDirectory.appendingPathComponent("a.png").path)
@@ -318,7 +318,7 @@ struct BackupArchiveTest {
         let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)
         var text = ""
         while let url = files?.nextObject() as? URL {
-            if let data = try? Data(contentsOf: url) { text += String(decoding: data, as: UTF8.self) }
+            if let data = try? Data(contentsOf: url) { text += String(bytes: data, encoding: .isoLatin1) ?? "" }
         }
         return text
     }

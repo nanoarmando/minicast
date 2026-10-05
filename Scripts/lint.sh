@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
 command -v swiftlint >/dev/null || {
-    echo "✗ swiftlint not found. Install it with:  brew install swiftlint" >&2
+    echo "✗ swiftlint not found. Run:  PATH=\"\$PWD/.tools/swiftlint:\$PATH\" ./Scripts/lint.sh" >&2
     exit 2
 }
 

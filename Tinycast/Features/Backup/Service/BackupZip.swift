@@ -38,7 +38,10 @@ enum BackupZip {
         // Read before waiting: a listing larger than the pipe buffer would otherwise deadlock.
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw failure }
-        return String(decoding: data, as: UTF8.self)
+        // A listing that is not UTF-8 is refused, never validated as empty.
+        guard process.terminationStatus == 0, let text = String(bytes: data, encoding: .utf8) else {
+            throw failure
+        }
+        return text
     }
 }

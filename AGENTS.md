@@ -171,6 +171,7 @@ Each item is explained in [testing.md](docs/testing.md#definition-of-done).
 - `./Scripts/run-tests.sh` passes (it builds swift-perception once into `.build/harness-perception/`).
 - The Debug build and the universal Release build (`./Scripts/build-dmg.sh`) compile with **no errors and
   no new warnings** for the 13.0 deployment target.
-- `./Scripts/lint.sh` is clean (requires SwiftLint).
+- `PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh` is clean, with no new warnings. SwiftLint is
+  the project-local binary in `.tools/swiftlint/` (not committed); never install it with `brew`.
 - `grep -rln 'import AppKit\|import SwiftUI\|import Cocoa' Tinycast/Features/*/Model/` returns nothing.
 - Any doc your change made wrong is fixed in the same commit.

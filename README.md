@@ -260,8 +260,9 @@ requested when the calendar feature is enabled.
 ```
 
 The runner builds swift-perception once into `.build/harness-perception/` (rebuilt when
-`Tinycast.xcodeproj/.../Package.resolved` changes) and links it into every harness. `./Scripts/lint.sh`
-requires SwiftLint.
+`Tinycast.xcodeproj/.../Package.resolved` changes) and links it into every harness. Lint with
+`PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh`, which uses the project-local SwiftLint in
+`.tools/swiftlint/`.
 
 The source folder, Xcode project, target and module are still named `Tinycast`; renaming those internal
 names is planned separately.
