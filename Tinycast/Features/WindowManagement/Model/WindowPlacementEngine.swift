@@ -88,6 +88,7 @@ enum WindowPlacementEngine {
     /// Make Larger / Make Smaller and the four nudges all step by this fraction of the screen.
     private static let stepFraction: CGFloat = 0.05
     private static let almostMaximizeFraction: CGFloat = 0.9
+    private static let centerFraction: CGFloat = 0.7
     private static let reasonableSizeFraction: CGFloat = 0.6
     /// Hard ceiling, in points: 60% of a 5K display is not a reasonable size for a window.
     private static let reasonableSizeMax = CGSize(width: 1025, height: 900)
@@ -171,7 +172,7 @@ enum WindowPlacementEngine {
 
         case .center:
             let size = CGSize(
-                width: min(current.width, canvas.width), height: min(current.height, canvas.height))
+                width: canvas.width * centerFraction, height: canvas.height * centerFraction)
             return Placement(
                 frame: rounded(Anchor.centered.place(size, in: canvas)), screenID: host.id,
                 anchor: .centered, resizes: true)

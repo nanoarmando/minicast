@@ -540,18 +540,11 @@ struct WindowCommandTests {
             "maximize width brings a stray window back on screen")
 
         expectRect(
-            frame(.center, window: window)!, CGRect(x: 570, y: 250, width: 300, height: 400),
-            "center preserves the size and centres it")
+            frame(.center, window: window)!, CGRect(x: 216, y: 135, width: 1008, height: 630),
+            "center is 70% of the canvas, centred, whatever the window size")
         expectRect(
             frame(.center, window: frame(.center, window: window)!)!,
             frame(.center, window: window)!, "center is idempotent")
-
-        // A window larger than the screen must be clamped down, not centred off-screen.
-        let huge = CGRect(x: -500, y: -500, width: 3000, height: 2000)
-        let centred = frame(.center, window: huge)!
-        expect(
-            centred.width <= 1440 && centred.height <= 900, "center clamps an oversized window")
-        expect(mainScreen.visibleFrame.contains(centred), "a clamped center stays on screen")
 
         expectRect(
             frame(.centerHalf)!, CGRect(x: 360, y: 0, width: 720, height: 900),
