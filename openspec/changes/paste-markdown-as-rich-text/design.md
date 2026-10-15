@@ -28,7 +28,9 @@ HTML today, and swift-perception is the only Swift package.
   tables, and headings carry no visual style).
 - **Pure converter in `Features/Clipboard/Model/`.** A `MarkdownRichText` type takes a Markdown
   string and returns an HTML document string: the formatter output wrapped in a small `<style>`
-  block (system font, monospace code, collapsed table borders). It imports only Foundation and
+  block (system font, collapsed table borders, and fixed sizes chosen by the user: body 14, h1 16,
+  h2 15, h3–h6 14 bold, code 13 in Menlo). AppKit's RTF import keeps px as pt, so both flavours
+  match. It imports only Foundation and
   Markdown, so the Model rule holds and a harness can compile it.
 - **A rewriter fills `HTMLFormatter`'s gaps (swift-markdown 0.9.0).** It escapes text, code and
   URLs, which the formatter writes verbatim, and links bare URLs with `NSDataDetector`, because the

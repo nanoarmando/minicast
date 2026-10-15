@@ -104,6 +104,12 @@ struct MarkdownRichTextTests {
         let html = convert("x")
         expectContains(html, "<meta charset=\"utf-8\">", "charset")
         expectContains(html, "border-collapse: collapse", "table stylesheet")
+        expectContains(html, "body, table { font-family: -apple-system, system-ui, sans-serif; font-size: 14px; }", "body size")
+        expectContains(html, "h1 { font-size: 16px; }", "h1 size")
+        expectContains(html, "h2 { font-size: 15px; }", "h2 size")
+        expectContains(html, "h3, h4, h5, h6 { font-size: 14px; }", "h3 to h6 size")
+        expectContains(html, "h1, h2, h3, h4, h5, h6 { font-weight: bold;", "bold headings")
+        expectContains(html, "code, pre { font-family: Menlo, ui-monospace, monospace; font-size: 13px; }", "code size")
         expectContains(html, "<body>\n<p>x</p>\n</body>", "body")
     }
 

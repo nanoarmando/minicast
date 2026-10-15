@@ -81,7 +81,9 @@ final class PaletteCoordinator {
         mode: PaletteMode, restoreAnyMode: Bool = false, seeding query: String? = nil
     ) {
         let preserved = windowController.consumePreservedState()
-        let restoring = preserved && (restoreAnyMode || palette.mode == mode)
+        // A screen summoned by its own hotkey has no way back, so the palette hotkey opens the root.
+        let reachedFromLauncher = palette.mode == .launcher || palette.canGoBack
+        let restoring = preserved && (palette.mode == mode || (restoreAnyMode && reachedFromLauncher))
         // Resetting a screen the pop to root already reset would only re-render the whole palette.
         let alreadyFresh = windowController.isPoppedToRoot && palette.mode == mode
         // A carried query always opens the screen fresh: restoring the previous one would drop it.

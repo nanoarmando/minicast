@@ -4,8 +4,13 @@ import Markdown
 /// GitHub Flavored Markdown rendered as a standalone HTML document, for pasting as rich text.
 enum MarkdownRichText {
     private static let stylesheet = """
-        body { font-family: -apple-system, system-ui, sans-serif; }
-        code, pre { font-family: ui-monospace, Menlo, monospace; }
+        body, table { font-family: -apple-system, system-ui, sans-serif; font-size: 14px; }
+        h1, h2, h3, h4, h5, h6 { font-weight: bold; margin: 12px 0 4px; }
+        h1 { font-size: 16px; }
+        h2 { font-size: 15px; }
+        h3, h4, h5, h6 { font-size: 14px; }
+        p, ul, ol, blockquote, pre, table { margin-top: 0; margin-bottom: 8px; }
+        code, pre { font-family: Menlo, ui-monospace, monospace; font-size: 13px; }
         li > p { margin: 0; }
         table { border-collapse: collapse; }
         th, td { border: 1px solid #d0d7de; padding: 4px 8px; }

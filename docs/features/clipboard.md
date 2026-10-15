@@ -497,7 +497,10 @@ It reads the live clipboard's text as GitHub Flavored Markdown and pastes it int
 entry without text, or nothing) it shows **No text on the clipboard to convert** and writes nothing.
 
 **Conversion is `Model/MarkdownRichText.swift` over Apple's swift-markdown.** It parses with
-`.disableSmartOpts`, as GitHub does, and renders with `HTMLFormatter` inside a small stylesheet. A
+`.disableSmartOpts`, as GitHub does, and renders with `HTMLFormatter` inside a small stylesheet with
+fixed sizes: body 14, `#` 16, `##` 15, deeper headings 14 (all bold) and code 13 in Menlo. Without
+a size, WebKit targets such as Mail fall back to 16px. Menlo comes first because the RTF importer
+would otherwise name a private system monospaced font that other apps cannot resolve. A
 rewriter runs first because the formatter in 0.9.0 has two gaps:
 
 - **It writes text, code and URLs without escaping them.** The rewriter escapes them, so `a < b` or a
