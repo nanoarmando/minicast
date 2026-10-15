@@ -30,5 +30,5 @@
 
 - [x] 5.1 Document the command in `docs/features/clipboard.md`, add manual checks to
   `docs/testing.md`, and update `AGENTS.md` and `README.md` for the new command and package
-- [ ] 5.2 Run `./Scripts/run-tests.sh`, the Debug build, `./Scripts/build-dmg.sh`, lint and the
+- [x] 5.2 Run `./Scripts/run-tests.sh`, the Debug build, `./Scripts/build-dmg.sh`, lint and the
   Model-import check; paste into Mail, Notes, Slack and a Chromium editor
