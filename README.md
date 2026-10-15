@@ -29,7 +29,7 @@ bar search (the Navigation pane).
 - **Global hotkey** to summon the palette.
 - **Search Files** through Spotlight.
 - **Dictionary** lookups.
-- **Clipboard history** for text and images.
+- **Clipboard history** for text and images, plus a command that pastes Markdown as rich text.
 - **Calculator** with units and live currency conversion.
 - **Apple Shortcuts** and **custom shell commands**, with aliases and hotkeys.
 - **Window management**: window commands with hotkeys, layouts, rooms and custom sizes.
@@ -267,7 +267,7 @@ requested when the calendar feature is enabled.
 ./Scripts/run-tests.sh
 ```
 
-The runner builds swift-perception once into `.build/harness-perception/` (rebuilt when
+The runner builds swift-perception and swift-markdown once into `.build/harness-perception/` (rebuilt when
 `Tinycast.xcodeproj/.../Package.resolved` changes) and links it into every harness. Lint with
 `PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh`, which uses the project-local SwiftLint in
 `.tools/swiftlint/`.

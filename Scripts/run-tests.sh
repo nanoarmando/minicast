@@ -14,27 +14,37 @@ cd "$(dirname "$0")/.." || exit 1
 BIN="${TMPDIR:-/tmp}/tinycast-harness"
 mkdir -p "$BIN"
 
-# Shipped sources `import Perception` and expand `@Perceptible`, so every harness compiles against a
-# static build of swift-perception at the version the app pins. A wrapper package turns it into one
-# archive; `.build/` is gitignored, and the first run fetches and builds it once.
+# Shipped sources `import Perception`, expand `@Perceptible` and `import Markdown`, so every harness
+# compiles against static builds of swift-perception and swift-markdown at the versions the app pins.
+# A wrapper package turns them into one archive; `.build/` is gitignored, and the first run builds it.
 PERCEPTION="$PWD/.build/harness-perception"
 PERCEPTION_OUT="$PERCEPTION/.build/release"
 PERCEPTION_FLAGS=(-I "$PERCEPTION_OUT" -L "$PERCEPTION_OUT" -lHarnessPerception
     -load-plugin-executable "$PERCEPTION_OUT/PerceptionMacros#PerceptionMacros")
+# `import Markdown` also loads the C modules it imports, whose module maps stay in the checkouts.
+PERCEPTION_CHECKOUTS="$PERCEPTION/.build/checkouts"
+for include in swift-cmark/src/include swift-cmark/extensions/include swift-markdown/Sources/CAtomic/include; do
+    PERCEPTION_FLAGS+=(-I "$PERCEPTION_CHECKOUTS/$include")
+done
 
 build_perception() {
     local resolved=Tinycast.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
     if [ -f "$PERCEPTION_OUT/libHarnessPerception.a" ] && cmp -s "$resolved" "$PERCEPTION/Package.resolved"; then
         return 0
     fi
-    local version
-    version=$(awk '/"identity" : "swift-perception"/ { found = 1 }
-        found && /"version"/ { gsub(/[",]/, ""); print $3; exit }' "$resolved")
-    if [ -z "$version" ]; then
-        echo "run-tests: cannot read the swift-perception pin from $resolved" >&2
+    pinned_version() {
+        awk -v identity="\"identity\" : \"$1\"" 'index($0, identity) { found = 1 }
+            found && /"version"/ { gsub(/[",]/, ""); print $3; exit }' "$resolved"
+    }
+    local perception_version markdown_version
+    perception_version=$(pinned_version swift-perception)
+    markdown_version=$(pinned_version swift-markdown)
+    if [ -z "$perception_version" ] || [ -z "$markdown_version" ]; then
+        echo "run-tests: cannot read the swift-perception and swift-markdown pins from $resolved" >&2
         return 1
     fi
-    echo "run-tests: building swift-perception $version for the harnesses (first run only)..."
+    echo "run-tests: building swift-perception $perception_version and swift-markdown" \
+        "$markdown_version for the harnesses (first run only)..."
     mkdir -p "$PERCEPTION/Sources/HarnessPerception"
     cat > "$PERCEPTION/Package.swift" <<SWIFT
 // swift-tools-version: 5.9
@@ -45,11 +55,18 @@ let package = Package(
     name: "HarnessPerception",
     platforms: [.macOS(.v13)],
     products: [.library(name: "HarnessPerception", type: .static, targets: ["HarnessPerception"])],
-    dependencies: [.package(url: "https://github.com/pointfreeco/swift-perception", exact: "$version")],
-    targets: [.target(name: "HarnessPerception", dependencies: [.product(name: "Perception", package: "swift-perception")])]
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-perception", exact: "$perception_version"),
+        .package(url: "https://github.com/swiftlang/swift-markdown", exact: "$markdown_version"),
+    ],
+    targets: [.target(name: "HarnessPerception", dependencies: [
+        .product(name: "Perception", package: "swift-perception"),
+        .product(name: "Markdown", package: "swift-markdown"),
+    ])]
 )
 SWIFT
-    echo '@_exported import Perception' > "$PERCEPTION/Sources/HarnessPerception/HarnessPerception.swift"
+    printf '@_exported import Perception\n@_exported import Markdown\n' \
+        > "$PERCEPTION/Sources/HarnessPerception/HarnessPerception.swift"
     cp "$resolved" "$PERCEPTION/Package.resolved"
     if ! swift build -c release --package-path "$PERCEPTION" --product HarnessPerception > "$BIN/perception.log" 2>&1; then
         rm -f "$PERCEPTION/Package.resolved"
@@ -195,6 +212,7 @@ run clipboard-test         Tinycast/Features/Clipboard/Model/ClipboardStore.swif
 Q=Tinycast/Platform/LinkDestination.swift
 run clipboard-search-test  Tinycast/Features/Clipboard/Model/*.swift $Q
 run paste-sequence-test    Tinycast/Features/Clipboard/Model/*.swift $Q
+run markdown-rich-text-test Tinycast/Features/Clipboard/Model/MarkdownRichText.swift
 run clipboard-text-test    Tinycast/Features/Clipboard/Model/*.swift $Q \
                            Tinycast/Features/Clipboard/Service/ClipboardTextExtractor.swift \
                            Tinycast/Features/Clipboard/Service/ClipboardTextIndexer.swift \

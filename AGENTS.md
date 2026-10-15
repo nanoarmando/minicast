@@ -162,14 +162,15 @@ feature's doc, under its own `## Invariants`.
   never shares prefs, caches, TCC grants or the login item with an installed copy. Anything newly
   persisted must stay keyed by `Bundle.main.bundleIdentifier`.
 - **XcodeGen owns the project.** `Tinycast.xcodeproj` is committed but generated from `project.yml`;
-  after editing it, run `./.tools/xcodegen/bin/xcodegen generate` and commit both. The only Swift
-  package is swift-perception; never `Bundle.module`. Command-line builds pass `-skipMacroValidation`.
+  after editing it, run `./.tools/xcodegen/bin/xcodegen generate` and commit both. The Swift
+  packages are swift-perception and swift-markdown (Paste Markdown as Rich Text); never `Bundle.module`. Command-line builds pass `-skipMacroValidation`.
 
 ## Before you finish
 
 Each item is explained in [testing.md](docs/testing.md#definition-of-done).
 
-- `./Scripts/run-tests.sh` passes (it builds swift-perception once into `.build/harness-perception/`).
+- `./Scripts/run-tests.sh` passes (it builds swift-perception and swift-markdown once into
+  `.build/harness-perception/`).
 - The Debug build and the universal Release build (`./Scripts/build-dmg.sh`) compile with **no errors and
   no new warnings** for the 13.0 deployment target.
 - `PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh` is clean, with no new warnings. SwiftLint is

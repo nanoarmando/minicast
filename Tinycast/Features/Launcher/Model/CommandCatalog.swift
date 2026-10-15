@@ -55,7 +55,7 @@ extension SettingsTab {
         case .fileSearch: [.searchFiles]
         case .windowManagement:
             [.createWindowLayout, .captureWindowLayout, .switchRoom, .createRoom]
-        case .clipboard: [.clipboardHistory, .pasteSequentially]
+        case .clipboard: [.clipboardHistory, .pasteSequentially, .pasteMarkdownAsRichText]
         case .emoji: [.searchEmoji]
         case .calendar:
             [.joinNextMeeting, .mySchedule, .createEvent, .copyMeetingLink, .openInCalendar]

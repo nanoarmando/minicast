@@ -15,6 +15,9 @@ final class ClipboardCoordinator {
     /// One Copy Text at a time: a newer trigger cancels the helper an older one is waiting on.
     private var textTask: Task<Void, Never>?
     private var pasteSequence: PasteSequence?
+    private var isPastingMarkdown = false
+    /// Long enough for the target to read the pasteboard after ⌘V before the original returns.
+    private static let richTextSettleDelay: TimeInterval = 0.5
 
     init(
         clipboardStore: ClipboardStore,
@@ -38,7 +41,8 @@ final class ClipboardCoordinator {
 
     /// Off means the poller stops, the database closes and nothing new is ever recorded.
     func applyEnabled() {
-        appIndex.setCommandsVisible([.clipboardHistory, .pasteSequentially], settings.clipboardEnabled)
+        appIndex.setCommandsVisible(
+            [.clipboardHistory, .pasteSequentially, .pasteMarkdownAsRichText], settings.clipboardEnabled)
         guard settings.clipboardEnabled else {
             core.applyClipboardTextSearch()
             clipboardManager.stop()
@@ -133,6 +137,28 @@ final class ClipboardCoordinator {
             return
         }
         core.showMessage("Nothing left to paste", tone: .neutral)
+    }
+
+    /// Pastes the clipboard's Markdown as rich text, then puts the original clipboard back.
+    func pasteMarkdownAsRichText() {
+        // A held shortcut must not snapshot the converted content as the clipboard to restore.
+        guard !isPastingMarkdown else { return }
+        guard let target = paletteCoordinator.targetApp else { return }
+        guard let markdown = NSPasteboard.general.string(forType: .string), !markdown.isEmpty else {
+            core.showMessage("No text on the clipboard to convert", tone: .neutral)
+            return
+        }
+        clipboardManager.prepareForTinycastPasteboardMutation()
+        let snapshot = Paster.snapshot()
+        if paletteCoordinator.isVisible { paletteCoordinator.hidePalette() }
+        isPastingMarkdown = true
+        Paster.pasteRichTextInPlace(
+            html: MarkdownRichText.htmlDocument(fromMarkdown: markdown), plainText: markdown,
+            into: target)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.richTextSettleDelay) { [weak self] in
+            Paster.restore(snapshot)
+            self?.isPastingMarkdown = false
+        }
     }
 
     /// A copy since the last press, or a long pause, starts the walk over from the newest entry.

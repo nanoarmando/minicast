@@ -86,6 +86,67 @@ enum Paster {
         }
     }
 
+    /// One item with HTML, RTF and the Markdown as plain text, so the target picks the richest.
+    @MainActor
+    static func pasteRichTextInPlace(
+        html: String, plainText: String, into app: NSRunningApplication?
+    ) {
+        let item = NSPasteboardItem()
+        item.setString(html, forType: .html)
+        if let rtf = rtfData(fromHTML: html) { item.setData(rtf, forType: .rtf) }
+        item.setString(plainText, forType: .string)
+        item.setData(Data(), forType: ClipboardManager.internalType)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects([item])
+        guard let pid = app?.processIdentifier else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + directPostDelay) {
+            postCommandV(toPid: pid)
+        }
+    }
+
+    /// Images become links first: the HTML importer would fetch remote images synchronously.
+    @MainActor
+    private static func rtfData(fromHTML html: String) -> Data? {
+        let linkedImages = html.replacingOccurrences(
+            of: #"<img\b[^>]*?\bsrc="([^"]*)"[^>]*>"#, with: #"<a href="$1">$1</a>"#,
+            options: [.regularExpression, .caseInsensitive])
+        guard let data = linkedImages.data(using: .utf8),
+            let attributed = try? NSAttributedString(
+                data: data,
+                options: [.documentType: NSAttributedString.DocumentType.html,
+                    .characterEncoding: String.Encoding.utf8.rawValue],
+                documentAttributes: nil)
+        else { return nil }
+        return try? attributed.data(
+            from: NSRange(location: 0, length: attributed.length),
+            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+    }
+
+    /// Every item's types and data, for `restore` to put back after a temporary write.
+    @MainActor
+    static func snapshot() -> [[NSPasteboard.PasteboardType: Data]] {
+        (NSPasteboard.general.pasteboardItems ?? []).map { item in
+            Dictionary(
+                item.types.compactMap { type in item.data(forType: type).map { (type, $0) } },
+                uniquingKeysWith: { first, _ in first })
+        }
+    }
+
+    /// Marker-stamped, so putting the user's own content back never re-enters history.
+    @MainActor
+    static func restore(_ snapshot: [[NSPasteboard.PasteboardType: Data]]) {
+        let items = snapshot.map { entries in
+            let item = NSPasteboardItem()
+            for (type, data) in entries { item.setData(data, forType: type) }
+            item.setData(Data(), forType: ClipboardManager.internalType)
+            return item
+        }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects(items)
+    }
+
     @MainActor
     private static func writeString(_ text: String) {
         let pb = NSPasteboard.general

@@ -8,8 +8,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "0.3.1"
-    CURRENT_PROJECT_VERSION: "5"
+    MARKETING_VERSION: "0.4.0"
+    CURRENT_PROJECT_VERSION: "6"
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Manual
@@ -37,6 +37,9 @@ packages:
   Perception:
     url: https://github.com/pointfreeco/swift-perception
     from: "2.0.12"
+  Markdown:
+    url: https://github.com/swiftlang/swift-markdown
+    from: "0.9.0"
 
 targets:
   Tinycast:
@@ -59,6 +62,8 @@ targets:
     dependencies:
       - package: Perception
         product: Perception
+      - package: Markdown
+        product: Markdown
       - target: ClipboardTextHelper
         link: false
         embed: true

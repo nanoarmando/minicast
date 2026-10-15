@@ -22,6 +22,8 @@
 - **Paste Sequentially never promotes, and its walk is frozen at the first press.** `PasteSequence`
   keeps every entry's id, newest first, and resolves each against the live history, so a promotion
   cannot repeat or skip an entry and a deleted one is passed over rather than pasted.
+- **Paste Markdown as Rich Text always puts the user's clipboard back.** Both its own write and the
+  restore carry `internalType`, so the command never adds a history entry.
 - **`Model/ClipboardStore.swift` keeps to Foundation plus SQLite3 and no other app source**, so
   `clipboard-test` can compile it standalone. It uses `isolated deinit` for its SQLite teardown.
 - A database that cannot be opened is deleted and recreated. That is sound because a history is
@@ -486,3 +488,33 @@ any other Minicast paste.
 `pasteInPlace` writes the pasteboard at once and posts ⌘V 50ms later, and the target reads the
 pasteboard only when it handles that ⌘V. A press inside that gap would swap the pasteboard first:
 one entry pasted twice, another skipped. A queue would replay a held shortcut as a burst.
+
+## Paste Markdown as Rich Text
+
+A command, bound in Settings ▸ Clipboard and hidden with the rest of the pane while history is off.
+It reads the live clipboard's text as GitHub Flavored Markdown and pastes it into
+`PaletteCoordinator.targetApp` as formatted text. With no text on the clipboard (an image, a file
+entry without text, or nothing) it shows **No text on the clipboard to convert** and writes nothing.
+
+**Conversion is `Model/MarkdownRichText.swift` over Apple's swift-markdown.** It parses with
+`.disableSmartOpts`, as GitHub does, and renders with `HTMLFormatter` inside a small stylesheet. A
+rewriter runs first because the formatter in 0.9.0 has two gaps:
+
+- **It writes text, code and URLs without escaping them.** The rewriter escapes them, so `a < b` or a
+  `<div>` inside a code fence stays text. Raw HTML in the Markdown still passes through.
+- **cmark-gfm's autolink extension is off.** The rewriter links bare URLs and email addresses with
+  `NSDataDetector`, never inside an existing link or image.
+
+Two known differences from GitHub remain. A heading keeps only its plain text, so bold or code inside
+it is lost, and an image has no `alt` text.
+
+**One pasteboard item carries every format**: `public.html`, `public.rtf` and the original Markdown
+as `public.utf8-plain-text`, so each target takes the richest one it accepts. `Paster` builds the RTF
+from the HTML with AppKit's importer, after turning each `<img>` into a link. Otherwise the importer
+would fetch remote images synchronously on the main thread.
+
+**The original clipboard returns 0.5s after the paste.** `Paster.snapshot()` copies every item's
+types before the write, and `Paster.restore(_:)` writes them back stamped with `internalType`. The
+target reads the pasteboard only when it handles ⌘V, so the delay leaves it time to read the
+converted content. A press before the restore is dropped. Otherwise it would snapshot the converted
+content as the clipboard to restore.

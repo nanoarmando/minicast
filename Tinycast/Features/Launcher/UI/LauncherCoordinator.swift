@@ -155,6 +155,8 @@ final class LauncherCoordinator {
             paletteCoordinator.togglePalette(mode: .clipboard)
         case .pasteSequentially:
             core.clipboardCoordinator.pasteNextInSequence()
+        case .pasteMarkdownAsRichText:
+            core.clipboardCoordinator.pasteMarkdownAsRichText()
         case .searchEmoji:
             paletteCoordinator.togglePalette(mode: .emoji)
         case .searchFiles:

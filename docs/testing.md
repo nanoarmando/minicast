@@ -91,6 +91,7 @@ If a change touches anything in the right column, the harness on the left is man
 | `clipboard-search-test` | Ordinary and OCR result ordering, opt-in lifecycle, cancellation, pins and type filters |
 | `clipboard-text-test` | Apple Vision/PDF extraction, scheduling, retry backoff and recovery |
 | `paste-sequence-test` | `Clipboard/Model/PasteSequence.swift` — the walk's order, its end, and what starts it over |
+| `markdown-rich-text-test` | `Clipboard/Model/MarkdownRichText.swift` — every GFM element's HTML, escaping and autolinks |
 | `clipboard-test` | `Clipboard/Model/ClipboardStore.swift`, `ClipboardFilter.swift`, `ClipboardFileKind.swift`, the colour trio |
 | `pasteboard-test` | `Clipboard/Service/ClipboardManager.swift` capture and `Paster.write` — what a Finder copy reads as, and what a file entry writes back |
 | `emoji-test` | `Emoji/Model/EmojiCatalog.swift`, `EmojiGridGeometry.swift`, the generated data and keyword packs |
@@ -383,6 +384,10 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
   the field in front; a fourth says **Nothing left to paste**; a new copy or a minute's pause
   starts over from the newest; the history's order is unchanged afterwards; holding the shortcut
   or double-pressing it fast never pastes one entry twice
+- Paste Markdown as Rich Text, bound to a shortcut: Markdown with headings, a table, a task list,
+  code and links pastes formatted into Mail, Notes, Slack and a Chromium editor; ⌘V right after
+  pastes the original Markdown; the history gains no entry; an image on the clipboard shows
+  **No text on the clipboard to convert**; holding the shortcut pastes once
 - A text, link, image and file row each drag into another app; a click still selects, a double
   click still pastes, and a right click still opens ⌘K
 

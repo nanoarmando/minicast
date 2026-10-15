@@ -13,8 +13,9 @@ verifying a change is [testing.md](testing.md).
   `PATH="$PWD/.tools/swiftlint:$PATH" ./Scripts/lint.sh`.
 - Node and pnpm, for the generators, the extension runtime build and the two stub servers
   `run-tests.sh` drives. Building the app needs none of it: every generated file is committed.
-- The only Swift package is [swift-perception](https://github.com/pointfreeco/swift-perception),
-  resolved by Xcode. It uses a Swift macro, so command-line builds pass `-skipMacroValidation`.
+- The Swift packages are [swift-perception](https://github.com/pointfreeco/swift-perception) and
+  [swift-markdown](https://github.com/swiftlang/swift-markdown), resolved by Xcode. swift-perception
+  uses a Swift macro, so command-line builds pass `-skipMacroValidation`.
 
 ## First-time setup
 
