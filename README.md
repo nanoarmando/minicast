@@ -121,7 +121,8 @@ with the `@raycast/api` package. You need Node and npm (or pnpm, Bun or Yarn).
    npm install
    npx ray build -e dist -o build
    ```
-   The `build/` folder then holds `package.json`, `assets/` and one `.js` file per command. Use
+   The `build/` folder then holds `package.json`, `assets/`, one `.js` file per command and, when the
+   extension has external dependencies, a `node_modules/` with them already built. Use
    `-e dist -o build`, not `ray build` alone: its default dev mode tries to install into a local
    Raycast instead of writing a build.
 3. **Install it in Minicast** (Settings → Extensions; turn extensions on first, which asks for

@@ -137,6 +137,8 @@ struct ExtensionsSettingsView: View {
                             isUpdating: core.extensions.updating.contains(name),
                             onToggle: { expanded = expanded == name ? nil : name },
                             onUpdate: core.extensions.updates[name] == nil ? nil : { update([name]) },
+                            onReinstall: core.extensions.isStoreInstalled(name)
+                                ? { reinstall(installed) } : nil,
                             onUninstall: {
                                 core.extensionCoordinator.confirmUninstall(installed)
                             })
@@ -179,6 +181,14 @@ struct ExtensionsSettingsView: View {
         Task {
             let failed = await core.extensions.update(names)
             if !failed.isEmpty { updateError = "Couldn't update \(failed.joined(separator: ", "))." }
+        }
+    }
+
+    private func reinstall(_ installed: InstalledExtension) {
+        updateError = nil
+        Task {
+            let succeeded = await core.extensions.reinstall(installed.manifest.name)
+            if !succeeded { updateError = "Couldn't reinstall \(installed.title)." }
         }
     }
 
@@ -391,6 +401,8 @@ private struct ExtensionDisclosure: View {
     let onToggle: () -> Void
     /// Nil unless the store has a newer version.
     let onUpdate: (() -> Void)?
+    /// Nil unless the extension came from the store.
+    let onReinstall: (() -> Void)?
     let onUninstall: () -> Void
 
     var body: some View {
@@ -415,6 +427,14 @@ private struct ExtensionDisclosure: View {
                 ProgressView().controlSize(.small)
             } else if let onUpdate {
                 Button("Update", action: onUpdate)
+            }
+            if !isUpdating, let onReinstall {
+                Button(action: onReinstall) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.plain)
+                .help("Reinstall")
+                .accessibilityLabel("Reinstall \(installed.title)")
             }
             Button(action: onUninstall) {
                 Image(systemName: "trash")

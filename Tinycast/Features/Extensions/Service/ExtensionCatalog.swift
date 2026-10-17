@@ -198,7 +198,7 @@ enum ExtensionCatalog {
         }
     }
 
-    /// Manifest, built commands and `assets/` only — never `node_modules` or `.js.map`s.
+    /// Manifest, built commands, `assets/` and `ray build`'s shared `node_modules` — no `.js.map`s.
     @discardableResult
     static func install(from source: URL) throws -> InstalledExtension {
         guard let manifest = try? ExtensionManifest.load(directory: source) else {
@@ -230,6 +230,7 @@ enum ExtensionCatalog {
             if fm.fileExists(atPath: assets.path) {
                 try fm.copyItem(at: assets, to: destination.appendingPathComponent("assets"))
             }
+            try copySharedDependencies(from: source, to: destination)
             try restoreExecutablePermissions(in: destination)
         } catch {
             throw InstallError.copyFailed(error.localizedDescription)
@@ -238,6 +239,20 @@ enum ExtensionCatalog {
         // Re-read from the install location so the returned value points at the copy.
         let installedManifest = try ExtensionManifest.load(directory: destination)
         return InstalledExtension(manifest: installedManifest, directory: destination)
+    }
+
+    /// Only `ray build`'s marked output: a developer's full dev `node_modules` is never copied.
+    private static func copySharedDependencies(from source: URL, to destination: URL) throws {
+        let fm = FileManager.default
+        let modules = source.appendingPathComponent("node_modules", isDirectory: true)
+        guard fm.fileExists(atPath: modules.appendingPathComponent(".raycast-shared-dependencies").path)
+        else { return }
+        let copied = destination.appendingPathComponent("node_modules", isDirectory: true)
+        try fm.copyItem(at: modules, to: copied)
+        guard let files = fm.enumerator(at: copied, includingPropertiesForKeys: nil) else { return }
+        for case let file as URL in files where file.lastPathComponent.hasSuffix(".js.map") {
+            try fm.removeItem(at: file)
+        }
     }
 
     /// Both paths it owns: nothing else collects the scratch dir, and the dialog promises it goes.

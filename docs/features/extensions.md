@@ -44,10 +44,18 @@ produces, rendered natively into the palette. No Electron, no browser, no Node.j
 
 A Raycast extension command is a **single prebuilt CommonJS file** that keeps `react`,
 `react/jsx-runtime`, `@raycast/api` and the Node built-ins external. Minicast supplies exactly those,
-runs the bundle, and renders the React tree it produces:
+runs the bundle, and renders the React tree it produces.
+
+Current `ray build` output also leaves some npm dependencies external and ships them prebuilt in a
+`node_modules/` beside the bundles, marked by `node_modules/.raycast-shared-dependencies`. `src/modules.js`
+resolves those Node-style: provided modules always win (one React, one `@raycast/api`, even when required
+from inside `node_modules`); anything else is looked up in the extension's own `node_modules`, never above
+its directory, honouring `exports` (`require`/`node`/`default`), `main`, subpaths, relative files and JSON.
+Each file is evaluated once per context, and an ES module or a missing package throws
+`MODULE_NOT_FOUND`-style errors naming this doc:
 
 ```
-  <command>.js  (esbuild output, deps inlined)
+  <command>.js  (esbuild output, most deps inlined; the rest in node_modules/)
         │  require("@raycast/api"), require("react"), require("node:fs"), …
         ▼
   RaycastRuntime.generated.js          ← in the app bundle; React 19 + react-reconciler
@@ -99,6 +107,7 @@ same arrangement as `EmojiData.generated.swift`: building Minicast never needs N
 | `src/api/system.js` | Clipboard, LocalStorage, Cache, Toast, preferences, environment |
 | `src/api/oauth.js` | `OAuth.PKCEClient`, `OAuth.TokenSet`, redirect url builders |
 | `src/api/enums.generated.js` | Icon / Color / Toast.Style / … extracted from the real `@raycast/api` types |
+| `src/modules.js` | the per-file `require`: provided modules first, then the extension's `node_modules` |
 | `src/node-shims.js` | `path`, `fs`, `os`, `child_process`, `crypto`, `zlib`, `util`, `events`, `buffer`, `punycode`, … |
 | `src/websocket.js` | the `WebSocket` global, and the raw socket a bundled `ws` attaches to |
 | `src/dgram.js` | a UDP socket that answers one thing: an mDNS lookup of a `.local` name |
@@ -457,8 +466,8 @@ real app; see [launcher.md](launcher.md#owner-names).
 
 Extensions live in `~/Library/Application Support/<bundle id>/extensions/<name>/`, keyed by bundle id
 like everything else, so a Debug build never shares installs with a release channel. A directory holds
-`package.json`, `assets/` and one `<command>.js` per command — byte-for-byte the layout Raycast's own
-build produces.
+`package.json`, `assets/`, one `<command>.js` per command and, when the build ships one, its shared
+`node_modules/` — the layout Raycast's own build produces.
 
 Settings → Extensions offers four routes, under **Install New**:
 
@@ -476,8 +485,12 @@ Settings → Extensions offers four routes, under **Install New**:
 4. **Add from folder** — pick any directory with a manifest and built command files, e.g. an extension
    you just ran `ray build` in.
 
-Only `package.json`, the built commands and `assets/` are copied — never `node_modules` or the
-multi-megabyte `.js.map` Raycast writes beside each bundle.
+Every route ends in `ExtensionCatalog.install(from:)`, which copies `package.json`, the built commands,
+`assets/` and `node_modules/` **only when it carries `.raycast-shared-dependencies`** — `ray build`'s
+prebuilt dependencies, about a megabyte. A developer's full dev `node_modules` has no marker and is never
+copied. The multi-megabyte `.js.map` files Raycast writes beside each bundle are never kept, inside
+`node_modules` included. Dropping that folder was the cause of "Cannot find module 'dequal/lite'" and
+similar errors in store installs and updates.
 
 **Extensions are how Minicast grows.** The built-in feature set is close to final, so a requested
 feature is answered with an extension rather than new app code. Writing one and installing it here —
@@ -566,6 +579,11 @@ is the manifest's `owner` when it has one and its `author` otherwise. A differen
 A lookup that fails is skipped rather than reported, so a flaky network never invents an update.
 Updating is a store install of that listing, which replaces only the extension's directory — its
 preferences, storage and icon carry over.
+
+**Reinstall** (the ↻ button beside the trash, store-tracked extensions only) does the same with the
+store's current listing even when the commit has not changed. It repairs an install made by an older
+Minicast, such as one that dropped the shared `node_modules`. A GitHub or folder install has no
+recorded source, so it gets no button; it is reinstalled through its original route.
 
 ## Shortcuts
 

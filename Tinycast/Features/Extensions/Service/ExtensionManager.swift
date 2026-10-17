@@ -323,6 +323,26 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         return failed
     }
 
+    func isStoreInstalled(_ name: String) -> Bool {
+        storeVersions.tracked.contains(name)
+    }
+
+    /// Picks up what an older install dropped (shared `node_modules`); false when it failed.
+    func reinstall(_ name: String) async -> Bool {
+        guard let manifest = installed.first(where: { $0.manifest.name == name })?.manifest
+        else { return false }
+        updating.insert(name)
+        var succeeded = false
+        if let listing = try? await ExtensionStoreClient().lookup(
+            handle: manifest.storeHandle, name: name)
+        {
+            succeeded = (try? await installFromStore(listing, onProgress: { _ in })) != nil
+        }
+        updating.remove(name)
+        await refresh()
+        return succeeded
+    }
+
     /// Replaces only the extension's directory, so its preferences and storage carry over.
     private func installFromStore(
         _ listing: ExtensionListing,
