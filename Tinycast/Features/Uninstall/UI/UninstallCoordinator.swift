@@ -70,7 +70,13 @@ final class UninstallCoordinator {
                     symbol: "trash", confirmTitle: "Move to Trash")
             else { return }
 
-            if running, let bundleID = app.bundleID { _ = AppLauncher.quit(bundleID: bundleID) }
+            if running, let bundleID = app.bundleID, await !quitForUninstall(app, bundleID: bundleID) {
+                await core.showNotice(
+                    title: "Nothing Was Moved",
+                    message: "\(app.name) is still running, so nothing was moved to the Trash.",
+                    symbol: "trash", tone: .danger)
+                return
+            }
             session.setTrashing(true)
             let report = await UninstallRunner.moveToTrash(items)
             session.setTrashing(false)
@@ -82,6 +88,19 @@ final class UninstallCoordinator {
             if !palette.pop() { palette.prepare(mode: .launcher) }
             await presentUninstallReport(report)
         }
+    }
+
+    /// Trashing a running app's bundle fails or strands it, so a refused quit stops the uninstall.
+    private func quitForUninstall(_ app: AppEntry, bundleID: String) async -> Bool {
+        let instances = { NSRunningApplication.runningApplications(withBundleIdentifier: bundleID) }
+        if await AppLauncher.quitAwaitingExit(instances()) { return true }
+        guard
+            await core.confirm(
+                title: "\(app.name) didn’t quit",
+                message: "It may be waiting on unsaved changes. Force quitting loses them.",
+                symbol: "exclamationmark.triangle", confirmTitle: "Force Quit")
+        else { return false }
+        return await AppLauncher.quitAwaitingExit(instances(), force: true)
     }
 
     /// Stays on the screen: losing a whole scan to copy one path is a poor trade.
@@ -126,12 +145,27 @@ final class UninstallCoordinator {
             core.showMessage("Moved \(count) to the Trash · \(freed)")
             return
         }
-        let listed = report.failed.prefix(5).map { "\($0.name) — \($0.reason)" }
+        let listed = report.failed.prefix(5).map { "\($0.name) — \($0.explanation)" }
         let remaining = report.failed.count - listed.count
-        await core.showNotice(
-            title: report.trashedCount > 0 ? "Some Items Weren’t Moved" : "Nothing Was Moved",
-            message: listed.joined(separator: "\n")
-                + (remaining > 0 ? "\nand \(remaining) more." : ""),
-            symbol: "trash", tone: .danger)
+        let skipped =
+            report.skippedCount == 0
+            ? ""
+            : "\nThe app stayed installed, so its other \(report.skippedCount) "
+                + (report.skippedCount == 1 ? "item was" : "items were") + " left in place."
+        let title = report.trashedCount > 0 ? "Some Items Weren’t Moved" : "Nothing Was Moved"
+        let message =
+            listed.joined(separator: "\n") + (remaining > 0 ? "\nand \(remaining) more." : "")
+            + skipped
+        guard report.failed.contains(where: { $0.reason == .automationDenied }) else {
+            await core.showNotice(title: title, message: message, symbol: "trash", tone: .danger)
+            return
+        }
+        let openSettings = await core.confirm(
+            title: title,
+            message: message + "\nAllow Minicast to control Finder in System Settings › Privacy & "
+                + "Security › Automation, then try again.",
+            symbol: "trash", confirmTitle: "Open Settings", confirmRole: .standard,
+            dismissTitle: "Close")
+        if openSettings { Permissions.openAutomationSettings() }
     }
 }

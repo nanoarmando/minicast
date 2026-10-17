@@ -85,7 +85,7 @@
 	<key>NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Minicast uses automation to perform system actions you explicitly run.</string>
+	<string>Minicast uses automation to perform system actions you explicitly run, such as asking Finder to show an item’s info or to move an app you uninstall to the Trash.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Minicast reads today's and tomorrow's events so you can join a meeting from the palette.</string>
 	<key>NSCalendarsUsageDescription</key>

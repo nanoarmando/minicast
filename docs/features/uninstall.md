@@ -6,15 +6,18 @@ any `.application` entry; it opens the `.uninstall` palette sub-screen scoped to
 
 ## Invariants
 
-- **Uninstall moves to the Trash and never deletes.** `FileManager.trashItem` is the only removal call in
-  the feature; `removeItem` must never appear here. That is what makes display-name attribution
+- **Uninstall moves to the Trash and never deletes.** `FileManager.trashItem` is the removal call, and
+  the only other one is Finder's own `delete` (also a move to the Trash), used for the app bundle alone
+  after `trashItem` fails for a permission reason. `removeItem` must never appear here. That is what makes display-name attribution
   tolerable — a false positive costs a drag back, not the user's data — so a "delete permanently" option
   would have to drop name matching in the same commit.
 - **The deciding half stays Foundation-only and pure** for `uninstall-test`, with every environment fact
   injected: the scanner hands the rules directory **names**, never URLs, and hands the classifier a
   `PathFacts`.
 - **`UninstallScanner` detects Full Disk Access and never requests it.** The probe is silent and
-  promptless; this feature asks for no permission and never escalates privilege.
+  promptless. Minicast never asks for a password itself: the only privileged path is the bundle's
+  Finder fallback, where Finder shows its own administrator prompt (and macOS its Automation consent
+  on first use). Minicast never sees the password. Leftovers never go through it.
 - **`tccRelativePrefixes` is measured, not assumed.** Probe a location by creating and trashing a
   throwaway directory there before adding it — *listing* is not the test. `~/Library/Containers`
   enumerates fine and still refuses the move, while `~/Library/Application Scripts` allows it.
@@ -35,10 +38,10 @@ Same split as `WindowManagement`: a pure half that decides, an impure half that 
 | `Model/UninstallTarget.swift` | `UninstallTarget`, `UninstallEvidence`, `UninstallIdentity` — and every guard rail, applied in `UninstallIdentity.make` |
 | `Model/UninstallSearchRoot.swift` | The root table (where to look, which styles are legal there) and `binDirectories` |
 | `Model/UninstallRules.swift` | Matching, plus `isAcceptableCandidate` |
-| `Model/UninstallProtection.swift` | `PathFacts` → `UninstallProtection` |
+| `Model/UninstallProtection.swift` | `PathFacts` → `UninstallProtection`, and `UninstallFailureReason` (error → plain cause) |
 | `Model/UninstallPlan.swift` | `UninstallCandidate`, `UninstallPlan`, `UninstallSelection` |
 | `Service/UninstallScanner.swift` | **Impure.** `discover` (`contentsOfDirectory`, `lstat`, the FDA probe) and `measure` (the directory walks) |
-| `Service/UninstallRunner.swift` | **Impure.** `trashItem`, and nothing else |
+| `Service/UninstallRunner.swift` | **Impure.** `trashItem`, plus the Finder fallback for a permission-refused bundle |
 | `Service/UninstallSession.swift` | `@MainActor` lifecycle behind the screen |
 | `UI/UninstallScreen.swift`, `UI/UninstallView.swift` | The palette screen, list, row and actions menu |
 | `UI/UninstallCoordinator.swift` | The action surface — confirmation lives here, not in the runner |
@@ -146,7 +149,12 @@ Precedence, asserted by the harness:
 4. a TCC-gated path without Full Disk Access → `.needsFullDiskAccess`
 5. parent not writable → `.parentNotWritable`
 6. sticky parent _and_ not owned by the current user → `.notOwned`
-7. → `.removable`
+7. a real directory (not a symlink) the user cannot write → `.notWritable`
+8. → `.removable`
+
+For the **bundle only**, steps 5–7 become `.needsAdministrator`: checkable, with the row note "asks for
+your administrator password", because the Finder fallback can move it. SIP, the Finder "Locked" flag
+and Full Disk Access still lock the bundle.
 
 Steps 5 and 6 are the whole ownership story, and the order is deliberate. Removing a directory entry
 is governed by write permission on the **enclosing directory**, not by who owns the item: a root-owned
@@ -154,11 +162,16 @@ file inside a folder you can write is yours to remove. Checking ownership first 
 revision did — grayed out rows that trash perfectly well. Ownership decides exactly one case, a
 sticky parent (`S_ISVTX`, the `/tmp` rule), where only an owner may unlink.
 
+Step 7 is the exception the parent check cannot see: moving a **directory** to another folder rewrites
+its `..` entry, so it also needs write permission on the directory itself. A `.pkg`-installed
+`root:wheel 755` app inside a writable `/Applications` used to read as removable and then fail with
+`EACCES` — the cause of most "couldn't be moved" reports.
+
 This is also why `/usr/local/bin/code` stays locked while `/opt/homebrew/bin/orb` does not:
 `/usr/local/bin` is `drwxr-xr-x root:wheel`, so the trash is refused outright (measured, not
 inferred), whereas Homebrew leaves `/opt/homebrew/bin` group-writable. Raycast offers the
-`/usr/local/bin` row as checked; that removal cannot succeed without an administrator password, which
-this feature never asks for.
+`/usr/local/bin` row as checked; that removal cannot succeed without an administrator password, and
+only the bundle may go through Finder's prompt, so the row stays locked.
 
 A locked candidate can never enter the checked set. That invariant lives in `UninstallSelection`,
 whose every mutation funnels through one intersection with `plan.removableIDs`, so re-scanning drops
@@ -174,7 +187,7 @@ adding an entry.
 
 **Full Disk Access is detected, never requested.** The probe opens
 `~/Library/Application Support/com.apple.TCC/TCC.db` — TCC denies that read _silently_, with no
-prompt, which is what makes it usable under the rule that this feature asks for no permissions. It
+prompt, which is what makes it usable under the rule that this feature never requests access itself. It
 runs once per scan, not once per candidate, and can only under-report (a per-folder grant reads as
 "no access"), which just leaves a row locked.
 
@@ -226,12 +239,22 @@ trade); the two Finder actions hand focus to Finder and so hide the palette. Sho
 route and drives Finder over Apple events, which raises the system Automation prompt on first use.
 
 `UninstallCoordinator.performUninstall()` is the one funnel, so neither ↵ nor the menu row can skip the
-confirmation. It quits the app first if it's running, trashes, and **only clears the app's hotkey,
-favorite, visibility and ranking when the bundle itself went** — a leftovers-only cleanup leaves the
-app installed. The bundle is trashed last: either order can leave a partial state, but with the
-bundle still in place the user can re-run the uninstall to retry, and once it's gone the launcher
-entry that reaches this screen is gone with it. Success shows the message pill; partial failure names
-what stayed behind.
+confirmation. If the app is running it **waits for it to quit** (`AppLauncher.quitAwaitingExit`, 5 s
+grace); if it is still running, it offers Force Quit and waits again, and a refusal aborts the whole
+uninstall with nothing moved — trashing a running app's files is what produced "in use" failures.
+
+**The bundle goes first.** `trashItem` is tried; on a permission failure (`EACCES`/`EPERM`, a
+root-owned bundle or missing App Management) Finder is asked to `delete` it over Apple events, with a
+600 s timeout because the user may be typing a password. If the bundle still stays, no leftover is
+touched and the report says how many were left in place, so the app never ends up half-uninstalled and
+re-running retries cleanly. It **only clears the app's hotkey, favorite, visibility and ranking when
+the bundle itself went** — a leftovers-only cleanup leaves the app installed.
+
+Success shows the message pill. A failure lists each item with a plain cause from
+`UninstallFailureReason` (no permission, in use, locked in Finder, no longer on disk, Finder automation
+denied, password prompt cancelled, or the system message otherwise); Full Disk Access is mentioned only
+for a leftover refused on permissions. When Finder automation was denied, the report offers **Open
+Settings**, which opens Privacy & Security › Automation.
 
 ## Tests
 
@@ -241,7 +264,8 @@ what stayed behind.
 
 No filesystem, no temp directories — every input is a `String` or a `PathFacts`. `testStreamedSizes`
 covers the half a walk cannot: a landed size never reorders the plan, never disturbs a neighbour's
-pending state and never re-derives the checked set. Beyond the per-rule
+pending state and never re-derives the checked set. `testFailureReasons` maps error domains and codes
+(Cocoa, POSIX, AppleScript) to their plain cause. Beyond the per-rule
 assertions it ends with a cross-identity sweep: for a set of realistic apps × every root × every
 artifact shape, no app's artifacts may ever be attributed to another. That is the one test that
 catches a regression in the matcher as a whole rather than in a single rule.

@@ -17,10 +17,18 @@ enum Permissions {
 
     @MainActor
     static func openAccessibilitySettings() {
+        openPrivacyPane("Privacy_Accessibility")
+    }
+
+    @MainActor
+    static func openAutomationSettings() {
+        openPrivacyPane("Privacy_Automation")
+    }
+
+    @MainActor
+    private static func openPrivacyPane(_ anchor: String) {
         guard
-            let url = URL(
-                string:
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?" + anchor)
         else { return }
         NSWorkspace.shared.open(url)
     }
@@ -42,10 +50,6 @@ enum Permissions {
 
     @MainActor
     static func openCalendarSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
-        else { return }
-        NSWorkspace.shared.open(url)
+        openPrivacyPane("Privacy_Calendars")
     }
 }

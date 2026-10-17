@@ -87,7 +87,7 @@ enum AppLauncher {
 
     /// Observes before it terminates, so an instance that exits at once can't outrun the wait.
     @MainActor
-    private static func quitAwaitingExit(_ apps: [NSRunningApplication]) async -> Bool {
+    static func quitAwaitingExit(_ apps: [NSRunningApplication], force: Bool = false) async -> Bool {
         let center = NSWorkspace.shared.notificationCenter
         var captured: AsyncStream<pid_t>.Continuation?
         let exits = AsyncStream<pid_t> { captured = $0 }
@@ -100,8 +100,12 @@ enum AppLauncher {
         }
         defer { center.removeObserver(observer) }
 
-        var pending = Set(apps.map(\.processIdentifier))
-        for app in apps { app.terminate() }
+        let live = apps.filter { !$0.isTerminated }
+        guard !live.isEmpty else { return true }
+        var pending = Set(live.map(\.processIdentifier))
+        for app in live {
+            if force { app.forceTerminate() } else { app.terminate() }
+        }
 
         let grace = Task {
             try? await Task.sleep(for: exitGrace); continuation.finish()

@@ -160,7 +160,8 @@ enum UninstallScanner {
         displayName: String? = nil, parent: ParentFacts? = nil
     ) -> UninstallCandidate? {
         guard let scanned = inspect(path, parent: parent) else { return nil }
-        let protection = UninstallProtectionRules.classify(scanned.facts, environment: environment)
+        let protection = UninstallProtectionRules.classify(
+            scanned.facts, isBundle: evidence == .bundle, environment: environment)
         guard protection != .missing else { return nil }
         // A symlink is trashed as the link, so it never costs more than its own bytes.
         let walkable = scanned.isDirectory && !scanned.facts.isSymbolicLink
@@ -187,6 +188,7 @@ enum UninstallScanner {
         let volumeIsReadOnly =
             (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeIsReadOnlyKey]))?
             .volumeIsReadOnly ?? false
+        let isDirectory = (info.st_mode & S_IFMT) == S_IFDIR
         let facts = PathFacts(
             path: path,
             isSymbolicLink: (info.st_mode & S_IFMT) == S_IFLNK,
@@ -195,9 +197,11 @@ enum UninstallScanner {
             isUserImmutable: info.st_flags & UInt32(UF_IMMUTABLE) != 0,
             isOwnedByCurrentUser: info.st_uid == geteuid(),
             parentIsWritable: parent.isWritable,
-            parentIsSticky: parent.isSticky)
+            parentIsSticky: parent.isSticky,
+            isDirectory: isDirectory,
+            isWritable: !isDirectory || access(path, W_OK) == 0)
         // `st_size`, not `st_blocks`: a 593-byte plist occupies a block and must not read as 4 kB.
-        return (facts, (info.st_mode & S_IFMT) == S_IFDIR, Int64(info.st_size))
+        return (facts, isDirectory, Int64(info.st_size))
     }
 
     /// The permission that actually governs a trash, resolved once per root.

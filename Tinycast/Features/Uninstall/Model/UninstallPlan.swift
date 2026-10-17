@@ -32,6 +32,7 @@ struct UninstallCandidate: Identifiable, Hashable, Sendable {
     var url: URL { URL(fileURLWithPath: path) }
     var isLocked: Bool { !protection.isRemovable }
     var lockReason: String? { protection.lockReason }
+    var note: String? { protection.note }
 }
 
 /// Everything attributable to one app, bundle pinned first.

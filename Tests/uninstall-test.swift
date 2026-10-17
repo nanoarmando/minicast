@@ -449,9 +449,39 @@ struct UninstallTests {
             classify(everything) == .systemProtected,
             "precedence: a SIP path reports as system-protected, the most useful of its reasons")
 
+        let rootOwnedApp = PathFacts(
+            path: "/Applications/Pkg App.app", isOwnedByCurrentUser: false, isDirectory: true,
+            isWritable: false)
+        expect(
+            classify(rootOwnedApp) == .notWritable,
+            "a directory you can't write can't be renamed to another parent, so a leftover locks")
+        expect(
+            UninstallProtectionRules.classify(rootOwnedApp, isBundle: true, environment: environment)
+                == .needsAdministrator,
+            "the same facts on the bundle are removable through Finder's administrator prompt")
+        expect(
+            UninstallProtectionRules.classify(
+                PathFacts(path: "/Applications/App.app", parentIsWritable: false), isBundle: true,
+                environment: environment) == .needsAdministrator,
+            "an unwritable /Applications also falls back to Finder for the bundle")
+        expect(
+            UninstallProtectionRules.classify(
+                PathFacts(path: "/Applications/App.app", isUserImmutable: true), isBundle: true,
+                environment: environment) == .userLocked,
+            "a password can't clear Finder's Locked flag, so the bundle stays locked")
+        expect(
+            classify(PathFacts(path: "/Library/Foo", isSymbolicLink: true, isDirectory: true,
+                isWritable: false)) == .removable,
+            "a symlink is moved as the link, so its target's write bit never decides")
+        expect(
+            UninstallProtection.needsAdministrator.isRemovable
+                && UninstallProtection.needsAdministrator.note != nil
+                && UninstallProtection.removable.note == nil,
+            "needsAdministrator stays checkable and says why on the row")
+
         expect(
             UninstallProtection.allCases.allSatisfy { ($0.lockReason == nil) == $0.isRemovable },
-            "every case except .removable carries a lock reason, and .removable carries none")
+            "every locked case carries a lock reason, and removable ones carry none")
 
         expect(
             UninstallProtectionRules.isTCCProtected(
@@ -468,6 +498,47 @@ struct UninstallTests {
         expect(
             classify(PathFacts(path: home + "/Library/Application Scripts/com.foo.Bar")) == .removable,
             "so those rows are checkable while the containers beside them stay locked")
+    }
+
+    // MARK: - Failure reasons
+
+    static func testFailureReasons() {
+        typealias Reason = UninstallFailureReason
+        let cocoa = Reason.cocoaDomain
+        let script = Reason.appleScriptDomain
+
+        func reason(
+            _ domain: String, _ code: Int, posix: Int32? = nil, immutable: Bool = false
+        ) -> Reason {
+            Reason.classify(
+                domain: domain, code: code, underlyingPOSIXCode: posix, isUserImmutable: immutable,
+                message: "raw")
+        }
+
+        expect(reason(cocoa, 513) == .noPermission, "NSFileWriteNoPermissionError is a permission")
+        expect(reason(cocoa, 513, posix: EACCES) == .noPermission, "EACCES underneath reads the same")
+        expect(reason(cocoa, 512, posix: EPERM) == .noPermission, "a generic write error over EPERM")
+        expect(reason(cocoa, 512, posix: EBUSY) == .inUse, "EBUSY underneath is in use")
+        expect(reason(cocoa, 512, posix: ETXTBSY) == .inUse, "a running executable is in use")
+        expect(reason(cocoa, 255) == .inUse, "NSFileLockingError is in use")
+        expect(reason(cocoa, 4) == .notFound, "NSFileNoSuchFileError is not found")
+        expect(reason(Reason.posixDomain, Int(ENOENT)) == .notFound, "a bare POSIX ENOENT")
+        expect(
+            reason(cocoa, 513, posix: EPERM, immutable: true) == .locked,
+            "UF_IMMUTABLE surfaces as EPERM, so the probed flag wins")
+        expect(reason(cocoa, 512) == .other("raw"), "an unknown code keeps the system's message")
+        expect(reason(script, -1743) == .automationDenied, "errAEEventNotPermitted")
+        expect(reason(script, -128) == .cancelled, "userCanceledErr from Finder's prompt")
+        expect(reason(script, -10004) == .noPermission, "a Finder privilege violation")
+
+        expect(
+            Reason.noPermission.explanation(isBundle: false).contains("Full Disk Access")
+                && !Reason.noPermission.explanation(isBundle: true).contains("Full Disk Access"),
+            "Full Disk Access is only suggested for a leftover")
+        expect(
+            !Reason.inUse.explanation(isBundle: false).isEmpty
+                && Reason.other("raw").explanation(isBundle: true) == "raw",
+            "every reason explains itself and an unknown one passes the message through")
     }
 
     // MARK: - Plan and selection
@@ -669,6 +740,7 @@ struct UninstallTests {
         testIdentityRefusal()
         testPathSafety()
         testProtection()
+        testFailureReasons()
         testSelection()
         testStreamedSizes()
         testCrossIdentitySweep()
