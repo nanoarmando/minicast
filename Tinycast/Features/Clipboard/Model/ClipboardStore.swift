@@ -28,6 +28,15 @@ struct ClipboardItem: Identifiable, Hashable, Sendable {
     /// What Paste as Plain Text writes: the text, or a file's path in place of the file.
     var plainText: String? { kind == .image ? nil : text }
 
+    /// Whether Quick Look (⌘Y) applies: a stored image, or any copied file or folder.
+    var offersQuickLook: Bool {
+        switch kind {
+        case .image: return imagePath != nil
+        case .file: return true
+        case .text: return false
+        }
+    }
+
     /// Whether Copy Text (⇧⌘T) applies: a captured image, or an image file copied in Finder.
     var offersTextExtraction: Bool {
         switch kind {
@@ -69,11 +78,14 @@ struct ClipboardItem: Identifiable, Hashable, Sendable {
         self.pinnedAt = pinnedAt
     }
 
-    /// Copy with the two fields the store rewrites; the pin is always stated outright.
-    func with(createdAt: Date? = nil, pinnedAt: Date?) -> ClipboardItem {
+    /// Copy with the fields the store rewrites; the pin is always stated outright.
+    func with(
+        createdAt: Date? = nil, pinnedAt: Date?, sourceBundleID: String?? = nil
+    ) -> ClipboardItem {
         ClipboardItem(
             id: id, kind: kind, text: text, imagePath: imagePath,
-            createdAt: createdAt ?? self.createdAt, sourceBundleID: sourceBundleID,
+            createdAt: createdAt ?? self.createdAt,
+            sourceBundleID: sourceBundleID ?? self.sourceBundleID,
             pinnedAt: pinnedAt)
     }
 
@@ -118,6 +130,12 @@ enum ClipboardDefaultAction: String, CaseIterable, Identifiable, Sendable {
     case copy
     case pastePlainText
 
+    /// What the setting offers; plain text stays on ⌃⌘↵ and in the ⌘K menu.
+    static let defaultChoices: [Self] = [.paste, .copy]
+
+    /// A stored plain-text default, from older versions or a backup, reads as Paste.
+    var asDefaultChoice: Self { self == .pastePlainText ? .paste : self }
+
     var id: String { rawValue }
 
     var title: String {
@@ -130,17 +148,14 @@ enum ClipboardDefaultAction: String, CaseIterable, Identifiable, Sendable {
 
     /// What `chord` runs on `item` with this as the default; nil when it has no text to paste.
     func action(for chord: ClipboardChord, on item: ClipboardItem) -> Self? {
-        let hasPlainText = item.plainText != nil
-        // An image has no text, so a plain-text default pastes it as it is.
-        let resolved: Self = self == .pastePlainText && !hasPlainText ? .paste : self
         let action: Self =
             switch chord {
-            case .return: resolved
-            case resolved.ownChord: .paste
+            case .return: self
+            case ownChord: .paste
             case .command: .copy
             case .controlCommand: .pastePlainText
             }
-        return action == .pastePlainText && !hasPlainText ? nil : action
+        return action == .pastePlainText && item.plainText == nil ? nil : action
     }
 
     /// The chord an action answers while Paste is the default.
@@ -227,6 +242,7 @@ final class ClipboardStore {
         );
         CREATE INDEX IF NOT EXISTS items_created_at ON items(created_at);
         CREATE INDEX IF NOT EXISTS items_pinned_at ON items(pinned_at) WHERE pinned_at IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS items_kind_text ON items(kind, text);
         CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
           text, content='items', content_rowid='rowid', tokenize='trigram'
         );
@@ -358,21 +374,43 @@ final class ClipboardStore {
     }
 
     func addText(_ text: String, sourceBundleID: String?) {
-        if items.first?.kind == .text, items.first?.text == text { return }
-        insert(ClipboardItem(text: text, sourceBundleID: sourceBundleID))
+        let item = ClipboardItem(text: text, sourceBundleID: sourceBundleID)
+        guard !recencyDuplicate(of: item) else { return }
+        insert(item)
     }
 
     /// One row per file. Batched, so a multi-file copy prunes once rather than once per file.
     func addFiles(_ paths: [String], sourceBundleID: String?) {
-        // Only a single file can be a ⌘C repeat, which is the case `addText` also guards.
-        if paths.count == 1, items.first?.kind == .file, items.first?.text == paths[0] { return }
         for path in paths {
             let item = ClipboardItem(filePath: path, sourceBundleID: sourceBundleID)
+            guard !recencyDuplicate(of: item) else { continue }
             if let stmt = insertStmt { Self.bindAndInsert(stmt, item) }
             items.insert(item, at: 0)
         }
         trimWindow()
         prune()
+    }
+
+    /// Whether `item` repeats a stored row; an unpinned one is moved to the top in its place.
+    private func recencyDuplicate(of item: ClipboardItem) -> Bool {
+        guard let text = item.text,
+            let stmt = prepare(
+                """
+                SELECT id, kind, text, image_path, created_at, source_app, pinned_at
+                FROM items WHERE kind = ?1 AND text = ?2 ORDER BY rowid DESC
+                """)
+        else { return false }
+        sqlite3_bind_text(stmt, 1, item.kind.rawValue, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, text, -1, SQLITE_TRANSIENT)
+        var matches: [ClipboardItem] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let match = Self.row(stmt) { matches.append(match) }
+        }
+        sqlite3_finalize(stmt)
+        guard let newest = matches.first else { return false }
+        if matches.contains(where: \.isPinned) { return true }
+        reinsert(newest.with(createdAt: item.createdAt, pinnedAt: nil, sourceBundleID: item.sourceBundleID))
+        return true
     }
 
     func addImage(_ data: Data, sourceBundleID: String?) {
@@ -778,7 +816,7 @@ final class ClipboardStore {
         if let stmt = prepare(
             """
             UPDATE items SET rowid = (SELECT COALESCE(MAX(rowid), 0) + 1 FROM items),
-              created_at = ?1, pinned_at = ?2 WHERE id = ?3
+              created_at = ?1, pinned_at = ?2, source_app = ?4 WHERE id = ?3
             """)
         {
             sqlite3_bind_double(stmt, 1, updated.createdAt.timeIntervalSince1970)
@@ -788,6 +826,11 @@ final class ClipboardStore {
                 sqlite3_bind_null(stmt, 2)
             }
             sqlite3_bind_text(stmt, 3, updated.id.uuidString, -1, SQLITE_TRANSIENT)
+            if let source = updated.sourceBundleID {
+                sqlite3_bind_text(stmt, 4, source, -1, SQLITE_TRANSIENT)
+            } else {
+                sqlite3_bind_null(stmt, 4)
+            }
             sqlite3_step(stmt)
             sqlite3_finalize(stmt)
         }

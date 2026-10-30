@@ -34,6 +34,13 @@ struct ClipboardTests {
         defaultActionChords()
         plainTextSkipsTheFile()
         offersTextExtraction()
+        offersQuickLook()
+        repeatedTextMovesToTheTop()
+        repeatBeyondTheWindowMovesIn()
+        pinnedRepeatHoldsItsPlace()
+        whitespaceMakesADifferentEntry()
+        repeatTakesTheNewSourceApp()
+        repeatedFileMovesToTheTop()
 
         print("\(passes)/\(passes + failures) passed")
         if failures > 0 { exit(1) }
@@ -672,16 +679,17 @@ struct ClipboardTests {
         }
     }
 
-    /// The default takes ↵ and Paste its chord; the Paste and Copy defaults keep their old pair.
+    /// The default takes ↵ and Paste its chord; a stored plain-text default reads as Paste.
     static func defaultActionChords() {
         let text = ClipboardItem(text: "hello", sourceBundleID: nil)
         let file = ClipboardItem(filePath: "/Users/me/report.pdf", sourceBundleID: nil)
         let image = ClipboardItem(imagePath: "/tmp/shot.png", sourceBundleID: nil)
         let expected: [ClipboardDefaultAction: [ClipboardDefaultAction]] = [
             .paste: [.paste, .copy, .pastePlainText],
-            .copy: [.copy, .paste, .pastePlainText],
-            .pastePlainText: [.pastePlainText, .copy, .paste]
+            .copy: [.copy, .paste, .pastePlainText]
         ]
+        expect(ClipboardDefaultAction.defaultChoices == [.paste, .copy], "the setting offers two")
+        expect(ClipboardDefaultAction.pastePlainText.asDefaultChoice == .paste, "old default → Paste")
         for (defaultAction, actions) in expected {
             for item in [text, file] {
                 expect(
@@ -689,8 +697,7 @@ struct ClipboardTests {
                     "\(defaultAction) orders ↵, ⌘↵, ⌃⌘↵ as \(actions) on a \(item.kind) entry")
             }
             let imageActions = ClipboardChord.allCases.map { defaultAction.action(for: $0, on: image) }
-            let paste: ClipboardDefaultAction = defaultAction == .copy ? .copy : .paste
-            expect(imageActions.first == paste, "\(defaultAction) on an image never pastes plain")
+            expect(imageActions.first == defaultAction, "\(defaultAction) on an image runs as is")
             expect(imageActions.last == .some(nil), "and ⌃⌘↵ has nothing to run on it")
         }
     }
@@ -731,6 +738,85 @@ struct ClipboardTests {
             !ClipboardItem(filePath: "/Users/me/report.pdf", sourceBundleID: nil)
                 .offersTextExtraction,
             "a PDF stays a background-indexing capability")
+    }
+
+    static func offersQuickLook() {
+        expect(!ClipboardItem(text: "hi", sourceBundleID: nil).offersQuickLook, "text has none")
+        expect(
+            ClipboardItem(imagePath: "/tmp/shot.png", sourceBundleID: nil).offersQuickLook,
+            "a stored image offers it")
+        expect(
+            ClipboardItem(filePath: "/Users/me/report.pdf", sourceBundleID: nil).offersQuickLook,
+            "any file offers it")
+    }
+
+    static func repeatedTextMovesToTheTop() {
+        withStore { store, _ in
+            store.addText("pepito", sourceBundleID: nil)
+            store.addText("x", sourceBundleID: nil)
+            store.addText("pepito", sourceBundleID: nil)
+            expect(texts(store) == ["pepito", "x"], "a repeat moves up instead of adding a row")
+        }
+    }
+
+    static func repeatBeyondTheWindowMovesIn() {
+        withStore { store, _ in
+            store.addText("ancient", sourceBundleID: nil)
+            for index in 0..<1_000 { store.addText("filler \(index)", sourceBundleID: nil) }
+            expect(!store.items.contains { $0.text == "ancient" }, "the row left the window")
+            store.addText("ancient", sourceBundleID: nil)
+            expect(store.items.first?.text == "ancient", "a repeat beyond the window leads it")
+            var rows = 0
+            ClipboardStore.forEachStoredItem(inDatabaseAt: store.dbURL) { _ in
+                rows += 1
+            }
+            expect(rows == 1_001, "and adds no row")
+        }
+    }
+
+    static func pinnedRepeatHoldsItsPlace() {
+        withStore { store, _ in
+            store.addText("pepito", sourceBundleID: nil)
+            store.addText("x", sourceBundleID: nil)
+            store.togglePinned(item(store, "pepito"))
+            store.addText("y", sourceBundleID: nil)
+            let pinnedAt = item(store, "pepito").pinnedAt
+            store.addText("pepito", sourceBundleID: nil)
+            expect(texts(store) == ["pepito", "y", "x"], "a pinned repeat adds no row")
+            expect(item(store, "pepito").pinnedAt == pinnedAt, "and the pin is untouched")
+        }
+    }
+
+    static func whitespaceMakesADifferentEntry() {
+        withStore { store, _ in
+            store.addText("pepito", sourceBundleID: nil)
+            store.addText("pepito ", sourceBundleID: nil)
+            expect(texts(store) == ["pepito ", "pepito"], "only exact text is a repeat")
+        }
+    }
+
+    static func repeatTakesTheNewSourceApp() {
+        withStore { store, dir in
+            store.addText("pepito", sourceBundleID: "com.apple.Notes")
+            store.addText("x", sourceBundleID: nil)
+            store.addText("pepito", sourceBundleID: "com.apple.Safari")
+            expect(store.items.first?.sourceBundleID == "com.apple.Safari", "the source follows")
+            let reopened = ClipboardStore(directory: dir)
+            reopened.load()
+            expect(
+                reopened.items.first?.sourceBundleID == "com.apple.Safari", "and is persisted")
+        }
+    }
+
+    static func repeatedFileMovesToTheTop() {
+        withStore { store, _ in
+            store.addFiles(["/tmp/a.pdf"], sourceBundleID: nil)
+            store.addText("x", sourceBundleID: nil)
+            store.addFiles(["/tmp/b.pdf", "/tmp/a.pdf"], sourceBundleID: nil)
+            expect(
+                store.items.map { $0.text ?? "" } == ["/tmp/a.pdf", "/tmp/b.pdf", "x"],
+                "each path in a batch is deduped on its own")
+        }
     }
 
     // MARK: - Harness

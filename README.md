@@ -29,7 +29,8 @@ bar search (the Navigation pane).
 - **Global hotkey** to summon the palette.
 - **Search Files** through Spotlight.
 - **Dictionary** lookups.
-- **Clipboard history** for text and images, plus a command that pastes Markdown as rich text.
+- **Clipboard history** for text and images, without repeats and with Quick Look, plus commands that
+  paste Markdown as rich text and paste text without formatting.
 - **Calculator** with units and live currency conversion.
 - **Apple Shortcuts** and **custom shell commands**, with aliases and hotkeys.
 - **Window management**: window commands with hotkeys, layouts, rooms and custom sizes.

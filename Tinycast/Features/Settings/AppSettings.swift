@@ -153,8 +153,9 @@ final class AppSettings {
     /// What ↵ does on a clipboard entry; Paste takes the chord the chosen action leaves free.
     var clipboardDefaultAction: ClipboardDefaultAction {
         didSet {
-            defaults.set(
-                clipboardDefaultAction.rawValue, forKey: Key.clipboardDefaultAction.rawValue)
+            let choice = clipboardDefaultAction.asDefaultChoice
+            if choice != clipboardDefaultAction { clipboardDefaultAction = choice }
+            defaults.set(choice.rawValue, forKey: Key.clipboardDefaultAction.rawValue)
         }
     }
 
@@ -508,7 +509,7 @@ final class AppSettings {
             ?? ["com.apple.keychainaccess", "com.apple.Passwords"]
         clipboardDefaultAction =
             defaults.string(forKey: Key.clipboardDefaultAction.rawValue)
-            .flatMap(ClipboardDefaultAction.init) ?? .paste
+            .flatMap(ClipboardDefaultAction.init)?.asDefaultChoice ?? .paste
         launchAtLogin = LaunchAtLogin.isEnabled
         showInMenuBar =
             defaults.object(forKey: Key.showInMenuBar.rawValue) == nil

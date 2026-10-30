@@ -54,7 +54,7 @@ private struct FileSearchPreviewStage: View {
                 .font(.system(.largeTitle))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.tertiary)
-        } else if palette.isVisible, !palette.fileSearchQuickLook {
+        } else if palette.isVisible, !palette.quickLookOpen {
             FileSearchSurface(url: result.url)
                 .clipShape(card)
                 .overlay(card.strokeBorder(Theme.Colors.cardStroke, lineWidth: 1))

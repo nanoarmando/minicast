@@ -36,7 +36,7 @@ struct ClipboardSettingsView: View {
                         Text("Recognized on this Mac while idle.")
                     }
                     Picker(selection: $settings.clipboardDefaultAction) {
-                        ForEach(ClipboardDefaultAction.allCases) { action in
+                        ForEach(ClipboardDefaultAction.defaultChoices) { action in
                             Text(action.title).tag(action)
                         }
                     } label: {

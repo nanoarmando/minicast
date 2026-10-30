@@ -8,22 +8,27 @@
   `ClipboardCoordinator.applyEnabled()` is the single place that applies it.
 - **↵, ⌘↵ and ⌃⌘↵ trade places around one setting, and
   `ClipboardDefaultAction.action(for:on:)` is the only place that says which chord runs what.**
-  Paste owns ↵, Copy ⌘↵ and Paste as Plain Text ⌃⌘↵; `clipboardDefaultAction` moves one to ↵ and
-  Paste takes the chord it left, so a Copy default keeps the ↵/⌘↵ swap it always had.
+  Paste owns ↵, Copy ⌘↵ and Paste as Plain Text ⌃⌘↵; `clipboardDefaultAction` is Paste or Copy
+  (`defaultChoices`), and a Copy default swaps ↵ and ⌘↵. A stored plain-text default, from an older
+  version, `settings.json` or a backup, reads as Paste through `asDefaultChoice` in its `didSet`.
   `ClipboardCoordinator.activate(_:chord:)` runs it, and ⌘1…⌘0 on a pin and a double-click go
   through the same call, so no surface can drift from the setting; ⌥↵ pastes regardless, since
   keeping the window open is a paste-only idea. The ⌘K menu lists the three in chord order, which
   puts the default first with the ↵ chip.
 - **Paste as Plain Text writes `ClipboardItem.plainText` and nothing else**: the text itself, or a
-  file entry's path without its `public.file-url`. An image has none, so it gets no plain row, a
-  plain-text default pastes it as it is, and ⌃⌘↵ on it falls back to ⌘↵ as on every other screen.
+  file entry's path without its `public.file-url`. An image has none, so it gets no plain row and
+  ⌃⌘↵ on it falls back to ⌘↵ as on every other screen.
 - **Clipboard writes stamp a private `internalType` marker** so the poller skips Minicast's own writes.
   If the writer and the poller ever disagree, the app re-captures its own pastes in a loop.
 - **Paste Sequentially never promotes, and its walk is frozen at the first press.** `PasteSequence`
   keeps every entry's id, newest first, and resolves each against the live history, so a promotion
   cannot repeat or skip an entry and a deleted one is passed over rather than pasted.
-- **Paste Markdown as Rich Text always puts the user's clipboard back.** Both its own write and the
-  restore carry `internalType`, so the command never adds a history entry.
+- **Paste Markdown as Rich Text and Paste as Plain Text always put the user's clipboard back.** Both
+  go through `pasteClipboardText`, whose write and restore carry `internalType`, so neither command
+  adds a history entry.
+- **A repeated copy of text or a file path never adds a row.** The newest stored row with the same
+  kind and exact text moves to the top with the new time and source app; a pinned match leaves
+  everything as it is. Images are never deduped.
 - **`Model/ClipboardStore.swift` keeps to Foundation plus SQLite3 and no other app source**, so
   `clipboard-test` can compile it standalone. It uses `isolated deinit` for its SQLite teardown.
 - A database that cannot be opened is deleted and recreated. That is sound because a history is
@@ -135,6 +140,11 @@ filter applies after the limit. `promote` updates the row's timestamp and rowid 
 rather than deleting and re-inserting it, because a delete would take the row's recognized text with
 it; an update trigger moves the original-text FTS entry to the new rowid. The UUID and the image blob
 are untouched.
+
+**Capture dedupes against the whole table.** `addText` and `addFiles` look up the same kind and exact
+text through the `items_kind_text` index, so a repeat older than the resident window is still found.
+`recencyDuplicate(of:)` does nothing when any match is pinned, and otherwise reinserts the newest
+match, which also rewrites `source_app`. Duplicates stored before this rule are left in place.
 
 Files under the store's own `imagesDir` are **owned**: pruned and deleted with their row. External
 references — an image imported from another app's cache — are left on disk when the row goes. A
@@ -489,6 +499,22 @@ any other Minicast paste.
 pasteboard only when it handles that ⌘V. A press inside that gap would swap the pasteboard first:
 one entry pasted twice, another skipped. A queue would replay a held shortcut as a burst.
 
+## Quick Look
+
+⌘Y, or the ⌘K row, previews an image entry or a file entry (folders included; `offersQuickLook`)
+in File Search's in-panel card, `FileSearchQuickLook`, for the reasons in
+[file-search.md](file-search.md). The shared `PaletteState.quickLookOpen` flag carries its resets and
+Escape. Only opening checks that the content exists, reporting a vanished file or pruned image as
+Copy Text does; the card then follows the selection and closes on an entry without Quick Look.
+`ClipboardPreview` is not mounted while the card is open, so a video never plays twice.
+
+## Paste as Plain Text
+
+A command, bound in Settings ▸ Clipboard and hidden with the rest of the pane while history is off.
+It pastes the live clipboard's `.string` unchanged into `PaletteCoordinator.targetApp` with
+`Paster.pasteStringInPlace`, then restores the clipboard exactly as Paste Markdown as Rich Text does
+below, sharing its repeat guard. With no text it shows **No text on the clipboard**.
+
 ## Paste Markdown as Rich Text
 
 A command, bound in Settings ▸ Clipboard and hidden with the rest of the pane while history is off.
@@ -516,7 +542,7 @@ as `public.utf8-plain-text`, so each target takes the richest one it accepts. `P
 from the HTML with AppKit's importer, after turning each `<img>` into a link. Otherwise the importer
 would fetch remote images synchronously on the main thread.
 
-**The original clipboard returns 0.5s after the paste.** `Paster.snapshot()` copies every item's
+**The original clipboard returns `clipboardRestoreDelay` (0.5s) after the paste.** `Paster.snapshot()` copies every item's
 types before the write, and `Paster.restore(_:)` writes them back stamped with `internalType`. The
 target reads the pasteboard only when it handles ⌘V, so the delay leaves it time to read the
 converted content. A press before the restore is dropped. Otherwise it would snapshot the converted

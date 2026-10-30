@@ -27,8 +27,8 @@ final class PaletteState {
     var emojiCategoryFilter: EmojiCategoryFilter = .all
     /// Nil means the configured default; zoom only overrides it for this picker session.
     var emojiGridColumnsOverride: EmojiGridColumns?
-    /// Whether file search draws its Quick Look overlay; it follows whatever row is selected.
-    var fileSearchQuickLook = false
+    /// Whether File Search or Clipboard draws its Quick Look overlay; it follows the selected row.
+    var quickLookOpen = false
     /// Ordering out leaves the SwiftUI tree mounted, so a media preview needs this to stop playing.
     private(set) var isVisible = false
     /// Changes every time the palette is shown so the search field can re-focus.
@@ -86,7 +86,7 @@ final class PaletteState {
     func noteVisible(_ visible: Bool) {
         isVisible = visible
         // Ordering out leaves the tree mounted, and a preview must not outlive the window.
-        if !visible { fileSearchQuickLook = false }
+        if !visible { quickLookOpen = false }
     }
 
     var canGoBack: Bool { !backStack.isEmpty }
@@ -152,7 +152,7 @@ final class PaletteState {
         fileSearchFilter = .all
         emojiCategoryFilter = .all
         emojiGridColumnsOverride = nil
-        fileSearchQuickLook = false
+        quickLookOpen = false
         forceExpanded = false
         dropHoverHighlight()
         menuOpen = false

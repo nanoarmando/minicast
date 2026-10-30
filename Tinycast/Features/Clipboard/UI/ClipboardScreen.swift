@@ -50,8 +50,20 @@ struct ClipboardScreen: PaletteScreen {
             guard let item = item(at: selection), item.offersTextExtraction else { return false }
             core.clipboardCoordinator.copyImageText(item)
             return true
+        case .quickLook: return toggleQuickLook(at: selection)
         default: return false
         }
+    }
+
+    /// ⌘Y — the overlay follows the selection, so toggling is all the state it needs.
+    private func toggleQuickLook(at selection: Int) -> Bool {
+        if vm.quickLookOpen {
+            vm.quickLookOpen = false
+            return true
+        }
+        guard let item = item(at: selection), item.offersQuickLook else { return false }
+        core.clipboardCoordinator.openQuickLook(item)
+        return true
     }
 
     /// ⌘1…⌘0 — the Nth visible pinned entry (Pinned section order), like ↵.
@@ -150,7 +162,24 @@ struct ClipboardScreen: PaletteScreen {
                 Rectangle()
                     .fill(Theme.Colors.separator)
                     .frame(width: 1)
-                ClipboardPreview(item: selected)
+                // One player at a time: the card would otherwise play beside the side preview.
+                if vm.quickLookOpen {
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ClipboardPreview(item: selected)
+                }
+            }
+            .overlay {
+                if vm.quickLookOpen, let selected,
+                    let url = core.clipboardCoordinator.quickLookURL(for: selected)
+                {
+                    FileSearchQuickLook(name: ClipboardActionsMenu.headerText(selected), url: url) {
+                        vm.quickLookOpen = false
+                    }
+                }
+            }
+            .onValueChange(of: selected?.offersQuickLook ?? false) { _, offersQuickLook in
+                if !offersQuickLook { vm.quickLookOpen = false }
             }
         }
     }
@@ -211,11 +240,20 @@ enum ClipboardActionsMenu {
                     core.clipboardCoordinator.copyImageText(item)
                 })
         }
+        if item.offersQuickLook {
+            items.append(
+                PopoverMenuItem(
+                    title: "Quick Look", systemImage: "eye",
+                    startsSection: !item.offersTextExtraction, shortcut: "⌘Y"
+                ) {
+                    core.clipboardCoordinator.openQuickLook(item)
+                })
+        }
         if item.kind == .image || item.kind == .file {
             items.append(
                 PopoverMenuItem(
                     title: "Show in Finder", systemImage: "folder",
-                    startsSection: !item.offersTextExtraction
+                    startsSection: !item.offersTextExtraction && !item.offersQuickLook
                 ) {
                     core.clipboardCoordinator.revealClip(item)
                 })
@@ -257,7 +295,7 @@ enum ClipboardActionsMenu {
         }
     }
 
-    private static func headerText(_ item: ClipboardItem) -> String {
+    static func headerText(_ item: ClipboardItem) -> String {
         switch item.kind {
         case .text:
             // Collapse whitespace so a multi-line copy stays a clean one-line title.

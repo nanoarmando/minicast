@@ -363,8 +363,12 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - ⌃⇧X asks first, through Minicast's own dialog; Cancel and Esc both leave every entry in place
 - ↵ pastes into the previous app; ⌥↵ pastes without closing the palette
 - ⌃⌘↵ pastes as plain text: a text entry as typed, a file entry as its path rather than the file
-- Default action ▸ Paste as Plain Text: ↵ pastes plain, ⌃⌘↵ pastes, ⌘↵ still copies; an image
-  entry's ↵ still pastes the image and its ⌘K menu has no plain row
+- Default action offers only Paste and Copy to Clipboard; with Copy, ⌃⌘↵ still pastes plain and an
+  image entry's ⌘K menu has no plain row
+- Copy "pepito", then "x", then "pepito": one "pepito" row, above "x", showing the second source
+  app; copying a pinned entry's text again adds no row and leaves the pin in place
+- ⌘Y on an image, a PDF and a video entry opens the in-panel card (PDF scrolls, video plays); ↑↓
+  follow the selection, Esc closes the card only, ⌘Y on a text entry does nothing
 - ⇧⌘T on an image row and on an image-file row copies the recognized text, and the ⌘K menu carries
   the same Copy Text row
 - The "Reading text…" progress pill appears while the helper runs and is replaced by the outcome:
@@ -387,7 +391,10 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
 - Paste Markdown as Rich Text, bound to a shortcut: Markdown with headings, a table, a task list,
   code and links pastes formatted into Mail, Notes, Slack and a Chromium editor; ⌘V right after
   pastes the original Markdown; the history gains no entry; an image on the clipboard shows
-  **No text on the clipboard to convert**; holding the shortcut pastes once
+    **No text on the clipboard to convert**; holding the shortcut pastes once
+- Paste as Plain Text, bound to a shortcut: formatted text from Safari pastes unformatted into Mail;
+  ⌘V right after pastes the formatted original; the history gains no entry; an image on the
+  clipboard shows **No text on the clipboard**; holding the shortcut pastes once
 - A text, link, image and file row each drag into another app; a click still selects, a double
   click still pastes, and a right click still opens ⌘K
 

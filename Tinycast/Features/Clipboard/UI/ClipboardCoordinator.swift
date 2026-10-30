@@ -15,9 +15,9 @@ final class ClipboardCoordinator {
     /// One Copy Text at a time: a newer trigger cancels the helper an older one is waiting on.
     private var textTask: Task<Void, Never>?
     private var pasteSequence: PasteSequence?
-    private var isPastingMarkdown = false
+    private var isPastingClipboard = false
     /// Long enough for the target to read the pasteboard after ⌘V before the original returns.
-    private static let richTextSettleDelay: TimeInterval = 0.5
+    private static let clipboardRestoreDelay: TimeInterval = 0.5
 
     init(
         clipboardStore: ClipboardStore,
@@ -42,7 +42,8 @@ final class ClipboardCoordinator {
     /// Off means the poller stops, the database closes and nothing new is ever recorded.
     func applyEnabled() {
         appIndex.setCommandsVisible(
-            [.clipboardHistory, .pasteSequentially, .pasteMarkdownAsRichText], settings.clipboardEnabled)
+            [.clipboardHistory, .pasteSequentially, .pasteMarkdownAsRichText, .pasteAsPlainText],
+            settings.clipboardEnabled)
         guard settings.clipboardEnabled else {
             core.applyClipboardTextSearch()
             clipboardManager.stop()
@@ -141,23 +142,36 @@ final class ClipboardCoordinator {
 
     /// Pastes the clipboard's Markdown as rich text, then puts the original clipboard back.
     func pasteMarkdownAsRichText() {
-        // A held shortcut must not snapshot the converted content as the clipboard to restore.
-        guard !isPastingMarkdown else { return }
+        pasteClipboardText(ifEmpty: "No text on the clipboard to convert") { markdown, target in
+            Paster.pasteRichTextInPlace(
+                html: MarkdownRichText.htmlDocument(fromMarkdown: markdown), plainText: markdown,
+                into: target)
+        }
+    }
+
+    /// Pastes the clipboard's text without formatting, then puts the original clipboard back.
+    func pasteClipboardAsPlainText() {
+        pasteClipboardText(ifEmpty: "No text on the clipboard", paste: Paster.pasteStringInPlace)
+    }
+
+    private func pasteClipboardText(
+        ifEmpty message: String, paste: (String, NSRunningApplication) -> Void
+    ) {
+        // A held shortcut must not snapshot the pasted content as the clipboard to restore.
+        guard !isPastingClipboard else { return }
         guard let target = paletteCoordinator.targetApp else { return }
-        guard let markdown = NSPasteboard.general.string(forType: .string), !markdown.isEmpty else {
-            core.showMessage("No text on the clipboard to convert", tone: .neutral)
+        guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else {
+            core.showMessage(message, tone: .neutral)
             return
         }
         clipboardManager.prepareForTinycastPasteboardMutation()
         let snapshot = Paster.snapshot()
         if paletteCoordinator.isVisible { paletteCoordinator.hidePalette() }
-        isPastingMarkdown = true
-        Paster.pasteRichTextInPlace(
-            html: MarkdownRichText.htmlDocument(fromMarkdown: markdown), plainText: markdown,
-            into: target)
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.richTextSettleDelay) { [weak self] in
+        isPastingClipboard = true
+        paste(text, target)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.clipboardRestoreDelay) { [weak self] in
             Paster.restore(snapshot)
-            self?.isPastingMarkdown = false
+            self?.isPastingClipboard = false
         }
     }
 
@@ -248,11 +262,7 @@ final class ClipboardCoordinator {
                 // A stat on an unmounted or network volume can stall, so it stays off the main actor.
                 let exists = await Task.detached { FileManager.default.fileExists(atPath: path) }.value
                 try Task.checkCancellation()
-                guard exists else {
-                    return item.kind == .file
-                        ? reportUnavailable(item)
-                        : core.showMessage("That image is no longer available.", tone: .danger)
-                }
+                guard exists else { return reportMissing(item) }
                 let text = try await ClipboardTextWorker.extract(item)
                 guard !text.isEmpty else { return core.showMessage("No text found", tone: .neutral) }
                 guard NSPasteboard.general.changeCount == changeCount else {
@@ -265,6 +275,23 @@ final class ClipboardCoordinator {
                 core.showMessage("Couldn’t read the text", tone: .danger)
             }
         }
+    }
+
+    private func reportMissing(_ item: ClipboardItem) {
+        guard item.kind == .image else { return reportUnavailable(item) }
+        core.showMessage("That image is no longer available.", tone: .danger)
+    }
+
+    /// The card follows the selection, so only opening it checks that the content still exists.
+    func openQuickLook(_ item: ClipboardItem) {
+        guard let url = quickLookURL(for: item) else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else { return reportMissing(item) }
+        palette.quickLookOpen = true
+    }
+
+    func quickLookURL(for item: ClipboardItem) -> URL? {
+        guard item.offersQuickLook else { return nil }
+        return clipboardStore.imageURL(for: item) ?? clipboardStore.fileURL(for: item)
     }
 
     /// Nil once the file is gone, so every action reports rather than silently no-opping.
