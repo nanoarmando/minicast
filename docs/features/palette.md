@@ -370,6 +370,9 @@ disagree, and neither yields.
 - SwiftUI's `HostingClipView` claims the **arrow** across the entire window as a *cursor rect*.
 - The field editor claims the **I-beam** from its own *tracking area*.
 
+A view that sets its own cursor, such as the Quick Look card's zoomable image and its hand cursors,
+adopts `PaletteCursorOwning`, and the policy leaves the pointer alone over it and its descendants.
+
 Both fire on the same crossings, so the cursor alternates while the pointer is over the field, and the
 last claim simply stays put once it leaves — nothing re-evaluates a cursor rect until the pointer
 crosses one, and the arrow rect spans the window, so leaving the field crosses nothing.

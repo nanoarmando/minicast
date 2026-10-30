@@ -211,7 +211,16 @@ never what the row means.
 Quick Look (⌘Y) draws **inside the panel**: the palette hides itself on `windowDidResignKey` and the panel
 is non-activating, so a system `QLPreviewPanel` would take key and close the palette under itself.
 `FileSearchQuickLook` takes a name and a URL and hosts the same two surfaces the pane does, following
-the selection; Clipboard History reuses it, and both screens share `PaletteState.quickLookOpen`. **Escape is
+the selection; Clipboard History reuses it, and both screens share `PaletteState.quickLookOpen`.
+**The card zooms; the side pane does not.** `QLPreviewView` cannot magnify inside a non-activating
+panel, so the card draws image files with `ZoomableImageSurface` (an `NSScrollView` with
+`allowsMagnification`, double-click for fit or 1:1, drag to pan with hand cursors) and PDFs with
+`PDFView`. Pinch is not delivered to an app the palette never activates, so ⌘-scroll zooms around
+the pointer instead, with a mouse wheel or a trackpad; on PDFs that also works in the side pane,
+which shares `PreviewPDFView`. ⌘+ and ⌘− reach it through the emoji zoom token while the card is open; ⌘0 is left alone,
+since Clipboard History uses it for the tenth pin. `.id(url)` gives every selection a fitted view.
+
+**Escape is
 answered by `PalettePanel.onEscape`**, not by the palette's own key handler: a focused `AVPlayerView`
 takes the key window's Escape first, and `sendEvent` is the one place ahead of it. **Only the margin
 around the card dismisses on a click** — a tap over the preview belongs to the preview's own transport,
@@ -224,7 +233,7 @@ not outlive the window.
 | --- | --- | --- |
 | Open File / Open Folder | ↵ | `NSWorkspace`'s asynchronous configuration API; hides the palette without restoring focus, and reports a failure through the dialog controller |
 | Show in Finder | ⌘↵ | reveals and dismisses |
-| Quick Look | ⌘Y | the in-panel overlay above |
+| Quick Look | ⌘Y | the in-panel overlay above; ⌘+ / ⌘− zoom an image or PDF in it |
 | Share… | — | `NSSharingServicePicker`, anchored to the palette's trailing edge so the row it was opened from stays visible beside it. Escape or a click elsewhere dismisses it, and the palette is never hidden, so the flow returns to the same row. There is no chord: the destinations are the system's, and it is the only place a system popover is right |
 | Copy File | ⇧⌘C | the file itself on the pasteboard through `PasteboardFiles.write`, which declares `.fileURL` and the path as `.string` |
 | Copy Name | ⌥⌘C | through `Paster`, palette stays open |

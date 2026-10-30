@@ -134,13 +134,19 @@ final class PalettePanel: NSPanel, KeyPressRoutingWindow {
 
     /// Clip view and field editor both claim a cursor, so the panel settles it after `super`.
     private func applyCursorPolicy(for event: NSEvent) {
-        guard Self.cursorEvents.contains(event.type) else { return }
+        guard Self.cursorEvents.contains(event.type),
+            !(contentView?.hitTest(event.locationInWindow).map(Self.ownsCursor) ?? false)
+        else { return }
         // Outset: the field editor AppKit installs is a point taller than the field it serves.
         let text = searchFieldRect.insetBy(dx: -Self.fieldEditorSlack, dy: -Self.fieldEditorSlack)
         let cursor: NSCursor =
             text.contains(convertPoint(fromScreen: NSEvent.mouseLocation)) ? .iBeam : .arrow
         guard NSCursor.current !== cursor else { return }
         cursor.set()
+    }
+
+    private static func ownsCursor(_ view: NSView) -> Bool {
+        sequence(first: view, next: { $0.superview }).contains { $0 is PaletteCursorOwning }
     }
 
     /// docs/features/palette.md: a 24pt editor in a 23pt field, so its I-beam overhangs.
@@ -247,3 +253,6 @@ final class PalettePanel: NSPanel, KeyPressRoutingWindow {
     // The parent stays main while a menu is key, so its Liquid Glass remains active.
     override var canBecomeMain: Bool { true }
 }
+
+/// A view that sets its own cursor, such as a pannable image; the panel's I-beam policy skips it.
+protocol PaletteCursorOwning: NSView {}

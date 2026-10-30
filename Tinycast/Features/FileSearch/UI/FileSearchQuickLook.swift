@@ -5,6 +5,7 @@ import Perception
 struct FileSearchQuickLook: View {
 
     @Environment(\.metrics) private var metrics
+    @Environment(PaletteState.self) private var palette
     let name: String
     let url: URL
     let onClose: () -> Void
@@ -51,7 +52,12 @@ struct FileSearchQuickLook: View {
     }
 
     private var surface: some View {
-        FileSearchSurface(url: url, autoplays: true)
+        FileSearchSurface(
+            url: url, autoplays: true,
+            zoom: QuickLookZoom(
+                token: palette.emojiGridZoomToken, zoomsIn: palette.emojiGridZoom != .zoomOut)
+        )
+        .id(url)
             .clipShape(RoundedRectangle(cornerRadius: surfaceRadius, style: .continuous))
     }
 }

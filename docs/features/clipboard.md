@@ -506,7 +506,8 @@ in File Search's in-panel card, `FileSearchQuickLook`, for the reasons in
 [file-search.md](file-search.md). The shared `PaletteState.quickLookOpen` flag carries its resets and
 Escape. Only opening checks that the content exists, reporting a vanished file or pruned image as
 Copy Text does; the card then follows the selection and closes on an entry without Quick Look.
-`ClipboardPreview` is not mounted while the card is open, so a video never plays twice.
+`ClipboardPreview` is not mounted while the card is open, so a video never plays twice. Images and
+PDFs zoom in the card (⌘-scroll, ⌘+ / ⌘−, drag to pan) as described in [file-search.md](file-search.md).
 
 ## Paste as Plain Text
 

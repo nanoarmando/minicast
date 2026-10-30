@@ -401,6 +401,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
         // Handled at the panel: the field editor or a missing main menu eats these first.
         panel.onCommandShortcut = { [weak self] event in
             guard let self else { return false }
+            // ⌘0 stays the tenth pin under the card; only ⌘+ / ⌘− step its zoom.
+            if self.core.palette.quickLookOpen, let zoom = Self.emojiGridZoom(from: event),
+                zoom != .actualSize
+            {
+                self.core.palette.noteEmojiGridZoom(zoom)
+                return true
+            }
             if self.core.palette.mode == .emoji, let zoom = Self.emojiGridZoom(from: event) {
                 self.core.palette.noteEmojiGridZoom(zoom)
                 return true

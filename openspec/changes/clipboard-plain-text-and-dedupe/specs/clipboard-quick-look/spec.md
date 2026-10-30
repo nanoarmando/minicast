@@ -39,6 +39,35 @@ selecting an entry that does not offer Quick Look SHALL close the card and stop 
 - **WHEN** a video is playing in the card and the palette is hidden
 - **THEN** playback stops and the card is closed the next time the palette opens
 
+### Requirement: Zoom in the Quick Look card
+The Quick Look card SHALL let the user zoom images and PDFs with a mouse or a trackpad: scrolling
+while holding ⌘ zooms in and out around the pointer, ⌘+ and ⌘− zoom in and out by steps, and a
+double-click on an image toggles between fitting the card and its actual size. A zoomed image or PDF
+SHALL scroll in every direction to reach any part of it, and a zoomed image SHALL also move by
+clicking and dragging it, with a hand cursor. Each entry SHALL open fitted to the card, and zoom
+SHALL NOT carry over when the selection changes. Videos and text are not zoomable.
+
+#### Scenario: Command-scroll an image
+- **WHEN** an image is open in the card and the user scrolls up while holding ⌘, with a mouse wheel
+  or two fingers on a trackpad
+- **THEN** the image grows around the pointer and can be scrolled to see its edges
+
+#### Scenario: Drag a zoomed image
+- **WHEN** an image is zoomed beyond the card and the user clicks and drags it
+- **THEN** the image follows the pointer, and the cursor is a hand while over it
+
+#### Scenario: Keyboard zoom
+- **WHEN** an image or PDF is open in the card and the user presses ⌘+ twice and then ⌘−
+- **THEN** the content zooms in two steps and back one step
+
+#### Scenario: Double-click an image
+- **WHEN** a fitted image is double-clicked
+- **THEN** it shows at actual size, and a second double-click fits it to the card again
+
+#### Scenario: Next entry starts fitted
+- **WHEN** the user zooms an image and presses ↓ onto another image entry
+- **THEN** the new image opens fitted to the card
+
 ### Requirement: Missing content is reported
 When the file or stored image behind the selected entry no longer exists, Quick Look SHALL NOT open
 and the system SHALL show a message saying the file or image is no longer available.

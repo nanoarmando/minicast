@@ -73,6 +73,20 @@ State lives in `PaletteState.fileSearchQuickLook`, reset on hide, screen change 
   file, folders included) drives both the ⌘K row and the ⌘Y chord, like `offersTextExtraction`.
   Existence is checked in the coordinator before opening; a missing file uses the existing
   `reportUnavailable` HUD and a missing image blob gets "That image is no longer available."
+- **Zoom by rendering images in process.** `QLPreviewView` offers no zoom inside a non-activating
+  panel, so the card (not the side pane) draws image files with a new `ZoomableImageSurface`: an
+  `NSImageView` in an `NSScrollView` with `allowsMagnification`, plus double-click to toggle fit and
+  1:1. PDFs already use `PDFView`; it gets the same steps through `zoomIn`/`zoomOut`. Being the shared
+  card, File Search's ⌘Y gains zoom too. A new view per URL resets zoom on every selection.
+- **⌘-scroll zooms, not pinch.** The palette never activates the app, and macOS does not deliver
+  magnify gestures to an inactive app, so pinch cannot be relied on. Both surfaces override
+  `scrollWheel` and, with ⌘ held, set the magnification around the pointer from the scroll delta;
+  without ⌘ they scroll as before. The built-in pinch handling stays for when it is delivered.
+- **Drag to pan images.** The image view tracks a click-drag to move the clip view's origin, with an
+  open/closed hand cursor while the image exceeds the card. PDFs keep drag for text selection.
+- **⌘+ / ⌘− reuse the emoji zoom chords.** `PaletteWindowController.emojiGridZoom` already decodes
+  them into `PaletteState`'s zoom token; while `quickLookOpen` is true the token is routed to the card
+  instead of the emoji grid. ⌘0 is not used for the card: on the clipboard screen it is the tenth pin.
 - **One player at a time.** While the card is open, the clipboard's side preview is not mounted, the
   same rule File Search follows, so a video never plays twice.
 

@@ -89,5 +89,5 @@ shifts one.
 Grid density is six through ten columns. `AppSettings.emojiGridColumns` is the default for a fresh
 picker; zoom, from Actions or its chords, writes only `PaletteState.emojiGridColumnsOverride`, so a temporary zoom
 does not silently change the preference. Actual Size (`⌘0`) clears that override; `⌘+` and `⌘-`
-remove or add one column. Removing the selected item from the leading Pinned section keeps the
+remove or add one column. While a Quick Look card is open, `⌘+` and `⌘-` zoom the card instead. Removing the selected item from the leading Pinned section keeps the
 selection on the neighbour that takes its place instead of following the item into the catalog.

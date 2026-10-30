@@ -43,7 +43,7 @@ final class PaletteState {
     private(set) var favoriteSlotToken = UUID()
     /// The last slot index from `noteFavoriteSlot`, consumed by the SwiftUI layer.
     private(set) var favoriteSlotIndex: Int?
-    /// Bumped for ⌘0 / ⌘+ / ⌘-, which the panel claims before the field editor can.
+    /// Bumped for ⌘0 / ⌘+ / ⌘- (emoji grid, or a Quick Look card), ahead of the field editor.
     private(set) var emojiGridZoomToken = UUID()
     /// The last zoom from `noteEmojiGridZoom`, consumed by the SwiftUI layer.
     private(set) var emojiGridZoom: EmojiGridZoom?

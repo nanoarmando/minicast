@@ -1,10 +1,13 @@
 import SwiftUI
 import Perception
+import UniformTypeIdentifiers
 
 /// The file, by whichever surface suits it. Shared by the preview pane and the ⌘Y overlay.
 struct FileSearchSurface: View {
     let url: URL
     var autoplays = false
+    /// Only the ⌘Y card zooms; the side pane keeps Quick Look's own rendering.
+    var zoom: QuickLookZoom?
     @State private var sniffed: Sniffed?
 
     /// The head of a file whose extension left its kind open, read once per selection.
@@ -26,8 +29,13 @@ struct FileSearchSurface: View {
     @ViewBuilder private var surface: some View {
         let sniffed = self.sniffed?.url == url ? self.sniffed : nil
         switch FileSearchPreviewKind(pathExtension: url.pathExtension) ?? sniffed?.kind {
-        case .quickLook: QuickLookSurface(url: url)
-        case .pdf: PDFSurface(url: url)
+        case .quickLook:
+            if let zoom, UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true {
+                ZoomableImageSurface(url: url, zoom: zoom)
+            } else {
+                QuickLookSurface(url: url)
+            }
+        case .pdf: PDFSurface(url: url, zoom: zoom)
         case .media: FileSearchMediaPlayer(url: url, autoplays: autoplays)
         case .text: PlainTextSurface(text: sniffed?.text ?? "")
         case nil: Color.clear

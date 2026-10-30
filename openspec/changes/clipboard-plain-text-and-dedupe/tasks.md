@@ -31,6 +31,11 @@
   (missing-content HUD), add the "Quick Look ⌘Y" menu row, overlay the card on the selected entry and
   unmount the side preview while it is open
 - [x] 4.4 Add a harness case for `offersQuickLook`
+- [x] 4.5 Add `ZoomableImageSurface` for image files in the card (pinch, scroll, double-click
+  fit/1:1, fitted per entry) and enable pinch on the card's `PDFView`
+- [x] 4.6 Route the ⌘+ / ⌘− zoom token to the open card (image or PDF) instead of the emoji grid
+- [x] 4.7 ⌘-scroll zoom around the pointer on the image surface and the card's `PDFView`; click-drag
+  panning with a hand cursor on zoomed images
 
 ## 5. Docs and checks
 

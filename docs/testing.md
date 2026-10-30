@@ -367,6 +367,9 @@ caches, TCC grants and login item, so this cannot disturb an installed copy.
   image entry's ⌘K menu has no plain row
 - Copy "pepito", then "x", then "pepito": one "pepito" row, above "x", showing the second source
   app; copying a pinned entry's text again adds no row and leaves the pin in place
+- In the ⌘Y card, ⌘-scroll (trackpad and mouse wheel) zooms an image and a PDF around the pointer,
+  ⌘+ / ⌘− step, a zoomed image pans by dragging with an open then closed hand, a double-click
+  toggles an image between fit and 1:1, ↓ to the next entry opens it fitted, and ⌘0 still pastes the tenth pin
 - ⌘Y on an image, a PDF and a video entry opens the in-panel card (PDF scrolls, video plays); ↑↓
   follow the selection, Esc closes the card only, ⌘Y on a text entry does nothing
 - ⇧⌘T on an image row and on an image-file row copies the recognized text, and the ⌘K menu carries
