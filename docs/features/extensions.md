@@ -26,6 +26,10 @@ produces, rendered natively into the palette. No Electron, no browser, no Node.j
 - **`ExtensionRuntime`'s `@unchecked Sendable` is load-bearing.** Every `JSContext` / `JSValue` touch
   happens on its private serial queue, and only plain `Sendable` values (`RenderValue`, `RenderTree`,
   JSON strings) cross in or out. Keep that boundary.
+- **JavaScriptCore runs without its JIT.** `TinycastApp.init()` sets `JSC_useJIT=false` and the app
+  has no `allow-jit` entitlement. Each run re-evaluates the runtime in a fresh context, and the JIT
+  threads leaked a 512 KB `SequesteredArenaAllocator` granule per compile (~1 GB after a week of
+  menu-bar refreshes). Re-enable the JIT only with a `vmmap` check proving that leak is gone.
 - **`Resources/RaycastRuntime.generated.js` is emitted by `Scripts/raycast-runtime/build.mjs`** and
   committed — never edit it by hand; change `Scripts/raycast-runtime/src/` and rebuild.
 - **`ExtensionScreen` is the only place extension row order is decided**, so the flat palette selection

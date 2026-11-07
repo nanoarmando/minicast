@@ -6,6 +6,11 @@ import SwiftUI
 struct TinycastApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    init() {
+        // JavaScriptCore's JIT threads leak 512 KB arenas on every extension run; see extensions.md.
+        setenv("JSC_useJIT", "false", 1)
+    }
+
     // Channel-aware: "Tinycast", "Tinycast Dev", or "Tinycast Beta".
     private let appName = Bundle.main.appDisplayName
 
